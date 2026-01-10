@@ -1,0 +1,118 @@
+/* ===== Mobile Responsive Styles ===== */
+
+/* Tables */
+@media (max-width: 768px) {
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .data-table {
+        min-width: 600px;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .data-table {
+        min-width: 500px;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: 0.8125rem;
+    }
+}
+
+/* Match Cards */
+@media (max-width: 768px) {
+    .match-card-header {
+        flex-direction: column;
+        gap: var(--spacing-md);
+        align-items: flex-start;
+    }
+
+    .attendance-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: var(--spacing-sm);
+    }
+
+    .attendance-item {
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    .attendance-name {
+        font-size: 0.8125rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .match-card-header {
+        padding: var(--spacing-md);
+    }
+
+    .match-card-body {
+        padding: var(--spacing-md);
+    }
+
+    .match-card-title {
+        font-size: 1rem;
+    }
+
+    .attendance-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    }
+}
+
+/* Badges */
+@media (max-width: 480px) {
+    .badge {
+        font-size: 0.6875rem;
+        padding: 2px var(--spacing-sm);
+    }
+}
+
+/* Recent Matches & Top Players */
+@media (max-width: 768px) {
+
+    .match-item,
+    .player-item {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .match-date,
+    .player-name {
+        font-size: 0.8125rem;
+    }
+
+    .match-opponent {
+        font-size: 0.9375rem;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .match-item,
+    .player-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+
+    .match-attendance,
+    .player-attendance-rate {
+        align-self: flex-end;
+    }
+
+    .player-rank {
+        width: 28px;
+        height: 28px;
+        font-size: 0.8125rem;
+    }
+}
