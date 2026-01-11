@@ -11,6 +11,7 @@ const syncStatus = ref('idle'); // idle, syncing, success, error
 const lastSyncTime = ref(null);
 
 let db = null;
+let auth = null;
 
 const firebaseConfig = {
     apiKey: "AIzaSyCb3uX6bNgt4kF5ZTYmABvhq_g5icip2no",
@@ -39,6 +40,7 @@ const initFirebase = async () => {
             firebase.initializeApp(firebaseConfig);
         }
         db = firebase.firestore();
+        auth = firebase.auth();
 
         firebase.auth().onAuthStateChanged((u) => {
             user.value = u;
@@ -81,8 +83,8 @@ const uploadData = async (data) => {
 
     syncStatus.value = 'syncing';
     try {
-        const userId = user.value.uid;
-        await db.collection('teams').doc(userId).set({
+        // Use a shared document for the team data
+        await db.collection('teams').doc('primary').set({
             members: data.members || [],
             matches: data.matches || [],
             transactions: data.transactions || [],
@@ -99,24 +101,42 @@ const uploadData = async (data) => {
 };
 
 const downloadData = async () => {
-    if (!isSignedIn.value || !db) {
-        console.warn('Cannot download: not signed in or DB not initialized');
+    // Allow download even if not signed in (for Guests)
+    if (!db) {
+        console.warn('Cannot download: DB not initialized');
         return null;
     }
 
     syncStatus.value = 'syncing';
     try {
-        const userId = user.value.uid;
-        const doc = await db.collection('teams').doc(userId).get();
+        // 1. Try reading from the shared document (Primary source)
+        console.log('Attempting to download from teams/primary...');
+        const primaryDoc = await db.collection('teams').doc('primary').get();
 
-        if (doc.exists) {
+        if (primaryDoc.exists) {
+            console.log('Found data in teams/primary');
             syncStatus.value = 'success';
             lastSyncTime.value = new Date();
-            return doc.data();
-        } else {
-            syncStatus.value = 'idle';
-            return null;
+            return primaryDoc.data();
         }
+
+        // 2. Fallback: If primary is empty AND user is signed in, try their private doc (Migration)
+        if (isSignedIn.value && user.value) {
+            console.log('teams/primary empty. Checking legacy user doc:', user.value.uid);
+            const userDoc = await db.collection('teams').doc(user.value.uid).get();
+
+            if (userDoc.exists) {
+                console.log('Found data in legacy user doc. Next upload will sync to primary.');
+                syncStatus.value = 'success';
+                lastSyncTime.value = new Date();
+                return userDoc.data();
+            }
+        }
+
+        console.log('No data found in Cloud');
+        syncStatus.value = 'idle';
+        return null; // No data found anywhere
+
     } catch (e) {
         console.error('Download error:', e);
         syncStatus.value = 'error';

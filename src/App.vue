@@ -151,7 +151,7 @@
                     <!-- Role Selection -->
                     <div v-else class="form-actions" style="flex-direction: column; gap: 1rem;">
                         <button class="btn btn-primary" style="width: 100%;" @click="selectingAdmin = true">Quản Trị Viên (Full)</button>
-                        <button class="btn btn-secondary" style="width: 100%;" @click="selectingGuest = true">Khách (Chỉ xem)</button>
+                        <button class="btn btn-secondary" style="width: 100%;" @click="handleGuestClick">Khách (Chỉ xem)</button>
                     </div>
                 </div>
             </div>
@@ -174,7 +174,7 @@ import { useAuth } from './composables/useAuth';
 
 const router = useRouter();
 const { loadData, members, matches, transactions, updateFromFirebase } = useAppState();
-const { initFirebase, signIn: firebaseSignIn, signOut: firebaseSignOut, uploadData, downloadData, syncStatus, isSignedIn } = useFirebase();
+const { initFirebase, signIn: firebaseSignIn, signOut: firebaseSignOut, uploadData, downloadData, syncStatus, isSignedIn, isConfigured } = useFirebase();
 const { currentRole, isAdmin, setRole, logout, permissions } = useAuth();
 
 const notification = reactive({ show: false, message: '', type: 'info' });
@@ -309,6 +309,47 @@ const showNotification = (msg, type = 'info') => {
     setTimeout(() => notification.show = false, 3000);
 };
 
+const handleGuestClick = async () => {
+    selectingGuest.value = true;
+    
+    // Always ensure we have local data loaded first (seed data if needed)
+    if (members.value.length === 0) {
+        loadData(); // This will load from localStorage or create seed data
+    }
+    
+    // Then try to update from cloud in the background
+    showNotification('🔄 Đang kiểm tra dữ liệu mới...', 'info');
+    
+    // Wait for Firebase to initialize (max 3 seconds)
+    let attempts = 0;
+    while (!isConfigured.value && attempts < 30) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+    }
+    
+    if (!isConfigured.value) {
+        console.warn('Firebase not initialized, using local data');
+        showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
+        return;
+    }
+    
+    try {
+        const data = await downloadData();
+        if (data && data.members && data.members.length > 0) {
+            updateFromFirebase(data);
+            showNotification('✅ Đã cập nhật dữ liệu mới nhất từ Cloud!', 'success');
+        } else {
+             // No cloud data, but we already have local data
+             console.log('No cloud data found, using local/seed data');
+             showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
+        }
+    } catch (e) {
+        console.error('Guest load error:', e);
+        // Don't show error, just use local data
+        showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
+    }
+};
+
 onMounted(() => {
     loadData();
     initFirebase();
@@ -325,6 +366,19 @@ watch(isSignedIn, async (newValue, oldValue) => {
             if (data) {
                 updateFromFirebase(data);
                 showNotification('✅ Đã tải dữ liệu từ Cloud thành công!', 'success');
+                
+                // Auto-upload to primary if we have data (ensures it's in the shared location)
+                // This helps migrate from legacy user-specific storage to shared storage
+                try {
+                    await uploadData({
+                        members: members.value,
+                        matches: matches.value,
+                        transactions: transactions.value
+                    });
+                    console.log('Data synced to teams/primary for guest access');
+                } catch (uploadError) {
+                    console.error('Auto-sync to primary failed:', uploadError);
+                }
             } else {
                 showNotification('ℹ️ Chưa có dữ liệu trên Cloud', 'info');
             }
