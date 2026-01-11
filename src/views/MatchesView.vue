@@ -24,9 +24,15 @@
                     </div>
                     <div>
                         <div class="match-card-date">{{ formatDate(match.date) }}</div>
+                        <div v-if="match.startTime" class="match-card-date" style="font-size: 0.875rem; color: var(--text-secondary);">
+                            🕐 {{ match.startTime }}
+                        </div>
                         <div style="text-align: right; margin-top: 4px;">
                             <span class="badge badge-success">{{ countAttendance(match, 'present') }} có mặt</span>
                             <span class="badge badge-danger">{{ countAttendance(match, 'absent') }} vắng</span>
+                            <span v-if="getTotalFines(match) > 0" class="badge badge-warning" style="background: var(--warning-500);">
+                                💰 {{ formatCurrency(getTotalFines(match)) }}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -35,7 +41,18 @@
                         <template v-for="att in match.attendance" :key="att.memberId">
                             <div class="attendance-item" v-if="getMemberName(att.memberId)">
                                 <div class="attendance-status" :class="att.status"></div>
-                                <div class="attendance-name">{{ getMemberName(att.memberId) }}</div>
+                                <div class="attendance-name">
+                                    {{ getMemberName(att.memberId) }}
+                                    <div v-if="att.status === 'present' && att.timestamp" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
+                                        {{ formatTimestamp(att.timestamp) }}
+                                        <span v-if="att.isLate !== undefined" :style="{ color: att.isLate ? 'var(--warning-500)' : 'var(--success-500)', fontWeight: '600' }">
+                                            {{ att.isLate ? `⏰ Muộn ${att.lateMinutes || 0} phút` : '✓ Đúng giờ' }}
+                                        </span>
+                                        <span v-if="att.lateFine > 0" style="color: var(--danger-500); font-weight: 600; margin-left: 4px;">
+                                            💰 {{ formatCurrency(att.lateFine) }}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </template>
                     </div>
@@ -73,6 +90,7 @@
                         </select>
                     </div>
                     <div class="form-group"><label>Ngày</label><input type="date" v-model="form.date"></div>
+                    <div class="form-group"><label>Giờ Bắt Đầu</label><input type="time" v-model="form.startTime" placeholder="HH:MM"></div>
                     <div class="form-group"><label>Đối Thủ</label><input type="text" v-model="form.opponent" placeholder="Tên đội đối thủ"></div>
                     <div class="form-group"><label>Địa Điểm</label><input type="text" v-model="form.location" placeholder="Sân vận động"></div>
                     <div class="form-group">
@@ -128,12 +146,13 @@ const showModal = ref(false);
 const showQRModal = ref(false);
 const currentQRCode = ref(null);
 const selectedMatch = ref(null);
-const form = reactive({ id: null, date: '', matchType: 'friendly', opponent: '', location: '', attendanceIds: [] });
+const form = reactive({ id: null, date: '', startTime: '', matchType: 'friendly', opponent: '', location: '', attendanceIds: [] });
 
 const openModal = (match = null) => {
     if (match) {
         form.id = match.id;
         form.date = match.date;
+        form.startTime = match.startTime || '';
         form.matchType = match.matchType || 'friendly';
         form.opponent = match.opponent;
         form.location = match.location;
@@ -141,6 +160,7 @@ const openModal = (match = null) => {
     } else {
         form.id = null;
         form.date = new Date().toISOString().split('T')[0];
+        form.startTime = '';
         form.matchType = 'friendly';
         form.opponent = '';
         form.location = '';
@@ -192,6 +212,30 @@ const getMatchTitle = (match) => {
 
 const getMatchTypeBadge = (type) => {
     return type === 'friendly' ? 'badge-info' : 'badge-warning';
+};
+
+const formatTimestamp = (timestamp) => {
+    if (!timestamp) return '';
+    const d = new Date(timestamp);
+    return d.toLocaleString('vi-VN', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit'
+    });
+};
+
+const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('vi-VN', { 
+        style: 'currency', 
+        currency: 'VND' 
+    }).format(amount);
+};
+
+const getTotalFines = (match) => {
+    return match.attendance.reduce((total, att) => {
+        return total + (att.lateFine || 0);
+    }, 0);
 };
 
 const countAttendance = (match, status) => match.attendance.filter(a => a.status === status).length;

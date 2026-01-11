@@ -165,7 +165,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import Sidebar from './components/Sidebar.vue';
 import { useAppState } from './composables/useAppState';
@@ -212,7 +212,7 @@ const toggleMobileMenu = () => {
     mobileMenuOpen.value = !mobileMenuOpen.value;
 };
 
-const confirmAdminLogin = () => {
+const confirmAdminLogin = async () => {
     adminLoginError.value = '';
     
     // Validate credentials
@@ -233,6 +233,35 @@ const confirmAdminLogin = () => {
     adminForm.password = '';
     adminLoginError.value = '';
     showNotification('✅ Đăng nhập Admin thành công!', 'success');
+    
+    // Auto-download data from Firebase (without requiring Google sign-in)
+    showNotification('🔄 Đang tải dữ liệu từ Cloud...', 'info');
+    
+    // Wait for Firebase to initialize (max 3 seconds)
+    let attempts = 0;
+    while (!isConfigured.value && attempts < 30) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+    }
+    
+    if (isConfigured.value) {
+        try {
+            const data = await downloadData();
+            if (data && data.members && data.members.length > 0) {
+                updateFromFirebase(data);
+                showNotification('✅ Đã tải dữ liệu mới nhất từ Cloud!', 'success');
+            } else {
+                console.log('No cloud data found, using local data');
+                showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
+            }
+        } catch (e) {
+            console.error('Admin auto-download error:', e);
+            showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
+        }
+    } else {
+        console.warn('Firebase not initialized, using local data');
+        showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
+    }
     
     // Navigate to dashboard
     router.push('/dashboard');
@@ -380,39 +409,8 @@ onMounted(() => {
     initFirebase();
 });
 
-// Watch for Firebase sign-in to auto-download data
-watch(isSignedIn, async (newValue, oldValue) => {
-    // Only auto-download when transitioning from not signed in to signed in
-    if (newValue && !oldValue && isAdmin.value) {
-        showNotification('🔄 Đang tải dữ liệu từ Cloud...', 'info');
-        
-        try {
-            const data = await downloadData();
-            if (data) {
-                updateFromFirebase(data);
-                showNotification('✅ Đã tải dữ liệu từ Cloud thành công!', 'success');
-                
-                // Auto-upload to primary if we have data (ensures it's in the shared location)
-                // This helps migrate from legacy user-specific storage to shared storage
-                try {
-                    await uploadData({
-                        members: members.value,
-                        matches: matches.value,
-                        transactions: transactions.value
-                    });
-                    console.log('Data synced to teams/primary for guest access');
-                } catch (uploadError) {
-                    console.error('Auto-sync to primary failed:', uploadError);
-                }
-            } else {
-                showNotification('ℹ️ Chưa có dữ liệu trên Cloud', 'info');
-            }
-        } catch (e) {
-            showNotification('⚠️ Không thể tải dữ liệu từ Cloud', 'warning');
-            console.error('Auto-download error:', e);
-        }
-    }
-});
+// Note: Data is now auto-downloaded when admin logs in (see confirmAdminLogin)
+// Google sign-in is only required for uploading data to Cloud
 
 // Upload data to Firebase
 const uploadToFirebase = async () => {

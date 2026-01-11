@@ -152,7 +152,42 @@ const onDetect = async (detectedCodes) => {
         }
         
         // Update attendance status to present
+        const attendanceTimestamp = new Date();
+        
+        // Calculate if late or on-time
+        let isLate = false;
+        let lateMinutes = 0;
+        let lateFine = 0;
+        
+        if (match.startTime) {
+            // Parse match start time
+            const [hours, minutes] = match.startTime.split(':').map(Number);
+            const matchStartDateTime = new Date(match.date);
+            matchStartDateTime.setHours(hours, minutes, 0, 0);
+            
+            // Check if attendance is after start time
+            isLate = attendanceTimestamp > matchStartDateTime;
+            
+            if (isLate) {
+                // Calculate minutes late
+                lateMinutes = Math.floor((attendanceTimestamp - matchStartDateTime) / (1000 * 60));
+                
+                // Calculate fine based on late minutes
+                if (lateMinutes < 10) {
+                    lateFine = 10000;
+                } else if (lateMinutes < 20) {
+                    lateFine = 20000;
+                } else {
+                    lateFine = 50000;
+                }
+            }
+        }
+        
         match.attendance[attendanceIndex].status = 'present';
+        match.attendance[attendanceIndex].timestamp = attendanceTimestamp.toISOString();
+        match.attendance[attendanceIndex].isLate = isLate;
+        match.attendance[attendanceIndex].lateMinutes = lateMinutes;
+        match.attendance[attendanceIndex].lateFine = lateFine;
         
         // Save match with updated attendance
         try {
@@ -160,19 +195,31 @@ const onDetect = async (detectedCodes) => {
             console.log('✅ Attendance updated:', {
                 matchId: match.id,
                 memberId: guestMemberId.value,
-                status: 'present'
+                status: 'present',
+                timestamp: attendanceTimestamp.toISOString(),
+                isLate,
+                lateMinutes,
+                lateFine
             });
             
             // Mark as scanned for this match (prevent duplicate scan)
             markScannedMatch(guestMemberId.value, qrData.matchId);
             
             const matchInfo = `${match.opponent || 'Trận đấu'} - ${new Date(match.date).toLocaleDateString('vi-VN')}`;
-            showResult(true, '✅ Điểm danh thành công!', matchInfo);
+            let lateInfo = isLate ? ` (Đi muộn ${lateMinutes} phút)` : ' (Đúng giờ)';
             
-            // Stop scanning after 2 seconds
+            // Add fine info if applicable
+            if (lateFine > 0) {
+                const fineFormatted = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(lateFine);
+                lateInfo += `\n💰 Phạt: ${fineFormatted}`;
+            }
+            
+            showResult(true, '✅ Điểm danh thành công!' + lateInfo, matchInfo);
+            
+            // Stop scanning after 3 seconds (longer to read fine info)
             setTimeout(() => {
                 stopScanning();
-            }, 2000);
+            }, 3000);
         } catch (error) {
             console.error('❌ Error saving attendance:', error);
             showResult(false, 'Lỗi khi lưu điểm danh. Vui lòng thử lại.');
