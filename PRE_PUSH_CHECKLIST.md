@@ -38,7 +38,7 @@ git status --porcelain
 # Đảm bảo .env KHÔNG xuất hiện trong danh sách
 
 # 3. Tìm kiếm API key trong code
-git grep "AIzaSyCb3uX6bNgt4kF5ZTYmABvhq_g5icip2no"
+git grep "YOUR_ACTUAL_API_KEY"
 # Kết quả: KHÔNG có (tốt)
 # Nếu có → Cần xóa hardcoded key
 

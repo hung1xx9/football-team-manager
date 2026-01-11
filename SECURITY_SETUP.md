@@ -16,13 +16,13 @@ Tạo file `.env` trong thư mục gốc của project với nội dung:
 
 ```env
 # Firebase Configuration
-VITE_FIREBASE_API_KEY=AIzaSyCb3uX6bNgt4kF5ZTYmABvhq_g5icip2no
-VITE_FIREBASE_AUTH_DOMAIN=football-team-manager-14a39.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=football-team-manager-14a39
-VITE_FIREBASE_STORAGE_BUCKET=football-team-manager-14a39.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=898490516886
-VITE_FIREBASE_APP_ID=1:898490516886:web:89ff40fb808556148e89b7
-VITE_FIREBASE_MEASUREMENT_ID=G-5P0NY1N9HY
+VITE_FIREBASE_API_KEY=your_api_key_here
+VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project-id.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 ```
 
 > ⚠️ **QUAN TRỌNG**: File `.env` đã được thêm vào `.gitignore` nên sẽ KHÔNG bị push lên GitHub!
