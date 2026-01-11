@@ -5,6 +5,7 @@ import { useFirebase } from './useFirebase';
 const members = ref([]);
 const matches = ref([]);
 const transactions = ref([]);
+const contributionTiers = ref([]);
 const isInitialized = ref(false);
 
 // Firebase integration
@@ -52,23 +53,57 @@ const loadData = () => {
     const savedMembers = localStorage.getItem('members');
     const savedMatches = localStorage.getItem('matches');
     const savedTransactions = localStorage.getItem('transactions');
+    const savedTiers = localStorage.getItem('contributionTiers');
 
     if (savedMembers) members.value = JSON.parse(savedMembers);
     if (savedMatches) matches.value = JSON.parse(savedMatches);
     if (savedTransactions) transactions.value = JSON.parse(savedTransactions);
+    if (savedTiers) contributionTiers.value = JSON.parse(savedTiers);
 
     // Seed data
     if (members.value.length === 0 && !localStorage.getItem('initialized')) {
         members.value = [
-            { id: 1, name: 'Nguyễn Văn A', fundPaid: 0, fines: 0 },
-            { id: 2, name: 'Trần Thị B', fundPaid: 0, fines: 0 },
-            { id: 3, name: 'Lê Văn C', fundPaid: 0, fines: 0 },
-            { id: 4, name: 'Phạm Thị D', fundPaid: 0, fines: 0 },
-            { id: 5, name: 'Hoàng Văn E', fundPaid: 0, fines: 0 }
+            { id: 1, name: 'Nguyễn Văn A', fundPaid: 0, fines: 0, contributionTierId: null },
+            { id: 2, name: 'Trần Thị B', fundPaid: 0, fines: 0, contributionTierId: null },
+            { id: 3, name: 'Lê Văn C', fundPaid: 0, fines: 0, contributionTierId: null },
+            { id: 4, name: 'Phạm Thị D', fundPaid: 0, fines: 0, contributionTierId: null },
+            { id: 5, name: 'Hoàng Văn E', fundPaid: 0, fines: 0, contributionTierId: null }
         ];
         saveData();
         localStorage.setItem('initialized', 'true');
     }
+
+    // Seed contribution tiers
+    if (contributionTiers.value.length === 0) {
+        contributionTiers.value = [
+            {
+                id: 1,
+                name: 'Học Sinh',
+                monthlyFee: 30000,
+                icon: '🎓',
+                color: '#3b82f6',
+                isDefault: true
+            },
+            {
+                id: 2,
+                name: 'Sinh Viên',
+                monthlyFee: 50000,
+                icon: '📚',
+                color: '#10b981',
+                isDefault: true
+            },
+            {
+                id: 3,
+                name: 'Đi Làm',
+                monthlyFee: 100000,
+                icon: '💼',
+                color: '#f59e0b',
+                isDefault: true
+            }
+        ];
+        saveData();
+    }
+
     isInitialized.value = true;
 };
 
@@ -76,13 +111,15 @@ const saveData = () => {
     localStorage.setItem('members', JSON.stringify(members.value));
     localStorage.setItem('matches', JSON.stringify(matches.value));
     localStorage.setItem('transactions', JSON.stringify(transactions.value));
+    localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
 
     // Auto-upload to Firebase if signed in
     if (isSignedIn && isSignedIn.value && uploadData) {
         uploadData({
             members: members.value,
             matches: matches.value,
-            transactions: transactions.value
+            transactions: transactions.value,
+            contributionTiers: contributionTiers.value
         }).catch(() => {
             // Silently fail - data is still saved locally
             console.log('Auto-upload to Firebase skipped');
@@ -94,10 +131,12 @@ const updateFromFirebase = (data) => {
     if (data.members) members.value = data.members;
     if (data.matches) matches.value = data.matches;
     if (data.transactions) transactions.value = data.transactions;
+    if (data.contributionTiers) contributionTiers.value = data.contributionTiers;
     // Save to localStorage
     localStorage.setItem('members', JSON.stringify(members.value));
     localStorage.setItem('matches', JSON.stringify(matches.value));
     localStorage.setItem('transactions', JSON.stringify(transactions.value));
+    localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
 };
 
 // CRUD
@@ -183,12 +222,40 @@ const getMemberStats = (memberId) => {
     return { attendanceRate: Math.round((attended / total) * 100) };
 };
 
+// Contribution Tiers CRUD
+const addContributionTier = (tierData) => {
+    contributionTiers.value.push({
+        id: Date.now(),
+        ...tierData,
+        isDefault: false
+    });
+    saveData();
+};
+
+const updateContributionTier = (id, updates) => {
+    const tier = contributionTiers.value.find(t => t.id === id);
+    if (tier) {
+        Object.assign(tier, updates);
+        saveData();
+    }
+};
+
+const deleteContributionTier = (id) => {
+    contributionTiers.value = contributionTiers.value.filter(t => t.id !== id);
+    saveData();
+};
+
+const getContributionTier = (id) => {
+    return contributionTiers.value.find(t => t.id === id);
+};
+
 export const useAppState = () => {
     return {
         // State
         members,
         matches,
         transactions,
+        contributionTiers,
         stats,
         sortedMatches,
         futureMatches,
@@ -203,9 +270,13 @@ export const useAppState = () => {
         deleteMatch,
         addTransaction,
         deleteTransaction,
+        addContributionTier,
+        updateContributionTier,
+        deleteContributionTier,
 
         // Helpers
         getMemberName,
-        getMemberStats
+        getMemberStats,
+        getContributionTier
     };
 };

@@ -9,9 +9,11 @@ const isSignedIn = ref(false);
 const user = ref(null);
 const syncStatus = ref('idle'); // idle, syncing, success, error
 const lastSyncTime = ref(null);
+const hasNewUpdate = ref(false); // Flag for new realtime updates
 
 let db = null;
 let auth = null;
+let realtimeUnsubscribe = null; // Store the unsubscribe function
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -144,6 +146,66 @@ const downloadData = async () => {
     }
 };
 
+/**
+ * Setup realtime listener for Firebase data changes
+ * @param {Function} onUpdate - Callback function when data changes
+ * @returns {Function} Unsubscribe function
+ */
+const setupRealtimeListener = (onUpdate) => {
+    if (!db) {
+        console.warn('Cannot setup listener: DB not initialized');
+        return null;
+    }
+
+    // Stop existing listener if any
+    if (realtimeUnsubscribe) {
+        console.log('Stopping existing realtime listener');
+        realtimeUnsubscribe();
+        realtimeUnsubscribe = null;
+    }
+
+    console.log('🔴 Setting up realtime listener for teams/primary');
+
+    // Listen to the shared document
+    realtimeUnsubscribe = db.collection('teams').doc('primary')
+        .onSnapshot((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                console.log('🔔 Realtime update received from Firebase');
+
+                hasNewUpdate.value = true;
+                lastSyncTime.value = new Date();
+
+                // Call the callback with the new data
+                if (onUpdate && typeof onUpdate === 'function') {
+                    onUpdate(data);
+                }
+
+                // Reset the flag after 3 seconds
+                setTimeout(() => {
+                    hasNewUpdate.value = false;
+                }, 3000);
+            }
+        }, (error) => {
+            console.error('Realtime listener error:', error);
+            syncStatus.value = 'error';
+        });
+
+    return realtimeUnsubscribe;
+};
+
+/**
+ * Stop the realtime listener
+ */
+const stopRealtimeListener = () => {
+    if (realtimeUnsubscribe) {
+        console.log('🔴 Stopping realtime listener');
+        realtimeUnsubscribe();
+        realtimeUnsubscribe = null;
+        hasNewUpdate.value = false;
+    }
+};
+
 export const useFirebase = () => {
     return {
         isConfigured: readonly(isConfigured),
@@ -151,10 +213,13 @@ export const useFirebase = () => {
         user: readonly(user),
         syncStatus,
         lastSyncTime: readonly(lastSyncTime),
+        hasNewUpdate: readonly(hasNewUpdate),
         initFirebase,
         signIn,
         signOut,
         uploadData,
-        downloadData
+        downloadData,
+        setupRealtimeListener,
+        stopRealtimeListener
     };
 };

@@ -30,9 +30,9 @@
                         <div style="text-align: right; margin-top: 4px;">
                             <span class="badge badge-success">{{ countAttendance(match, 'present') }} có mặt</span>
                             <span class="badge badge-danger">{{ countAttendance(match, 'absent') }} vắng</span>
-                            <span v-if="getTotalFines(match) > 0" class="badge badge-warning" style="background: var(--warning-500);">
+                            <!-- <span v-if="getTotalFines(match) > 0" class="badge badge-warning" style="background: var(--warning-500);">
                                 💰 {{ formatCurrency(getTotalFines(match)) }}
-                            </span>
+                            </span> -->
                         </div>
                     </div>
                 </div>

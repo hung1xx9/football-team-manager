@@ -8,14 +8,14 @@
                 <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 2rem;">
                     <div class="stat-card stat-info">
                         <div class="stat-content">
-                            <div class="stat-label">Quỹ Đã Đóng</div>
-                            <div class="stat-value">{{ formatCurrency(myStats.fundPaid) }}</div>
+                            <div class="stat-label">Quỹ Còn Phải Đóng</div>
+                            <div class="stat-value">{{ formatCurrency(remainingFund) }}</div>
                         </div>
                     </div>
                     <div class="stat-card stat-warning">
                         <div class="stat-content">
-                            <div class="stat-label">Phạt Đã Đóng</div>
-                            <div class="stat-value">{{ formatCurrency(myStats.fines) }}</div>
+                            <div class="stat-label">Phạt Còn Phải Đóng</div>
+                            <div class="stat-value">{{ formatCurrency(remainingFines) }}</div>
                         </div>
                     </div>
                 </div>
@@ -125,6 +125,56 @@ const myPayments = computed(() => {
         .filter(t => t.memberId === guestMemberId.value && (t.category === 'fund' || t.category === 'fine'))
         .sort((a, b) => new Date(b.date) - new Date(a.date));
 });
+
+// Calculate remaining fund to pay
+const remainingFund = computed(() => {
+    if (!guestMemberId.value) return 0;
+    const member = members.value.find(m => m.id === guestMemberId.value);
+    if (!member || !member.contributionTierId) return 0;
+    
+    // Get the contribution tier
+    const { contributionTiers } = useAppState();
+    const tier = contributionTiers.value.find(t => t.id === member.contributionTierId);
+    if (!tier) return 0;
+    
+    // Calculate months since joining (assuming member has a joinDate, or use current date)
+    // For now, let's calculate from the beginning of the year or a fixed start date
+    const startDate = new Date('2026-01-01'); // You can adjust this or add a joinDate field to members
+    const currentDate = new Date();
+    const monthsDiff = Math.max(1, Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 30)));
+    
+    const totalRequired = tier.monthlyFee * monthsDiff;
+    const totalPaid = member.fundPaid || 0;
+    
+    return Math.max(0, totalRequired - totalPaid);
+});
+
+// Calculate remaining fines to pay
+const remainingFines = computed(() => {
+    if (!guestMemberId.value) return 0;
+    const member = members.value.find(m => m.id === guestMemberId.value);
+    if (!member) return 0;
+    
+    // Calculate total fines from attendance records
+    const { matches } = useAppState();
+    let totalFinesRequired = 0;
+    
+    matches.value.forEach(match => {
+        if (match.attendance && match.attendance[guestMemberId.value]) {
+            const att = match.attendance[guestMemberId.value];
+            // Assuming ABSENT = 50k fine, LATE = 20k fine (adjust as needed)
+            if (att.status === 'ABSENT') {
+                totalFinesRequired += 50000;
+            } else if (att.isLate) {
+                totalFinesRequired += 20000;
+            }
+        }
+    });
+    
+    const totalPaid = member.fines || 0;
+    return Math.max(0, totalFinesRequired - totalPaid);
+});
+
 
 const openPaymentModal = (type) => {
     paymentType.value = type;

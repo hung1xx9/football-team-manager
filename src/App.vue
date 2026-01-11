@@ -21,9 +21,13 @@
                 <h1 class="page-title">{{ $route.name }}</h1>
                 <div class="top-bar-actions">
                     <div class="sync-controls" v-if="isAdmin">
-                        <div class="sync-status">
-                            <svg class="sync-icon" :class="{ spinning: syncStatus === 'syncing' }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <template v-if="syncStatus === 'syncing'">
+                        <div class="sync-status" :class="{ 'has-update': hasNewUpdate }">
+                            <svg class="sync-icon" :class="{ spinning: syncStatus === 'syncing', pulse: hasNewUpdate }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <template v-if="hasNewUpdate">
+                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                </template>
+                                <template v-else-if="syncStatus === 'syncing'">
                                     <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
                                 </template>
                                 <template v-else-if="syncStatus === 'success'">
@@ -165,7 +169,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import Sidebar from './components/Sidebar.vue';
 import { useAppState } from './composables/useAppState';
@@ -174,7 +178,7 @@ import { useAuth } from './composables/useAuth';
 
 const router = useRouter();
 const { loadData, members, matches, transactions, updateFromFirebase } = useAppState();
-const { initFirebase, signIn: firebaseSignIn, signOut: firebaseSignOut, uploadData, downloadData, syncStatus, isSignedIn, isConfigured } = useFirebase();
+const { initFirebase, signIn: firebaseSignIn, signOut: firebaseSignOut, uploadData, downloadData, syncStatus, isSignedIn, isConfigured, hasNewUpdate, setupRealtimeListener, stopRealtimeListener } = useFirebase();
 const { currentRole, isAdmin, setRole, logout, permissions } = useAuth();
 
 const notification = reactive({ show: false, message: '', type: 'info' });
@@ -191,6 +195,7 @@ const adminForm = reactive({
 const adminLoginError = ref('');
 
 const syncStatusText = computed(() => {
+    if (hasNewUpdate.value) return 'Cập nhật mới!';
     if (!isSignedIn.value) return 'Chưa kết nối';
     if (syncStatus.value === 'syncing') return 'Đang đồng bộ...';
     if (syncStatus.value === 'success') return 'Đã đồng bộ';
@@ -254,6 +259,14 @@ const confirmAdminLogin = async () => {
                 console.log('No cloud data found, using local data');
                 showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
             }
+            
+            // Setup realtime listener for live updates
+            setupRealtimeListener((newData) => {
+                console.log('🔔 Admin received realtime update');
+                updateFromFirebase(newData);
+                showNotification('🔔 Dữ liệu đã được cập nhật!', 'info');
+            });
+            
         } catch (e) {
             console.error('Admin auto-download error:', e);
             showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
@@ -344,6 +357,9 @@ const confirmGuestLogin = async () => {
 };
 
 const handleLogout = () => {
+    // Stop realtime listener
+    stopRealtimeListener();
+    
     logout();
     mobileMenuOpen.value = false;
     selectingAdmin.value = false;
@@ -407,6 +423,11 @@ const handleGuestClick = async () => {
 onMounted(() => {
     loadData();
     initFirebase();
+});
+
+onBeforeUnmount(() => {
+    // Cleanup realtime listener when component is destroyed
+    stopRealtimeListener();
 });
 
 // Note: Data is now auto-downloaded when admin logs in (see confirmAdminLogin)
@@ -497,5 +518,37 @@ const downloadFromFirebase = async () => {
 
 .member-search-item svg {
     color: var(--text-secondary);
+}
+
+/* Realtime Update Animations */
+.sync-icon.pulse {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
+}
+
+.sync-status.has-update {
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 1rem;
+}
+
+.sync-status.has-update .sync-icon {
+    color: var(--success-500);
+}
+
+.sync-status.has-update span {
+    color: var(--success-500);
+    font-weight: 600;
 }
 </style>
