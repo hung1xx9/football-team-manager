@@ -221,7 +221,7 @@ const confirmAdminLogin = () => {
         return;
     }
     
-    if (adminForm.password !== '12345678@Abc') {
+    if (adminForm.password !== 'khongngungbocuoc') {
         adminLoginError.value = 'Mật khẩu không đúng';
         return;
     }
