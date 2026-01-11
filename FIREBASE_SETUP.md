@@ -33,13 +33,13 @@
 
 ```javascript
 const firebaseConfig = {
-  apiKey: "AIzaSyCb3uX6bNgt4kF5ZTYmABvhq_g5icip2no",
-  authDomain: "football-team-manager-14a39.firebaseapp.com",
-  projectId: "football-team-manager-14a39",
-  storageBucket: "football-team-manager-14a39.firebasestorage.app",
-  messagingSenderId: "898490516886",
-  appId: "1:898490516886:web:89ff40fb808556148e89b7",
-  measurementId: "G-5P0NY1N9HY"
+  apiKey: "AIzaSy...",
+  authDomain: "your-project-id.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project-id.firebasestorage.app",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abc123",
+  measurementId: "G-XXXXXXXXX"
 };
 ```
 
@@ -64,29 +64,29 @@ const firebaseConfig = {
 5. Chọn location gần bạn nhất (ví dụ: **asia-southeast1**)
 6. Click **"Enable"**
 
-### Bước 5: Cập Nhật Code
+### Bước 5: Cấu Hình Environment Variables
 
-Mở file `firebase-sync.js`, dòng 7-14:
+⚠️ **QUAN TRỌNG:** Để bảo mật, chúng ta sử dụng Environment Variables thay vì hardcode API keys.
 
-```javascript
-// TRƯỚC
-this.firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    // ...
-};
+1. Copy file `.env.example` thành `.env`:
+   ```bash
+   cp .env.example .env
+   ```
 
-// SAU (paste config từ bước 2)
-this.firebaseConfig = {
-    apiKey: "AIzaSyABC123...",
-    authDomain: "your-project.firebaseapp.com",
-    projectId: "your-project-id",
-    storageBucket: "your-project.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abc123"
-};
-```
+2. Mở file `.env` và điền thông tin từ `firebaseConfig` (Bước 2):
+   ```env
+   VITE_FIREBASE_API_KEY=AIzaSy... (từ apiKey)
+   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=your-project-id
+   VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+   VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+   VITE_FIREBASE_APP_ID=1:123456789:web:abc123
+   VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXX
+   ```
+
+3. **KHÔNG** commit file `.env` lên GitHub! (Đã được gitignore)
+
+📖 **Chi tiết:** Xem [SECURITY_SETUP.md](SECURITY_SETUP.md) để hiểu rõ hơn về bảo mật.
 
 ### Bước 6: Kiểm Tra & Chạy Ứng Dụng
 

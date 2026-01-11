@@ -5,15 +5,19 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 import readline from 'readline';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCb3uX6bNgt4kF5ZTYmABvhq_g5icip2no",
-    authDomain: "football-team-manager-14a39.firebaseapp.com",
-    projectId: "football-team-manager-14a39",
-    storageBucket: "football-team-manager-14a39.firebasestorage.app",
-    messagingSenderId: "898490516886",
-    appId: "1:898490516886:web:89ff40fb808556148e89b7",
-    measurementId: "G-5P0NY1N9HY"
+    apiKey: process.env.VITE_FIREBASE_API_KEY,
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.VITE_FIREBASE_APP_ID,
+    measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Sample data to upload

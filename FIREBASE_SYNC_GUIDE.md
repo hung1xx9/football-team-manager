@@ -37,7 +37,7 @@ Nếu muốn upload ngay lập tức:
 2. Chạy:
 ```javascript
 // Kiểm tra xem đã đăng nhập Firebase chưa
-console.log('Firebase signed in:', localStorage.getItem('firebase:authUser:AIzaSyCb3uX6bNgt4kF5ZTYmABvhq_g5icip2no:[DEFAULT]') !== null);
+console.log('Firebase signed in:', localStorage.getItem('firebase:authUser:YOUR_API_KEY:[DEFAULT]') !== null);
 
 // Nếu đã đăng nhập, dữ liệu sẽ tự động upload khi bạn tạo/sửa trận
 ```
