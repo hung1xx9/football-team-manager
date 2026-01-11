@@ -116,20 +116,31 @@ const deleteMember = (id) => {
 };
 
 const saveMatch = (matchData) => {
-    const attendance = members.value.map(m => ({
+    // If matchData already has attendance (from QR scan), use it
+    // Otherwise, generate from attendanceIds (from form)
+    const attendance = matchData.attendance || members.value.map(m => ({
         memberId: m.id,
-        status: matchData.attendanceIds.includes(m.id) ? 'present' : 'absent'
+        status: matchData.attendanceIds?.includes(m.id) ? 'present' : 'absent'
     }));
 
     if (matchData.id) {
+        // Update existing match
         const idx = matches.value.findIndex(m => m.id === matchData.id);
         if (idx !== -1) {
-            matches.value[idx] = { ...matches.value[idx], ...matchData, attendance };
+            const originalId = matches.value[idx].id; // Preserve original ID
+            matches.value[idx] = {
+                ...matches.value[idx],
+                ...matchData,
+                id: originalId, // Ensure ID is not overwritten
+                attendance // Use the attendance from above
+            };
         }
     } else {
+        // Create new match
+        const { id, ...dataWithoutId } = matchData; // Remove null id from matchData
         matches.value.push({
-            id: Date.now(),
-            ...matchData,
+            id: Date.now(), // Generate new ID
+            ...dataWithoutId, // Spread without id field
             attendance
         });
     }

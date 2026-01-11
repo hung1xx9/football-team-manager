@@ -32,13 +32,39 @@ export const generateQRCode = async (matchId, matchDate) => {
 
 // Parse QR Code data
 export const parseQRData = (qrString) => {
+    console.log('🔍 parseQRData - Raw input:', qrString);
+
     try {
         const data = JSON.parse(qrString);
-        if (data.type === 'attendance' && data.matchId && data.matchDate) {
+        console.log('✅ parseQRData - Parsed JSON:', data);
+
+        const isValid = data.type === 'attendance' && data.matchId && data.matchDate;
+        console.log('🎯 parseQRData - Validation:', {
+            hasType: !!data.type,
+            typeValue: data.type,
+            typeMatch: data.type === 'attendance',
+            hasMatchId: !!data.matchId,
+            matchIdValue: data.matchId,
+            hasMatchDate: !!data.matchDate,
+            matchDateValue: data.matchDate,
+            isValid
+        });
+
+        if (isValid) {
             return data;
         }
+
+        // Show alert on mobile for debugging
+        const debugInfo = `QR Data:\n${JSON.stringify(data, null, 2)}\n\nValidation:\ntype: ${data.type}\nmatchId: ${data.matchId}\nmatchDate: ${data.matchDate}`;
+        alert('⚠️ QR Structure Invalid\n\n' + debugInfo);
+
+        console.warn('⚠️ parseQRData - Invalid QR data structure');
         return null;
     } catch (error) {
+        // Show alert on mobile for debugging
+        alert('❌ QR Parse Error\n\nRaw: ' + qrString.substring(0, 100) + '...\n\nError: ' + error.message);
+
+        console.error('❌ parseQRData - JSON parse error:', error.message);
         return null;
     }
 };

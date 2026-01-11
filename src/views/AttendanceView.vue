@@ -115,6 +115,12 @@ const onDetect = async (detectedCodes) => {
     if (detectedCodes && detectedCodes.length > 0) {
         const qrData = parseQRData(detectedCodes[0].rawValue);
         
+        console.log('🔍 QR Scan Debug:', {
+            guestMemberId: guestMemberId.value,
+            guestMemberIdType: typeof guestMemberId.value,
+            qrData
+        });
+        
         if (!qrData) {
             showResult(false, 'Mã QR không hợp lệ');
             return;
@@ -128,8 +134,19 @@ const onDetect = async (detectedCodes) => {
             return;
         }
         
+        console.log('📋 Attendance List:', match.attendance.map(a => ({
+            memberId: a.memberId,
+            memberIdType: typeof a.memberId,
+            status: a.status
+        })));
+        
         // Check if member exists in attendance list
         const attendanceIndex = match.attendance.findIndex(a => a.memberId === guestMemberId.value);
+        
+        console.log('🎯 Match Result:', {
+            attendanceIndex,
+            found: attendanceIndex !== -1
+        });
         
         if (attendanceIndex === -1) {
             showResult(false, 'Bạn không có trong danh sách trận này');

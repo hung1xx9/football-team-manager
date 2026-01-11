@@ -266,7 +266,7 @@ const cancelGuestSelection = () => {
     showMemberList.value = false;
 };
 
-const confirmGuestLogin = () => {
+const confirmGuestLogin = async () => {
     if (!selectedMemberId.value) {
         showNotification('Vui lòng chọn thành viên', 'error');
         return;
@@ -274,13 +274,38 @@ const confirmGuestLogin = () => {
     
     const member = members.value.find(m => m.id === selectedMemberId.value);
     
-    setRole('guest', selectedMemberId.value);
+    // Convert to number to match the type used in attendance records
+    const memberIdAsNumber = typeof selectedMemberId.value === 'string' 
+        ? parseInt(selectedMemberId.value) 
+        : selectedMemberId.value;
+    
+    console.log('👤 Guest Login:', {
+        selectedMemberId: selectedMemberId.value,
+        selectedMemberIdType: typeof selectedMemberId.value,
+        memberIdAsNumber,
+        memberIdAsNumberType: typeof memberIdAsNumber,
+        memberName: member ? member.name : 'Unknown'
+    });
+    
+    setRole('guest', memberIdAsNumber);
     selectingGuest.value = false;
     memberSearch.value = '';
     showMemberList.value = false;
     
     const memberName = member ? member.name : 'Khách';
     showNotification(`Xin chào ${memberName}!`, 'success');
+    
+    // Sign in anonymously to Firebase for write access
+    try {
+        if (isConfigured.value) {
+            const firebase = (await import('firebase/compat/app')).default;
+            await firebase.auth().signInAnonymously();
+            console.log('✅ Guest signed in anonymously to Firebase');
+        }
+    } catch (e) {
+        console.warn('Anonymous sign-in failed:', e);
+        // Continue anyway - guest can still use app with local data
+    }
     
     // Reset for next time
     selectedMemberId.value = '';
