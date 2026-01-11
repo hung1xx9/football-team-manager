@@ -5,17 +5,8 @@
                 <h2>Điểm Danh QR Code</h2>
             </div>
             <div class="card-content">
-                <!-- Scan Status -->
-                <div v-if="!canScan" class="scan-locked">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; margin: 0 auto 1rem; color: var(--warning-500);">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                    </svg>
-                    <h3>Đã điểm danh trận này</h3>
-                </div>
-
                 <!-- QR Scanner -->
-                <div v-else class="qr-scanner-container">
+                <div class="qr-scanner-container">
                     <div v-if="!isScanning" class="scan-prompt">
                         <!-- <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 80px; height: 80px; margin: 0 auto 1rem; color: var(--primary-400);">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -70,7 +61,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { QrcodeStream } from 'vue-qrcode-reader';
-import { useQRAttendance, parseQRData, canScanToday, markScannedToday, getNextScanTime } from '../composables/useQRAttendance';
+import { useQRAttendance, parseQRData, canScanMatch, markScannedMatch, getScannedMatchInfo } from '../composables/useQRAttendance';
 import { useAppState } from '../composables/useAppState';
 import { useAuth } from '../composables/useAuth';
 
@@ -79,27 +70,20 @@ const { guestMemberId } = useAuth();
 
 const isScanning = ref(false);
 const canScan = ref(true);
-const nextScanTime = ref('');
+const currentMatchId = ref(null);
 const scanResult = ref(null);
 
 onMounted(() => {
-    checkScanPermission();
+    // Không check permission khi mount nữa
+    // Sẽ check khi quét QR (vì cần matchId từ QR)
 });
 
-const checkScanPermission = () => {
-    if (!guestMemberId.value) {
-        canScan.value = false;
-        return;
+const checkScanPermissionForMatch = (matchId) => {
+    if (!guestMemberId.value || !matchId) {
+        return false;
     }
     
-    canScan.value = canScanToday(guestMemberId.value);
-    
-    if (!canScan.value) {
-        const nextTime = getNextScanTime(guestMemberId.value);
-        if (nextTime) {
-            nextScanTime.value = nextTime.toLocaleString('vi-VN');
-        }
-    }
+    return canScanMatch(guestMemberId.value, matchId);
 };
 
 const startScanning = () => {
@@ -153,7 +137,15 @@ const onDetect = async (detectedCodes) => {
             return;
         }
         
-        // Check if already marked as present
+        // Check if already scanned this match (using new logic)
+        if (!checkScanPermissionForMatch(qrData.matchId)) {
+            const scanInfo = getScannedMatchInfo(guestMemberId.value, qrData.matchId);
+            const timeStr = scanInfo ? ` lúc ${scanInfo.formattedTime}` : '';
+            showResult(false, `Bạn đã điểm danh trận này rồi${timeStr}`);
+            return;
+        }
+        
+        // Check if already marked as present in match data
         if (match.attendance[attendanceIndex].status === 'present') {
             showResult(false, 'Bạn đã điểm danh trận này rồi');
             return;
@@ -172,14 +164,13 @@ const onDetect = async (detectedCodes) => {
             });
             
             // Mark as scanned for this match (prevent duplicate scan)
-            markScannedToday(guestMemberId.value);
+            markScannedMatch(guestMemberId.value, qrData.matchId);
             
             const matchInfo = `${match.opponent || 'Trận đấu'} - ${new Date(match.date).toLocaleDateString('vi-VN')}`;
             showResult(true, '✅ Điểm danh thành công!', matchInfo);
             
-            // Update scan permission after 2 seconds
+            // Stop scanning after 2 seconds
             setTimeout(() => {
-                checkScanPermission();
                 stopScanning();
             }, 2000);
         } catch (error) {

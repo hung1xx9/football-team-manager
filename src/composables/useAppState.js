@@ -147,6 +147,11 @@ const saveMatch = (matchData) => {
     saveData();
 };
 const deleteMatch = (id) => {
+    // Clean up scan records for this match
+    const { cleanupDeletedMatch } = require('./useQRAttendance');
+    const cleanedCount = cleanupDeletedMatch(id);
+    console.log(`🗑️ Deleted match ${id}, cleaned up ${cleanedCount} scan records`);
+
     matches.value = matches.value.filter(m => m.id !== id);
     saveData();
 };

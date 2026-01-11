@@ -69,8 +69,62 @@ export const parseQRData = (qrString) => {
     }
 };
 
-// Check if user can scan (not scanned today)
+// Check if user can scan this match (not scanned this match yet)
+export const canScanMatch = (memberId, matchId) => {
+    const scanKey = `scan_${memberId}_${matchId}`;
+    const hasScanned = localStorage.getItem(scanKey);
+
+    console.log('🔍 canScanMatch:', { memberId, matchId, hasScanned: !!hasScanned });
+
+    return !hasScanned; // true nếu chưa quét trận này
+};
+
+// Mark as scanned for this match
+export const markScannedMatch = (memberId, matchId) => {
+    const scanKey = `scan_${memberId}_${matchId}`;
+    localStorage.setItem(scanKey, Date.now().toString());
+
+    console.log('✅ markScannedMatch:', { memberId, matchId, key: scanKey });
+};
+
+// Get match info if already scanned
+export const getScannedMatchInfo = (memberId, matchId) => {
+    const scanKey = `scan_${memberId}_${matchId}`;
+    const timestamp = localStorage.getItem(scanKey);
+
+    if (!timestamp) return null;
+
+    const scannedAt = new Date(parseInt(timestamp));
+    return {
+        scannedAt,
+        formattedTime: scannedAt.toLocaleString('vi-VN')
+    };
+};
+
+// Clean up scans for deleted matches (call this when deleting a match)
+export const cleanupDeletedMatch = (matchId) => {
+    const keysToDelete = [];
+
+    // Find all scan keys for this match
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('scan_') && key.endsWith(`_${matchId}`)) {
+            keysToDelete.push(key);
+        }
+    }
+
+    // Delete them
+    keysToDelete.forEach(key => {
+        localStorage.removeItem(key);
+        console.log('🗑️ Cleaned up scan:', key);
+    });
+
+    return keysToDelete.length;
+};
+
+// Legacy functions for backward compatibility (deprecated)
 export const canScanToday = (memberId) => {
+    console.warn('⚠️ canScanToday is deprecated, use canScanMatch instead');
     const lastScanKey = `last_scan_${memberId}`;
     const lastScan = localStorage.getItem(lastScanKey);
 
@@ -79,7 +133,6 @@ export const canScanToday = (memberId) => {
     const lastScanDate = new Date(parseInt(lastScan));
     const today = new Date();
 
-    // Check if last scan was today
     return !(
         lastScanDate.getDate() === today.getDate() &&
         lastScanDate.getMonth() === today.getMonth() &&
@@ -87,14 +140,14 @@ export const canScanToday = (memberId) => {
     );
 };
 
-// Mark as scanned today
 export const markScannedToday = (memberId) => {
+    console.warn('⚠️ markScannedToday is deprecated, use markScannedMatch instead');
     const lastScanKey = `last_scan_${memberId}`;
     localStorage.setItem(lastScanKey, Date.now().toString());
 };
 
-// Get time until next scan available
 export const getNextScanTime = (memberId) => {
+    console.warn('⚠️ getNextScanTime is deprecated');
     const lastScanKey = `last_scan_${memberId}`;
     const lastScan = localStorage.getItem(lastScanKey);
 
@@ -124,6 +177,12 @@ export const useQRAttendance = () => {
         isGenerating,
         generateQR,
         parseQRData,
+        // New match-based functions
+        canScanMatch,
+        markScannedMatch,
+        getScannedMatchInfo,
+        cleanupDeletedMatch,
+        // Legacy functions (deprecated)
         canScanToday,
         markScannedToday,
         getNextScanTime
