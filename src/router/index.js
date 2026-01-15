@@ -44,6 +44,16 @@ const routes = [
         path: '/leave-management',
         name: 'Leave Management',
         component: () => import('../views/LeaveManagementView.vue')
+    },
+    {
+        path: '/pending-transactions',
+        name: 'Pending Transactions',
+        component: () => import('../views/PendingTransactionsView.vue')
+    },
+    {
+        path: '/attendance-table',
+        name: 'Attendance Table',
+        component: () => import('../views/AttendanceTableView.vue')
     }
 ]
 

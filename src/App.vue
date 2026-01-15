@@ -20,6 +20,7 @@
             <header class="top-bar">
                 <h1 class="page-title">{{ $route.name }}</h1>
                 <div class="top-bar-actions">
+                    <ThemeToggle />
                     <div class="sync-controls" v-if="isAdmin">
                         <div class="sync-status" :class="{ 'has-update': hasNewUpdate }">
                             <svg class="sync-icon" :class="{ spinning: syncStatus === 'syncing', pulse: hasNewUpdate }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -42,20 +43,22 @@
                             </svg>
                             <span>{{ syncStatusText }}</span>
                         </div>
-                        <button class="btn btn-sm btn-primary" v-if="!isSignedIn" @click="firebaseSignIn">
-                             Đăng nhập Google
-                        </button>
                         <template v-if="isSignedIn">
+                            <button class="btn btn-sm btn-primary" @click="uploadToFirebase" title="Đồng bộ dữ liệu lên Firebase">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                Lên Cloud
+                            </button>
                             <button class="btn btn-sm btn-info" @click="downloadFromFirebase" title="Lấy dữ liệu từ Firebase">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                     <polyline points="7 10 12 15 17 10"></polyline>
                                     <line x1="12" y1="15" x2="12" y2="3"></line>
                                 </svg>
-                                Lấy từ Cloud
-                            </button>
-                            <button class="btn btn-sm btn-secondary" @click="firebaseSignOut">
-                                Đăng xuất
+                                Từ Cloud
                             </button>
                         </template>
                     </div>
@@ -155,7 +158,7 @@
                     <!-- Role Selection -->
                     <div v-else class="form-actions" style="flex-direction: column; gap: 1rem;">
                         <button class="btn btn-primary" style="width: 100%;" @click="selectingAdmin = true">Quản Trị Viên (Full)</button>
-                        <button class="btn btn-secondary" style="width: 100%;" @click="handleGuestClick">Khách (Chỉ xem)</button>
+                        <button class="btn btn-secondary" style="width: 100%;" @click="handleGuestClick">Thành viên (Chỉ xem)</button>
                     </div>
                 </div>
             </div>
@@ -172,12 +175,13 @@
 import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import Sidebar from './components/Sidebar.vue';
+import ThemeToggle from './components/ThemeToggle.vue';
 import { useAppState } from './composables/useAppState';
 import { useFirebase } from './composables/useFirebase';
 import { useAuth } from './composables/useAuth';
 
 const router = useRouter();
-const { loadData, members, matches, transactions, updateFromFirebase } = useAppState();
+const { loadData, members, matches, transactions, pendingTransactions, contributionTiers, settings, updateFromFirebase } = useAppState();
 const { initFirebase, signIn: firebaseSignIn, signOut: firebaseSignOut, uploadData, downloadData, syncStatus, isSignedIn, isConfigured, hasNewUpdate, setupRealtimeListener, stopRealtimeListener } = useFirebase();
 const { currentRole, isAdmin, setRole, logout, permissions } = useAuth();
 
@@ -239,6 +243,9 @@ const confirmAdminLogin = async () => {
     adminLoginError.value = '';
     showNotification('✅ Đăng nhập Admin thành công!', 'success');
     
+    // Auto Login Firebase Anonymous
+    await firebaseSignIn();
+    
     // Auto-download data from Firebase (without requiring Google sign-in)
     showNotification('🔄 Đang tải dữ liệu từ Cloud...', 'info');
     
@@ -289,7 +296,7 @@ const cancelAdminLogin = () => {
 
 const handleSetRole = (role) => {
     setRole(role);
-    showNotification(`Đã vào chế độ ${role === 'admin' ? 'Quản trị' : 'Khách'}`, 'success');
+    showNotification(`Đã vào chế độ ${role === 'admin' ? 'Quản trị' : 'Thành viên'}`, 'success');
     
     // Navigate to dashboard
     router.push('/dashboard');
@@ -334,14 +341,13 @@ const confirmGuestLogin = async () => {
     memberSearch.value = '';
     showMemberList.value = false;
     
-    const memberName = member ? member.name : 'Khách';
+    const memberName = member ? member.name : 'Thành viên';
     showNotification(`Xin chào ${memberName}!`, 'success');
     
     // Sign in anonymously to Firebase for write access
     try {
         if (isConfigured.value) {
-            const firebase = (await import('firebase/compat/app')).default;
-            await firebase.auth().signInAnonymously();
+            await firebaseSignIn();
             console.log('✅ Guest signed in anonymously to Firebase');
         }
     } catch (e) {
@@ -444,11 +450,14 @@ const uploadToFirebase = async () => {
         await uploadData({
             members: members.value,
             matches: matches.value,
-            transactions: transactions.value
+            transactions: transactions.value,
+            pendingTransactions: pendingTransactions.value,
+            contributionTiers: contributionTiers.value,
+            settings: settings.value
         });
-        showNotification('✅ Đã ghi dữ liệu lên Cloud thành công!', 'success');
+        showNotification('✅ Đã đồng bộ dữ liệu lên Cloud thành công!', 'success');
     } catch (e) {
-        showNotification('❌ Lỗi khi ghi: ' + e.message, 'error');
+        showNotification('❌ Lỗi khi đồng bộ: ' + e.message, 'error');
     }
 };
 

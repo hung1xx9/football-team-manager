@@ -185,6 +185,7 @@ const onDetect = async (detectedCodes) => {
         
         match.attendance[attendanceIndex].status = 'present';
         match.attendance[attendanceIndex].timestamp = attendanceTimestamp.toISOString();
+        match.attendance[attendanceIndex].attendanceMethod = 'qr'; // Mark as QR attendance
         match.attendance[attendanceIndex].isLate = isLate;
         match.attendance[attendanceIndex].lateMinutes = lateMinutes;
         match.attendance[attendanceIndex].lateFine = lateFine;

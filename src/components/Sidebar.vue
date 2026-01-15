@@ -50,8 +50,28 @@
                 <span>Điểm Danh</span>
             </router-link>
 
-            <!-- My Payments - Guest can see -->
-            <router-link v-if="permissions.canViewMyPayments" to="/my-payments" class="nav-item" active-class="active">
+            <!-- Attendance Table - Guest can see -->
+            <router-link v-if="permissions.canViewAttendance" to="/attendance-table" class="nav-item" active-class="active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="3" y1="15" x2="21" y2="15"></line>
+                    <line x1="9" y1="3" x2="9" y2="21"></line>
+                </svg>
+                <span>Bảng Điểm Danh</span>
+            </router-link>
+
+            <!-- Finance Management (Admin) -->
+            <router-link v-if="permissions.canViewFinance" to="/finance" class="nav-item" active-class="active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+                <span>Đóng Quỹ/Phạt</span>
+            </router-link>
+
+            <!-- My Payments (Guest) -->
+            <router-link v-else-if="permissions.canViewMyPayments" to="/my-payments" class="nav-item" active-class="active">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"></circle>
                     <path d="M12 6v6l4 2"></path>
@@ -82,14 +102,17 @@
                 <span>Quản Lý Xin Nghỉ</span>
             </router-link>
 
-            <!-- Finance - Admin only -->
-            <router-link v-if="permissions.canViewFinance" to="/finance" class="nav-item" active-class="active">
+            <!-- Pending Transactions - Admin only -->
+            <router-link v-if="permissions.canViewFinance" to="/pending-transactions" class="nav-item" active-class="active">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="1" x2="12" y2="23" />
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    <path d="M14 2H6a2 2 0 0 1-2 2v16a2 2 0 0 1 2 2h12a2 2 0 0 1 2-2V8z"></path>
+                    <polyline points="9 11 12 14 22 4"></polyline>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
                 </svg>
-                <span>Tài Chính</span>
+                <span>Phê Duyệt GD</span>
             </router-link>
+
+
         </nav>
     </aside>
 </template>

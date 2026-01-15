@@ -42,6 +42,12 @@
                             <div class="stat-value">{{ stats.rejected }}</div>
                         </div>
                     </div>
+                    <div class="stat-card stat-info">
+                        <div class="stat-content">
+                            <div class="stat-label">Tổng cộng</div>
+                            <div class="stat-value">{{ stats.total }}</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Leave Requests List -->
@@ -52,6 +58,7 @@
                                 <tr>
                                     <th>Thành Viên</th>
                                     <th>Ngày Nghỉ</th>
+                                    <th>Trận Đấu</th>
                                     <th>Lý Do</th>
                                     <th>Ngày Gửi</th>
                                     <th>Trạng Thái</th>
@@ -60,8 +67,14 @@
                             </thead>
                             <tbody>
                                 <tr v-for="request in filteredRequests" :key="request.id">
-                                    <td><strong>{{ getMemberName(request.memberId) }}</strong></td>
+                                    <td><strong>{{ request.memberName || getMemberName(request.memberId) }}</strong></td>
                                     <td>{{ formatDate(request.leaveDate) }}</td>
+                                    <td>
+                                        <span v-if="request.matchId" class="match-badge">
+                                            {{ getMatchName(request.matchId) }}
+                                        </span>
+                                        <span v-else style="color: var(--text-muted);">--</span>
+                                    </td>
                                     <td style="max-width: 300px;">{{ request.reason }}</td>
                                     <td>{{ formatDateTime(request.createdAt) }}</td>
                                     <td>
@@ -74,20 +87,22 @@
                                             <button 
                                                 v-if="request.status === 'pending'" 
                                                 class="btn btn-sm btn-success" 
-                                                @click="openApproveModal(request)">
-                                                Duyệt
+                                                @click="openApproveModal(request)"
+                                                title="Duyệt đơn">
+                                                ✓
                                             </button>
                                             <button 
                                                 v-if="request.status === 'pending'" 
                                                 class="btn btn-sm btn-danger" 
-                                                @click="openRejectModal(request)">
-                                                Từ chối
+                                                @click="openRejectModal(request)"
+                                                title="Từ chối đơn">
+                                                ✕
                                             </button>
                                             <button 
-                                                v-if="request.status !== 'pending'" 
                                                 class="btn btn-sm btn-secondary" 
-                                                @click="viewDetails(request)">
-                                                Xem
+                                                @click="viewDetails(request)"
+                                                title="Xem chi tiết">
+                                                👁
                                             </button>
                                         </div>
                                     </td>
@@ -111,8 +126,9 @@
                 </div>
                 <div class="modal-body">
                     <div v-if="selectedRequest">
-                        <p><strong>Thành viên:</strong> {{ getMemberName(selectedRequest.memberId) }}</p>
+                        <p><strong>Thành viên:</strong> {{ selectedRequest.memberName || getMemberName(selectedRequest.memberId) }}</p>
                         <p><strong>Ngày nghỉ:</strong> {{ formatDate(selectedRequest.leaveDate) }}</p>
+                        <p v-if="selectedRequest.matchId"><strong>Trận đấu:</strong> {{ getMatchName(selectedRequest.matchId) }}</p>
                         <p><strong>Lý do:</strong> {{ selectedRequest.reason }}</p>
                     </div>
                     <div class="form-group" style="margin-top: 1rem;">
@@ -126,6 +142,7 @@
                             @click="confirmAction">
                             {{ actionType === 'approve' ? 'Xác Nhận Duyệt' : 'Xác Nhận Từ Chối' }}
                         </button>
+                        <button class="btn btn-secondary" @click="closeActionModal">Hủy</button>
                     </div>
                 </div>
             </div>
@@ -141,11 +158,15 @@
                 <div class="modal-body" v-if="selectedRequest">
                     <div class="detail-row">
                         <strong>Thành viên:</strong>
-                        <span>{{ getMemberName(selectedRequest.memberId) }}</span>
+                        <span>{{ selectedRequest.memberName || getMemberName(selectedRequest.memberId) }}</span>
                     </div>
                     <div class="detail-row">
                         <strong>Ngày nghỉ:</strong>
                         <span>{{ formatDate(selectedRequest.leaveDate) }}</span>
+                    </div>
+                    <div class="detail-row" v-if="selectedRequest.matchId">
+                        <strong>Trận đấu:</strong>
+                        <span>{{ getMatchName(selectedRequest.matchId) }}</span>
                     </div>
                     <div class="detail-row">
                         <strong>Lý do:</strong>
@@ -161,6 +182,10 @@
                             {{ getStatusText(selectedRequest.status) }}
                         </span>
                     </div>
+                    <div class="detail-row" v-if="selectedRequest.processedAt">
+                        <strong>Ngày xử lý:</strong>
+                        <span>{{ formatDateTime(selectedRequest.processedAt) }}</span>
+                    </div>
                     <div class="detail-row" v-if="selectedRequest.adminNote">
                         <strong>Ghi chú Admin:</strong>
                         <span>{{ selectedRequest.adminNote }}</span>
@@ -172,12 +197,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
-const { members, getMemberName } = useAppState();
+const { 
+    leaveRequests, 
+    matches,
+    getMemberName, 
+    approveLeaveRequest, 
+    rejectLeaveRequest 
+} = useAppState();
 
-const leaveRequests = ref([]);
 const filterStatus = ref('all');
 const searchMember = ref('');
 const showActionModal = ref(false);
@@ -186,22 +216,10 @@ const selectedRequest = ref(null);
 const actionType = ref('approve');
 const adminNote = ref('');
 
-onMounted(() => {
-    loadLeaveRequests();
-});
-
-const loadLeaveRequests = () => {
-    const stored = localStorage.getItem('leaveRequests');
-    leaveRequests.value = stored ? JSON.parse(stored) : [];
-};
-
-const saveLeaveRequests = () => {
-    localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests.value));
-};
-
 // Stats
 const stats = computed(() => {
     return {
+        total: leaveRequests.value.length,
         pending: leaveRequests.value.filter(r => r.status === 'pending').length,
         approved: leaveRequests.value.filter(r => r.status === 'approved').length,
         rejected: leaveRequests.value.filter(r => r.status === 'rejected').length
@@ -221,7 +239,7 @@ const filteredRequests = computed(() => {
     if (searchMember.value) {
         const search = searchMember.value.toLowerCase();
         filtered = filtered.filter(r => {
-            const memberName = getMemberName(r.memberId);
+            const memberName = r.memberName || getMemberName(r.memberId);
             return memberName && memberName.toLowerCase().includes(search);
         });
     }
@@ -253,14 +271,11 @@ const closeActionModal = () => {
 const confirmAction = () => {
     if (!selectedRequest.value) return;
 
-    const request = leaveRequests.value.find(r => r.id === selectedRequest.value.id);
-    if (request) {
-        request.status = actionType.value === 'approve' ? 'approved' : 'rejected';
-        request.adminNote = adminNote.value.trim() || null;
-        request.processedAt = new Date().toISOString();
-        
-        saveLeaveRequests();
-        
+    const success = actionType.value === 'approve' 
+        ? approveLeaveRequest(selectedRequest.value.id, adminNote.value)
+        : rejectLeaveRequest(selectedRequest.value.id, adminNote.value);
+    
+    if (success) {
         const message = actionType.value === 'approve' 
             ? '✅ Đã duyệt đơn xin nghỉ' 
             : '❌ Đã từ chối đơn xin nghỉ';
@@ -273,6 +288,12 @@ const confirmAction = () => {
 const viewDetails = (request) => {
     selectedRequest.value = request;
     showDetailsModal.value = true;
+};
+
+const getMatchName = (matchId) => {
+    const match = matches.value.find(m => m.id === matchId);
+    if (!match) return 'N/A';
+    return `${formatDate(match.date)} - ${match.startTime}`;
 };
 
 const getStatusBadge = (status) => {
@@ -317,11 +338,21 @@ const formatDateTime = (str) => {
     border-radius: var(--radius-lg);
 }
 
+.match-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--primary-400);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+}
+
 .detail-row {
     display: flex;
     justify-content: space-between;
     padding: var(--spacing-md) 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    gap: var(--spacing-md);
 }
 
 .detail-row:last-child {
@@ -330,6 +361,7 @@ const formatDateTime = (str) => {
 
 .detail-row strong {
     color: var(--text-secondary);
+    flex-shrink: 0;
 }
 
 .detail-row span {
@@ -351,6 +383,15 @@ const formatDateTime = (str) => {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+    
+    .detail-row {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .detail-row span {
+        text-align: left;
     }
 }
 </style>

@@ -61,11 +61,9 @@ const initFirebase = async () => {
 const signIn = async () => {
     if (!isConfigured.value) return;
     try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        await firebase.auth().signInWithPopup(provider);
+        await firebase.auth().signInAnonymously();
     } catch (e) {
         console.error('Sign in error:', e);
-        alert('Lỗi đăng nhập: ' + e.message);
     }
 };
 

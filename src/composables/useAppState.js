@@ -5,7 +5,10 @@ import { useFirebase } from './useFirebase';
 const members = ref([]);
 const matches = ref([]);
 const transactions = ref([]);
+const pendingTransactions = ref([]); // Giao dịch chờ phê duyệt
+const leaveRequests = ref([]); // Đơn xin nghỉ
 const contributionTiers = ref([]);
+const settings = ref({ momoPhone: '' });
 const isInitialized = ref(false);
 
 // Firebase integration
@@ -53,12 +56,18 @@ const loadData = () => {
     const savedMembers = localStorage.getItem('members');
     const savedMatches = localStorage.getItem('matches');
     const savedTransactions = localStorage.getItem('transactions');
+    const savedPendingTransactions = localStorage.getItem('pendingTransactions');
+    const savedLeaveRequests = localStorage.getItem('leaveRequests');
     const savedTiers = localStorage.getItem('contributionTiers');
+    const savedSettings = localStorage.getItem('settings');
 
     if (savedMembers) members.value = JSON.parse(savedMembers);
     if (savedMatches) matches.value = JSON.parse(savedMatches);
     if (savedTransactions) transactions.value = JSON.parse(savedTransactions);
+    if (savedPendingTransactions) pendingTransactions.value = JSON.parse(savedPendingTransactions);
+    if (savedLeaveRequests) leaveRequests.value = JSON.parse(savedLeaveRequests);
     if (savedTiers) contributionTiers.value = JSON.parse(savedTiers);
+    if (savedSettings) settings.value = JSON.parse(savedSettings);
 
     // Seed data
     if (members.value.length === 0 && !localStorage.getItem('initialized')) {
@@ -111,19 +120,48 @@ const saveData = () => {
     localStorage.setItem('members', JSON.stringify(members.value));
     localStorage.setItem('matches', JSON.stringify(matches.value));
     localStorage.setItem('transactions', JSON.stringify(transactions.value));
+    localStorage.setItem('pendingTransactions', JSON.stringify(pendingTransactions.value));
+    localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests.value));
     localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
+    localStorage.setItem('settings', JSON.stringify(settings.value));
 
-    // Auto-upload to Firebase if signed in
+    // Auto-upload to Firebase if signed in with retry mechanism
     if (isSignedIn && isSignedIn.value && uploadData) {
-        uploadData({
+        const dataToUpload = {
             members: members.value,
             matches: matches.value,
             transactions: transactions.value,
-            contributionTiers: contributionTiers.value
-        }).catch(() => {
-            // Silently fail - data is still saved locally
-            console.log('Auto-upload to Firebase skipped');
-        });
+            pendingTransactions: pendingTransactions.value,
+            leaveRequests: leaveRequests.value,
+            contributionTiers: contributionTiers.value,
+            settings: settings.value
+        };
+
+        // Retry function with exponential backoff
+        const retryUpload = async (attempt = 1, maxAttempts = 3) => {
+            try {
+                await uploadData(dataToUpload);
+                console.log('✅ Auto-upload to Firebase successful');
+            } catch (error) {
+                console.warn(`⚠️ Auto-upload attempt ${attempt} failed:`, error.message);
+
+                if (attempt < maxAttempts) {
+                    // Exponential backoff: 1s, 2s, 4s
+                    const delay = Math.pow(2, attempt - 1) * 1000;
+                    console.log(`🔄 Retrying in ${delay}ms...`);
+
+                    setTimeout(() => {
+                        retryUpload(attempt + 1, maxAttempts);
+                    }, delay);
+                } else {
+                    console.error('❌ Auto-upload to Firebase failed after', maxAttempts, 'attempts');
+                    console.log('📱 Data is still saved locally');
+                }
+            }
+        };
+
+        // Start upload with retry
+        retryUpload();
     }
 };
 
@@ -131,12 +169,18 @@ const updateFromFirebase = (data) => {
     if (data.members) members.value = data.members;
     if (data.matches) matches.value = data.matches;
     if (data.transactions) transactions.value = data.transactions;
+    if (data.pendingTransactions) pendingTransactions.value = data.pendingTransactions;
+    if (data.leaveRequests) leaveRequests.value = data.leaveRequests;
     if (data.contributionTiers) contributionTiers.value = data.contributionTiers;
+    if (data.settings) settings.value = data.settings;
     // Save to localStorage
     localStorage.setItem('members', JSON.stringify(members.value));
     localStorage.setItem('matches', JSON.stringify(matches.value));
     localStorage.setItem('transactions', JSON.stringify(transactions.value));
+    localStorage.setItem('pendingTransactions', JSON.stringify(pendingTransactions.value));
+    localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests.value));
     localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
+    localStorage.setItem('settings', JSON.stringify(settings.value));
 };
 
 // CRUD
@@ -155,12 +199,81 @@ const deleteMember = (id) => {
 };
 
 const saveMatch = (matchData) => {
-    // If matchData already has attendance (from QR scan), use it
-    // Otherwise, generate from attendanceIds (from form)
-    const attendance = matchData.attendance || members.value.map(m => ({
-        memberId: m.id,
-        status: matchData.attendanceIds?.includes(m.id) ? 'present' : 'absent'
-    }));
+    let attendance;
+
+    // Check if we need to preserve attendance data (when admin manually marks attendance)
+    if (matchData.preserveAttendanceData && matchData.originalAttendance) {
+        // Preserve existing attendance data and only update status based on checkbox
+        attendance = members.value.map(m => {
+            const isChecked = matchData.attendanceIds?.includes(m.id);
+            const originalAtt = matchData.originalAttendance.find(a => a.memberId === m.id);
+
+            if (isChecked) {
+                // Member is marked as present
+                if (originalAtt && originalAtt.status === 'present') {
+                    // Already present - keep all original data (timestamp, method, late info)
+                    return { ...originalAtt };
+                } else {
+                    // Newly marked as present by admin - create new attendance record
+                    const attendanceTimestamp = new Date();
+
+                    // Calculate if late or on-time based on match start time
+                    let isLate = false;
+                    let lateMinutes = 0;
+                    let lateFine = 0;
+
+                    if (matchData.startTime) {
+                        // Parse match start time
+                        const [hours, minutes] = matchData.startTime.split(':').map(Number);
+                        const matchStartDateTime = new Date(matchData.date);
+                        matchStartDateTime.setHours(hours, minutes, 0, 0);
+
+                        // Check if attendance is after start time
+                        isLate = attendanceTimestamp > matchStartDateTime;
+
+                        if (isLate) {
+                            // Calculate minutes late
+                            lateMinutes = Math.floor((attendanceTimestamp - matchStartDateTime) / (1000 * 60));
+
+                            // Calculate fine based on late minutes
+                            if (lateMinutes < 10) {
+                                lateFine = 10000;
+                            } else if (lateMinutes < 20) {
+                                lateFine = 20000;
+                            } else {
+                                lateFine = 50000;
+                            }
+                        }
+                    }
+
+                    return {
+                        memberId: m.id,
+                        status: 'present',
+                        timestamp: attendanceTimestamp.toISOString(),
+                        attendanceMethod: 'manual', // Mark as manual attendance
+                        isLate,
+                        lateMinutes,
+                        lateFine
+                    };
+                }
+            } else {
+                // Member is not checked - mark as absent
+                return {
+                    memberId: m.id,
+                    status: 'absent'
+                };
+            }
+        });
+    } else if (matchData.attendance) {
+        // If matchData already has attendance (from QR scan), use it
+        attendance = matchData.attendance;
+    } else {
+        // Generate from attendanceIds (from form) - for new matches
+        attendance = members.value.map(m => ({
+            memberId: m.id,
+            status: matchData.attendanceIds?.includes(m.id) ? 'present' : 'absent'
+        }));
+    }
 
     if (matchData.id) {
         // Update existing match
@@ -171,15 +284,19 @@ const saveMatch = (matchData) => {
                 ...matches.value[idx],
                 ...matchData,
                 id: originalId, // Ensure ID is not overwritten
-                attendance // Use the attendance from above
+                attendance, // Use the attendance from above
+                // Remove helper fields
+                preserveAttendanceData: undefined,
+                originalAttendance: undefined,
+                attendanceIds: undefined
             };
         }
     } else {
         // Create new match
-        const { id, ...dataWithoutId } = matchData; // Remove null id from matchData
+        const { id, preserveAttendanceData, originalAttendance, ...dataWithoutHelpers } = matchData;
         matches.value.push({
             id: Date.now(), // Generate new ID
-            ...dataWithoutId, // Spread without id field
+            ...dataWithoutHelpers,
             attendance
         });
     }
@@ -204,6 +321,74 @@ const addTransaction = (tData) => {
 };
 const deleteTransaction = (id) => {
     transactions.value = transactions.value.filter(t => t.id !== id);
+    saveData();
+};
+
+// Pending Transactions Management
+const addPendingTransaction = (tData) => {
+    pendingTransactions.value.push({
+        id: Date.now(),
+        ...tData,
+        status: 'pending', // pending, approved, rejected
+        createdAt: new Date().toISOString(),
+        approvedAt: null,
+        approvedBy: null
+    });
+    saveData();
+};
+
+const approvePendingTransaction = (id) => {
+    const pending = pendingTransactions.value.find(t => t.id === id);
+    if (!pending) return false;
+
+    // Move to transactions
+    const transaction = {
+        type: pending.type,
+        category: pending.category,
+        amount: pending.amount,
+        description: pending.description,
+        date: pending.date,
+        memberId: pending.memberId,
+        momoTransId: pending.momoTransId,
+        source: pending.source,
+        createdAt: new Date()
+    };
+    addTransaction(transaction);
+
+    // Update member's fundPaid or fines
+    const member = members.value.find(m => m.id === pending.memberId);
+    if (member) {
+        if (pending.category === 'fund') {
+            // Add to fundPaid
+            member.fundPaid = (member.fundPaid || 0) + pending.amount;
+            console.log(`✅ Updated ${member.name}: fundPaid += ${pending.amount} = ${member.fundPaid}`);
+        } else if (pending.category === 'fine') {
+            // Add to fines
+            member.fines = (member.fines || 0) + pending.amount;
+            console.log(`✅ Updated ${member.name}: fines += ${pending.amount} = ${member.fines}`);
+        }
+    }
+
+    // Remove from pending
+    pendingTransactions.value = pendingTransactions.value.filter(t => t.id !== id);
+    saveData();
+    return true;
+};
+
+const rejectPendingTransaction = (id, reason = '') => {
+    const pending = pendingTransactions.value.find(t => t.id === id);
+    if (!pending) return false;
+
+    // Update status to rejected
+    pending.status = 'rejected';
+    pending.rejectedAt = new Date().toISOString();
+    pending.rejectionReason = reason;
+    saveData();
+    return true;
+};
+
+const deletePendingTransaction = (id) => {
+    pendingTransactions.value = pendingTransactions.value.filter(t => t.id !== id);
     saveData();
 };
 
@@ -249,13 +434,85 @@ const getContributionTier = (id) => {
     return contributionTiers.value.find(t => t.id === id);
 };
 
+const updateSettings = (newSettings) => {
+    settings.value = { ...settings.value, ...newSettings };
+    saveData();
+};
+
+// Leave Requests Management
+const createLeaveRequest = (requestData) => {
+    const newRequest = {
+        id: Date.now(),
+        memberId: requestData.memberId,
+        memberName: requestData.memberName,
+        leaveDate: requestData.leaveDate,
+        matchId: requestData.matchId || null,
+        reason: requestData.reason.trim(),
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        processedAt: null,
+        adminNote: null
+    };
+
+    leaveRequests.value.push(newRequest);
+    saveData();
+    return newRequest;
+};
+
+const approveLeaveRequest = (id, adminNote = '') => {
+    const request = leaveRequests.value.find(r => r.id === id);
+    if (!request) return false;
+
+    request.status = 'approved';
+    request.processedAt = new Date().toISOString();
+    request.adminNote = adminNote.trim() || null;
+
+    saveData();
+    return true;
+};
+
+const rejectLeaveRequest = (id, adminNote = '') => {
+    const request = leaveRequests.value.find(r => r.id === id);
+    if (!request) return false;
+
+    request.status = 'rejected';
+    request.processedAt = new Date().toISOString();
+    request.adminNote = adminNote.trim() || null;
+
+    saveData();
+    return true;
+};
+
+const deleteLeaveRequest = (id) => {
+    leaveRequests.value = leaveRequests.value.filter(r => r.id !== id);
+    saveData();
+};
+
+const getMemberLeaveRequests = (memberId) => {
+    return leaveRequests.value
+        .filter(r => r.memberId === memberId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+};
+
+const hasApprovedLeave = (memberId, date) => {
+    return leaveRequests.value.some(r =>
+        r.memberId === memberId &&
+        r.leaveDate === date &&
+        r.status === 'approved'
+    );
+};
+
+
 export const useAppState = () => {
     return {
         // State
         members,
         matches,
         transactions,
+        pendingTransactions,
+        leaveRequests,
         contributionTiers,
+        settings,
         stats,
         sortedMatches,
         futureMatches,
@@ -270,13 +527,24 @@ export const useAppState = () => {
         deleteMatch,
         addTransaction,
         deleteTransaction,
+        addPendingTransaction,
+        approvePendingTransaction,
+        rejectPendingTransaction,
+        deletePendingTransaction,
         addContributionTier,
         updateContributionTier,
         deleteContributionTier,
+        updateSettings,
+        createLeaveRequest,
+        approveLeaveRequest,
+        rejectLeaveRequest,
+        deleteLeaveRequest,
 
         // Helpers
         getMemberName,
         getMemberStats,
-        getContributionTier
+        getContributionTier,
+        getMemberLeaveRequests,
+        hasApprovedLeave
     };
 };

@@ -24,6 +24,13 @@
                                 <div>
                                     <div class="leave-request-date">{{ formatDate(request.leaveDate) }}</div>
                                     <div class="leave-request-created">Gửi lúc: {{ formatDateTime(request.createdAt) }}</div>
+                                    <div v-if="request.matchId" class="leave-request-match">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <path d="M12 6v6l4 2"></path>
+                                        </svg>
+                                        Trận đấu: {{ getMatchName(request.matchId) }}
+                                    </div>
                                 </div>
                                 <span class="badge" :class="getStatusBadge(request.status)">
                                     {{ getStatusText(request.status) }}
@@ -33,6 +40,9 @@
                                 <p><strong>Lý do:</strong> {{ request.reason }}</p>
                                 <p v-if="request.adminNote" style="margin-top: 0.5rem;">
                                     <strong>Phản hồi Admin:</strong> {{ request.adminNote }}
+                                </p>
+                                <p v-if="request.processedAt" style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-muted);">
+                                    Xử lý lúc: {{ formatDateTime(request.processedAt) }}
                                 </p>
                             </div>
                         </div>
@@ -53,6 +63,15 @@
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
+                        <label>Chọn Trận Đấu (Tùy chọn)</label>
+                        <select v-model="form.matchId">
+                            <option :value="null">-- Không chọn trận cụ thể --</option>
+                            <option v-for="match in upcomingMatches" :key="match.id" :value="match.id">
+                                {{ formatDate(match.date) }} - {{ match.startTime }} - {{ match.location }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-group" v-if="!form.matchId">
                         <label>Ngày Nghỉ</label>
                         <input type="date" v-model="form.leaveDate" :min="minDate">
                     </div>
@@ -62,6 +81,7 @@
                     </div>
                     <div class="form-actions">
                         <button class="btn btn-primary" @click="submitRequest">Gửi Đơn</button>
+                        <button class="btn btn-secondary" @click="closeModal">Hủy</button>
                     </div>
                 </div>
             </div>
@@ -70,14 +90,22 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useAuth } from '../composables/useAuth';
+import { useAppState } from '../composables/useAppState';
 
 const { guestMemberId } = useAuth();
+const { 
+    members, 
+    matches, 
+    createLeaveRequest, 
+    getMemberLeaveRequests,
+    getMemberName 
+} = useAppState();
 
 const showModal = ref(false);
-const leaveRequests = ref([]);
-const form = reactive({
+const form = ref({
+    matchId: null,
     leaveDate: '',
     reason: ''
 });
@@ -87,30 +115,35 @@ const minDate = computed(() => {
     return new Date().toISOString().split('T')[0];
 });
 
-onMounted(() => {
-    loadLeaveRequests();
+// Get upcoming matches
+const upcomingMatches = computed(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return matches.value
+        .filter(m => new Date(m.date) >= now)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
 });
-
-const loadLeaveRequests = () => {
-    const stored = localStorage.getItem('leaveRequests');
-    leaveRequests.value = stored ? JSON.parse(stored) : [];
-};
-
-const saveLeaveRequests = () => {
-    localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests.value));
-};
 
 // Get my leave requests
 const myLeaveRequests = computed(() => {
     if (!guestMemberId.value) return [];
-    return leaveRequests.value
-        .filter(r => r.memberId === guestMemberId.value)
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return getMemberLeaveRequests(guestMemberId.value);
+});
+
+// Watch matchId to auto-fill date
+watch(() => form.value.matchId, (newMatchId) => {
+    if (newMatchId) {
+        const match = matches.value.find(m => m.id === newMatchId);
+        if (match) {
+            form.value.leaveDate = match.date;
+        }
+    }
 });
 
 const openModal = () => {
-    form.leaveDate = '';
-    form.reason = '';
+    form.value.matchId = null;
+    form.value.leaveDate = '';
+    form.value.reason = '';
     showModal.value = true;
 };
 
@@ -119,12 +152,12 @@ const closeModal = () => {
 };
 
 const submitRequest = () => {
-    if (!form.leaveDate) {
-        alert('Vui lòng chọn ngày nghỉ');
+    if (!form.value.leaveDate) {
+        alert('Vui lòng chọn ngày nghỉ hoặc trận đấu');
         return;
     }
 
-    if (!form.reason || form.reason.trim() === '') {
+    if (!form.value.reason || form.value.reason.trim() === '') {
         alert('Vui lòng nhập lý do');
         return;
     }
@@ -134,22 +167,29 @@ const submitRequest = () => {
         return;
     }
 
-    // Add leave request
-    const newRequest = {
-        id: Date.now(),
-        memberId: guestMemberId.value,
-        leaveDate: form.leaveDate,
-        reason: form.reason.trim(),
-        status: 'pending', // pending, approved, rejected
-        createdAt: new Date().toISOString(),
-        adminNote: null
-    };
+    const member = members.value.find(m => m.id === guestMemberId.value);
+    if (!member) {
+        alert('Không tìm thấy thông tin thành viên');
+        return;
+    }
 
-    leaveRequests.value.push(newRequest);
-    saveLeaveRequests();
+    // Create leave request
+    createLeaveRequest({
+        memberId: guestMemberId.value,
+        memberName: member.name,
+        leaveDate: form.value.leaveDate,
+        matchId: form.value.matchId,
+        reason: form.value.reason
+    });
 
     alert('✅ Đã gửi đơn xin nghỉ thành công!');
     closeModal();
+};
+
+const getMatchName = (matchId) => {
+    const match = matches.value.find(m => m.id === matchId);
+    if (!match) return 'N/A';
+    return `${formatDate(match.date)} - ${match.startTime} - ${match.location}`;
 };
 
 const getStatusBadge = (status) => {
@@ -223,6 +263,14 @@ const formatDateTime = (str) => {
 .leave-request-created {
     font-size: 0.875rem;
     color: var(--text-muted);
+}
+
+.leave-request-match {
+    font-size: 0.875rem;
+    color: var(--primary-400);
+    margin-top: var(--spacing-xs);
+    display: flex;
+    align-items: center;
 }
 
 .leave-request-body {
