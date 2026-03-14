@@ -46,14 +46,34 @@ const routes = [
         component: () => import('../views/LeaveManagementView.vue')
     },
     {
-        path: '/pending-transactions',
-        name: 'Pending Transactions',
-        component: () => import('../views/PendingTransactionsView.vue')
+        path: '/pending-attendances',
+        name: 'Pending Attendances',
+        component: () => import('../views/PendingAttendancesView.vue')
     },
     {
         path: '/attendance-table',
         name: 'Attendance Table',
         component: () => import('../views/AttendanceTableView.vue')
+    },
+    {
+        path: '/per-match-revenue',
+        name: 'Per Match Revenue',
+        component: () => import('../views/PerMatchRevenueView.vue')
+    },
+    {
+        path: '/hall-of-fame',
+        name: 'Hall of Fame',
+        component: () => import('../views/HallOfFameView.vue')
+    },
+    {
+        path: '/monthly-fund',
+        name: 'Monthly Fund',
+        component: () => import('../views/MonthlyFundView.vue')
+    },
+    {
+        path: '/settings',
+        name: 'Settings',
+        component: () => import('../views/SettingsView.vue')
     }
 ]
 
