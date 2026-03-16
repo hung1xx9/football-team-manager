@@ -16,5 +16,5 @@ jobs:
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FOOTBALL_TEAM_MANAGER_14A39 }}
-          channelId: live
           projectId: football-team-manager-14a39
+          channelId: live
