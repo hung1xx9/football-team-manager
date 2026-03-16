@@ -7,11 +7,13 @@ const guestMemberId = ref(localStorage.getItem('guest_member_id') ? parseInt(loc
 // Role types
 export const ROLES = {
     ADMIN: 'admin',
+    ACCOUNTANT: 'ketoan',
     GUEST: 'guest'
 };
 
 // Computed permissions
 const isAdmin = computed(() => currentRole.value === ROLES.ADMIN);
+const isAccountant = computed(() => currentRole.value === ROLES.ACCOUNTANT);
 const isGuest = computed(() => currentRole.value === ROLES.GUEST);
 const isAuthenticated = computed(() => currentRole.value !== null);
 
@@ -42,7 +44,42 @@ const permissions = computed(() => {
             canRequestLeave: false,
             canApproveLeave: true,
             canViewAllPayments: true,
-            canManageQRCode: true
+            canManageQRCode: true,
+            canReviewAttendance: true,
+            canViewSettings: true,
+            canEditAttendance: true
+        };
+    }
+
+    if (isAccountant.value) {
+        return {
+            canViewDashboard: true,
+            canViewMembers: true,
+            canViewMatches: true,
+            canViewFinance: true,
+            canViewAttendance: true,
+            canViewMyPayments: true,
+            canViewLeaveRequest: false,
+            canViewLeaveManagement: true,
+            canAddMember: true,
+            canEditMember: true,
+            canDeleteMember: false,
+            canAddMatch: true,
+            canEditMatch: true,
+            canDeleteMatch: false,
+            canAddTransaction: true,
+            canDeleteTransaction: true,
+            canManageFirebase: false,
+            canExportData: true,
+            canPayFund: true,
+            canPayFine: true,
+            canRequestLeave: false,
+            canApproveLeave: true,
+            canViewAllPayments: true,
+            canManageQRCode: false,
+            canReviewAttendance: true,
+            canViewSettings: true,
+            canEditAttendance: true
         };
     }
 

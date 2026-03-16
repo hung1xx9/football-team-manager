@@ -1,5 +1,3 @@
-/* ===== Card Components ===== */
-
 .card {
     background: var(--glass-bg);
     backdrop-filter: blur(20px);
@@ -8,38 +6,44 @@
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
     overflow: hidden;
-    transition: all var(--transition-normal);
+    transition: all var(--transition-normal)
 }
 
 .card:hover {
     border-color: var(--border-primary);
     box-shadow: var(--shadow-xl);
-    transform: translateY(-2px);
+    transform: translateY(-2px)
 }
 
 .card-header {
-    padding: var(--spacing-lg) var(--spacing-xl);
+    padding: var(--spacing-lg) var(--spacing-2xl);
     border-bottom: 1px solid var(--border-secondary);
     background: var(--gradient-card);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px
 }
 
 .card-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
     color: var(--text-primary);
+    margin: 0
 }
 
 .card-content {
-    padding: var(--spacing-xl);
+    padding: var(--spacing-2xl)
 }
 
-/* Stats Grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
+    grid-template-columns: repeat(auto-fit,minmax(250px,1fr));
+    gap: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl)
 }
 
 .stat-card {
@@ -55,29 +59,29 @@
     transition: all var(--transition-normal);
     position: relative;
     overflow: hidden;
-    cursor: pointer;
+    cursor: pointer
 }
 
-.stat-card::before {
-    content: '';
+.stat-card:before {
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, transparent, currentColor, transparent);
-    opacity: 0.6;
-    transition: opacity var(--transition-fast);
+    background: linear-gradient(90deg,transparent,currentColor,transparent);
+    opacity: .6;
+    transition: opacity var(--transition-fast)
 }
 
 .stat-card:hover {
     transform: translateY(-6px) scale(1.02);
-    box-shadow: var(--shadow-xl), var(--shadow-glow);
-    border-color: var(--border-primary);
+    box-shadow: var(--shadow-xl),var(--shadow-glow);
+    border-color: var(--border-primary)
 }
 
-.stat-card:hover::before {
-    opacity: 1;
+.stat-card:hover:before {
+    opacity: 1
 }
 
 .stat-icon {
@@ -89,35 +93,35 @@
     justify-content: center;
     background: var(--bg-hover);
     flex-shrink: 0;
-    transition: all var(--transition-normal);
+    transition: all var(--transition-normal)
 }
 
 .stat-card:hover .stat-icon {
     transform: rotate(5deg) scale(1.1);
-    background: var(--bg-active);
+    background: var(--bg-active)
 }
 
 .stat-icon svg {
     width: 32px;
     height: 32px;
-    transition: transform var(--transition-fast);
+    transition: transform var(--transition-fast)
 }
 
 .stat-card:hover .stat-icon svg {
-    transform: scale(1.1);
+    transform: scale(1.1)
 }
 
 .stat-content {
-    flex: 1;
+    flex: 1
 }
 
 .stat-label {
-    font-size: 0.875rem;
+    font-size: .875rem;
     color: var(--text-secondary);
     margin-bottom: var(--spacing-xs);
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: .5px
 }
 
 .stat-value {
@@ -125,107 +129,46 @@
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1;
-    background: linear-gradient(135deg, currentColor 0%, currentColor 100%);
+    background: linear-gradient(135deg,currentColor 0%,currentColor 100%);
     -webkit-background-clip: text;
-    background-clip: text;
+    background-clip: text
 }
 
-/* Stat Card Variants */
-.stat-primary {
-    color: var(--primary-400);
-}
+.stat-primary { color: var(--primary-400) }
+.stat-primary .stat-icon { background: rgba(59,130,246,.1) }
+.stat-success { color: var(--success-400) }
+.stat-success .stat-icon { background: rgba(34,197,94,.1) }
+.stat-danger { color: var(--danger-400) }
+.stat-danger .stat-icon { background: rgba(239,68,68,.1) }
+.stat-warning { color: var(--warning-400) }
+.stat-warning .stat-icon { background: rgba(245,158,11,.1) }
+.stat-info { color: var(--info-400) }
+.stat-info .stat-icon { background: rgba(14,165,233,.1) }
 
-.stat-primary .stat-icon {
-    background: rgba(59, 130, 246, 0.1);
-}
-
-.stat-success {
-    color: var(--success-400);
-}
-
-.stat-success .stat-icon {
-    background: rgba(34, 197, 94, 0.1);
-}
-
-.stat-danger {
-    color: var(--danger-400);
-}
-
-.stat-danger .stat-icon {
-    background: rgba(239, 68, 68, 0.1);
-}
-
-.stat-warning {
-    color: var(--warning-400);
-}
-
-.stat-warning .stat-icon {
-    background: rgba(245, 158, 11, 0.1);
-}
-
-.stat-info {
-    color: var(--info-400);
-}
-
-.stat-info .stat-icon {
-    background: rgba(14, 165, 233, 0.1);
-}
-
-/* Dashboard Grid */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: var(--spacing-xl);
+    grid-template-columns: repeat(auto-fit,minmax(400px,1fr));
+    gap: var(--spacing-2xl)
 }
 
-/* Empty State */
 .empty-state {
     text-align: center;
     padding: var(--spacing-2xl);
     color: var(--text-muted);
     background: var(--glass-bg);
     border-radius: var(--radius-xl);
-    border: 1px dashed var(--border-primary);
+    border: 1px dashed var(--border-primary)
 }
 
 .empty-state p {
     font-size: 1rem;
-    margin: var(--spacing-md) 0;
+    margin: var(--spacing-md) 0
 }
 
 .empty-state svg {
     width: 64px;
     height: 64px;
     color: var(--text-muted);
-    opacity: 0.5;
-    margin-bottom: var(--spacing-md);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .dashboard-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .stat-card {
-        padding: var(--spacing-lg);
-    }
-
-    .stat-icon {
-        width: 48px;
-        height: 48px;
-    }
-
-    .stat-icon svg {
-        width: 24px;
-        height: 24px;
-    }
-
-    .stat-value {
-        font-size: 1.5rem;
-    }
+    opacity: .5;
+    margin-bottom: var(--spacing-md)
 }

@@ -78,9 +78,9 @@
                 <div class="modal-body">
                     <p style="margin-bottom: 2rem;">Vui lòng chọn chế độ truy cập</p>
                     
-                    <!-- Admin Login Form -->
-                    <div v-if="selectingAdmin" style="text-align: left;">
-                        <div class="form-group">
+                    <!-- Admin/Accountant Login Form -->
+                    <div v-if="selectingAdmin || selectingAccountant" style="text-align: left;">
+                        <div class="form-group" v-if="selectingAdmin">
                             <label>Tên Đăng Nhập</label>
                             <input 
                                 type="text" 
@@ -113,36 +113,37 @@
                     
                     <!-- Guest Mode - Select Member -->
                     <div v-else-if="selectingGuest" style="text-align: left;">
-                        <div class="form-group">
+                        <div class="form-group search-box" style="margin-top: 1rem;">
                             <label>Tìm Kiếm Thành Viên</label>
                             <input 
                                 type="text" 
                                 v-model="memberSearch" 
                                 placeholder="Nhập tên để tìm kiếm..."
                                 @focus="showMemberList = true"
-                                style="width: 100%;">
-                        </div>
-                        
-                        <!-- Member List -->
-                        <div v-if="showMemberList && filteredMembers.length > 0" class="member-search-list">
-                            <div 
-                                v-for="member in filteredMembers" 
-                                :key="member.id"
-                                class="member-search-item"
-                                :class="{ selected: selectedMemberId === member.id }"
-                                @click="selectMember(member)">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="12" cy="7" r="4"></circle>
-                                </svg>
-                                <span>{{ member.name }}</span>
-                                <svg v-if="selectedMemberId === member.id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; color: var(--success-500);">
-                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
+                                @click="showMemberList = true">
+                            <span class="search-icon">🔍</span>
+                            
+                            <!-- Member List -->
+                            <div v-if="showMemberList && filteredMembers.length > 0" class="combobox-dropdown">
+                                <div 
+                                    v-for="member in filteredMembers" 
+                                    :key="member.id"
+                                    class="combobox-item"
+                                    :class="{ selected: selectedMemberId === member.id }"
+                                    @click="selectMember(member)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
+                                    </svg>
+                                    <span style="flex: 1;">{{ member.name }}</span>
+                                    <svg v-if="selectedMemberId === member.id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; color: var(--success-500);">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
                             </div>
-                        </div>
-                        <div v-else-if="showMemberList && memberSearch" class="empty-state" style="padding: 1rem;">
-                            <p style="margin: 0; font-size: 0.875rem;">Không tìm thấy thành viên</p>
+                            <div v-else-if="showMemberList && memberSearch" class="empty-state-dropdown" style="padding: 1rem; position: absolute; margin-top: 0.5rem; width: 100%; top: calc(100% + 8px); left: 0; right: 0; z-index: 1000; background: var(--glass-bg); backdrop-filter: blur(25px); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl);">
+                                <p style="margin: 0; font-size: 0.875rem; text-align: center; color: var(--text-muted);">Không tìm thấy thành viên</p>
+                            </div>
                         </div>
                         
                         <div class="form-actions" style="flex-direction: column; gap: 1rem; margin-top: 1rem;">
@@ -158,6 +159,7 @@
                     <!-- Role Selection -->
                     <div v-else class="form-actions" style="flex-direction: column; gap: 1rem;">
                         <button class="btn btn-primary" style="width: 100%;" @click="selectingAdmin = true">Quản Trị Viên (Full)</button>
+                        <button class="btn btn-success" style="width: 100%;" @click="selectingAccountant = true">Kế Toán (Hạn chế)</button>
                         <button class="btn btn-secondary" style="width: 100%;" @click="handleGuestClick">Thành viên (Chỉ xem)</button>
                     </div>
                 </div>
@@ -179,6 +181,7 @@ import ThemeToggle from './components/ThemeToggle.vue';
 import { useAppState } from './composables/useAppState';
 import { useFirebase } from './composables/useFirebase';
 import { useAuth } from './composables/useAuth';
+import bcrypt from 'bcryptjs';
 
 const router = useRouter();
 const { loadData, members, matches, transactions, pendingTransactions, contributionTiers, settings, updateFromFirebase } = useAppState();
@@ -188,6 +191,7 @@ const { currentRole, isAdmin, setRole, logout, permissions } = useAuth();
 const notification = reactive({ show: false, message: '', type: 'info' });
 const mobileMenuOpen = ref(false);
 const selectingAdmin = ref(false);
+const selectingAccountant = ref(false);
 const selectingGuest = ref(false);
 const selectedMemberId = ref('');
 const memberSearch = ref('');
@@ -224,37 +228,82 @@ const toggleMobileMenu = () => {
 const confirmAdminLogin = async () => {
     adminLoginError.value = '';
     
-    // Validate credentials
-    if (adminForm.username !== 'admin') {
-        adminLoginError.value = 'Tên đăng nhập không đúng';
+    // Determine the role we're trying to log into
+    const loginUsername = adminForm.username || (selectingAdmin.value ? 'admin' : 'ketoan');
+    
+    // Basic validation
+    if (selectingAdmin.value && loginUsername !== 'admin') {
+        adminLoginError.value = 'Tên đăng nhập admin không đúng';
         return;
     }
-    
-    if (adminForm.password !== 'khongngungbocuoc') {
-        adminLoginError.value = 'Mật khẩu không đúng';
+    if (selectingAccountant.value && loginUsername !== 'ketoan') {
+        adminLoginError.value = 'Tên đăng nhập kế toán không đúng';
         return;
     }
-    
-    // Login successful
-    setRole('admin');
-    selectingAdmin.value = false;
-    adminForm.username = '';
-    adminForm.password = '';
-    adminLoginError.value = '';
-    showNotification('✅ Đăng nhập Admin thành công!', 'success');
-    
-    // Auto Login Firebase Anonymous
-    await firebaseSignIn();
-    
-    // Auto-download data from Firebase (without requiring Google sign-in)
-    showNotification('🔄 Đang tải dữ liệu từ Cloud...', 'info');
-    
+
+    adminLoginError.value = 'Đang kết nối...';
     // Wait for Firebase to initialize (max 3 seconds)
     let attempts = 0;
     while (!isConfigured.value && attempts < 30) {
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
     }
+    
+    // Auto-download data from Firebase to get latest password hash
+    if (isConfigured.value) {
+        try {
+            const data = await downloadData();
+            if (data && data.settings) {
+                updateFromFirebase(data);
+            }
+        } catch (e) {
+            console.error('Không thể tải dữ liệu hash mới nhất:', e);
+        }
+    }
+
+    adminLoginError.value = 'Đang kiểm tra...';
+    const { getPassword } = useAppState();
+    const storedHash = await getPassword(loginUsername);
+    
+    if (!storedHash) {
+        adminLoginError.value = 'Lỗi hệ thống khi truy xuất mật khẩu';
+        return;
+    }
+
+    let isValid = false;
+    try {
+        if (!storedHash.startsWith('$2')) {
+            // Fallback for plaintext (migration)
+            isValid = (adminForm.password === storedHash);
+            // Optionally auto-update to hash after login:
+            if (isValid) {
+                const { updatePassword } = useAppState();
+                await updatePassword(loginUsername, adminForm.password);
+            }
+        } else {
+            isValid = bcrypt.compareSync(adminForm.password, storedHash);
+        }
+    } catch (e) {
+        console.error('Lỗi hash:', e);
+    }
+    
+    if (!isValid) {
+        adminLoginError.value = 'Mật khẩu không đúng';
+        return;
+    }
+    
+    // Login successful
+    const roleId = loginUsername === 'admin' ? 'admin' : 'ketoan';
+    setRole(roleId);
+    selectingAdmin.value = false;
+    selectingAccountant.value = false;
+    adminForm.username = '';
+    adminForm.password = '';
+    adminLoginError.value = '';
+    showNotification(`✅ Đăng nhập ${roleId === 'admin' ? 'Admin' : 'Kế toán'} thành công!`, 'success');
+    
+    // Auto Login Firebase Anonymous
+    await firebaseSignIn();
     
     if (isConfigured.value) {
         try {
@@ -289,6 +338,7 @@ const confirmAdminLogin = async () => {
 
 const cancelAdminLogin = () => {
     selectingAdmin.value = false;
+    selectingAccountant.value = false;
     adminForm.username = '';
     adminForm.password = '';
     adminLoginError.value = '';
@@ -369,6 +419,7 @@ const handleLogout = () => {
     logout();
     mobileMenuOpen.value = false;
     selectingAdmin.value = false;
+    selectingAccountant.value = false;
     selectingGuest.value = false;
     selectedMemberId.value = '';
     memberSearch.value = '';
@@ -487,48 +538,6 @@ const downloadFromFirebase = async () => {
 </script>
 
 <style scoped>
-.member-search-list {
-    max-height: 300px;
-    overflow-y: auto;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-lg);
-    background: rgba(15, 23, 42, 0.8);
-    margin-top: var(--spacing-sm);
-}
-
-.member-search-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-md) var(--spacing-lg);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.member-search-item:last-child {
-    border-bottom: none;
-}
-
-.member-search-item:hover {
-    background: rgba(59, 130, 246, 0.1);
-}
-
-.member-search-item.selected {
-    background: rgba(59, 130, 246, 0.2);
-    border-left: 3px solid var(--primary-500);
-}
-
-.member-search-item span {
-    flex: 1;
-    color: var(--text-primary);
-    font-weight: 500;
-}
-
-.member-search-item svg {
-    color: var(--text-secondary);
-}
-
 /* Realtime Update Animations */
 .sync-icon.pulse {
     animation: pulse 1.5s ease-in-out infinite;

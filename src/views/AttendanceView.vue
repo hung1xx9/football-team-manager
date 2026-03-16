@@ -125,7 +125,11 @@ const onDetect = async (detectedCodes) => {
         })));
         
         // Check if member exists in attendance list
-        const attendanceIndex = match.attendance.findIndex(a => a.memberId === guestMemberId.value);
+        let attList = [];
+        if (match.attendance) {
+            attList = Array.isArray(match.attendance) ? [...match.attendance] : Object.values(match.attendance);
+        }
+        const attendanceIndex = attList.findIndex(a => String(a.memberId) === String(guestMemberId.value));
         
         console.log('🎯 Match Result:', {
             attendanceIndex,
@@ -144,6 +148,8 @@ const onDetect = async (detectedCodes) => {
             showResult(false, `Bạn đã điểm danh trận này rồi${timeStr}`);
             return;
         }
+        
+        match.attendance = attList; // Normalize to array for Firebase update
         
         // Check if already marked as present in match data
         if (match.attendance[attendanceIndex].status === 'present') {

@@ -1,335 +1,504 @@
 <template>
     <div class="page-content">
-        <div class="card">
+        <div class="page-actions" style="margin-bottom: var(--spacing-lg);">
+            <p class="text-muted" style="font-size: 1.1rem;">Quản lý thông tin tài khoản và bảo mật</p>
+        </div>
+
+        <div class="card" style="margin-bottom: var(--spacing-xl);">
             <div class="card-header">
-                <h1>⚙️ Cài Đặt Hệ Thống</h1>
+                <h2>Thông Tin Tài Khoản</h2>
             </div>
             <div class="card-content">
-                <!-- Role Check -->
-                <div v-if="!isAdmin" class="access-denied">
-                    <div class="empty-icon">🔒</div>
-                    <p>Bạn không có quyền truy cập trang này.</p>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Vai trò:</label>
+                        <span class="badge" :class="roleBadgeClass">{{ roleLabel }}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Tên đăng nhập:</label>
+                        <span>{{ username }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Đổi Mật Khẩu</h2>
+            </div>
+            <div class="card-content">
+                <form @submit.prevent="handlePasswordChange" class="password-form">
+                    <div class="form-group">
+                        <label>Mật khẩu hiện tại <span class="required">*</span></label>
+                        <div class="password-input-wrapper">
+                            <input :type="showPass.current ? 'text' : 'password'" v-model="passForm.currentPassword" placeholder="Nhập mật khẩu hiện tại" required>
+                            <button type="button" class="toggle-password" @click="showPass.current = !showPass.current">
+                                <svg v-if="showPass.current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mật khẩu mới <span class="required">*</span></label>
+                        <div class="password-input-wrapper">
+                            <input :type="showPass.new ? 'text' : 'password'" v-model="passForm.newPassword" placeholder="Nhập mật khẩu mới" required minlength="6">
+                            <button type="button" class="toggle-password" @click="showPass.new = !showPass.new">
+                                <svg v-if="showPass.new" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <small>Mật khẩu phải có ít nhất 6 ký tự</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Xác nhận mật khẩu mới <span class="required">*</span></label>
+                        <div class="password-input-wrapper">
+                            <input :type="showPass.confirm ? 'text' : 'password'" v-model="passForm.confirmPassword" placeholder="Nhập lại mật khẩu mới" required minlength="6">
+                            <button type="button" class="toggle-password" @click="showPass.confirm = !showPass.confirm">
+                                <svg v-if="showPass.confirm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
+                    <div v-if="successMsg" class="alert alert-success">{{ successMsg }}</div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" :disabled="isBusy">
+                            <span v-if="isBusy">Đang xử lý...</span>
+                            <span v-else>Đổi Mật Khẩu</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Admin System Settings -->
+        <div v-if="permissions.canManageQRCode" class="card" style="margin-top: var(--spacing-xl);">
+            <div class="card-header">
+                <h2>⚙️ Cài Đặt Hệ Thống</h2>
+            </div>
+            <div class="card-content">
+                <div class="settings-section">
+                    <h3>📲 Mã QR & Link Thanh Toán</h3>
+                    <p class="section-desc">Cấu hình mã QR và link MoMo để thành viên đóng quỹ và nộp phạt nhanh chóng.</p>
+                    
+                    <div class="form-group" style="margin-bottom: var(--spacing-xl);">
+                        <label>Link MoMo thanh toán</label>
+                        <input type="url" v-model="sysSettings.momoLink" placeholder="https://nhantien.momo.vn/..." class="form-control" @change="saveMomoLink">
+                        <small class="form-hint">Dán link "Nhận tiền" từ ứng dụng MoMo của bạn vào đây.</small>
+                    </div>
+
+                    <div class="branding-grid single-item">
+                        <div class="branding-card">
+                            <div class="branding-header">
+                                <label>Mã QR Hiện Tại</label>
+                                <button v-if="sysSettings.fundQR" type="button" class="btn-icon-danger" @click="deleteQR" title="Xóa QR">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="branding-preview qr-preview">
+                                <div v-if="sysSettings.fundQR" class="qr-svg-container" v-html="sysSettings.fundQR"></div>
+                                <div v-else class="empty-preview">Chưa có mã QR</div>
+                                <div class="media-overlay">
+                                    <div class="overlay-content">
+                                        <button class="btn btn-sm btn-light" @click="triggerQRUpload">{{ sysSettings.fundQR ? 'Thay đổi QR' : 'Tải lên QR' }}</button>
+                                        <input type="file" ref="qrInput" style="display: none;" accept="image/*" @change="handleQRUpload">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div v-if="sysError" class="alert alert-danger" style="margin-top: var(--spacing-lg);">{{ sysError }}</div>
+                    <div v-if="sysSuccess" class="alert alert-success" style="margin-top: var(--spacing-lg);">{{ sysSuccess }}</div>
                 </div>
 
-                <template v-else>
-                    <!-- Penalty Settings -->
-                    <div class="settings-section">
-                        <h2 class="section-title">💰 Cài Đặt Phạt</h2>
-                        <form @submit.prevent="savePenaltySettings">
-                            <div class="settings-grid">
-                                <div class="form-group">
-                                    <label>Phạt vắng mặt (VNĐ)</label>
-                                    <input
-                                        type="number"
-                                        v-model.number="penaltyForm.absent"
-                                        step="5000"
-                                        class="form-control"
-                                    />
-                                </div>
-                                <div class="form-group">
-                                    <label>Phạt đi muộn &lt; 10 phút (VNĐ)</label>
-                                    <input
-                                        type="number"
-                                        v-model.number="penaltyForm.lessThan10Min"
-                                        step="5000"
-                                        class="form-control"
-                                    />
-                                </div>
-                                <div class="form-group">
-                                    <label>Phạt đi muộn 10-20 phút (VNĐ)</label>
-                                    <input
-                                        type="number"
-                                        v-model.number="penaltyForm.lessThan20Min"
-                                        step="5000"
-                                        class="form-control"
-                                    />
-                                </div>
-                                <div class="form-group">
-                                    <label>Phạt đi muộn &gt; 20 phút (VNĐ)</label>
-                                    <input
-                                        type="number"
-                                        v-model.number="penaltyForm.moreThan20Min"
-                                        step="5000"
-                                        class="form-control"
-                                    />
-                                </div>
-                            </div>
-                            <div class="form-actions">
-                                <button type="submit" class="btn btn-primary" :disabled="saving">
-                                    <span v-if="saving">Đang lưu...</span>
-                                    <span v-else>💾 Lưu Cài Đặt Phạt</span>
-                                </button>
-                                <button type="button" class="btn btn-secondary" @click="resetPenalties">
-                                    🔄 Khôi Phục Mặc Định
-                                </button>
-                            </div>
-                        </form>
-                        <div v-if="saveSuccess" class="alert alert-success">✅ Đã lưu cài đặt thành công!</div>
-                        <div v-if="saveError" class="alert alert-danger">❌ {{ saveError }}</div>
-                    </div>
-
-                    <!-- Password Settings -->
-                    <div class="settings-section">
-                        <h2 class="section-title">🔐 Đổi Mật Khẩu</h2>
-                        <div class="settings-grid">
-                            <div class="form-group">
-                                <label>Vai trò</label>
-                                <select v-model="passwordForm.role" class="form-control">
-                                    <option value="admin">Quản trị viên</option>
-                                    <option value="treasurer">Thủ quỹ</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Mật khẩu mới <span class="required-mark">*</span></label>
-                                <input type="password" v-model="passwordForm.newPassword" class="form-control" placeholder="Nhập mật khẩu mới" />
-                            </div>
-                            <div class="form-group">
-                                <label>Xác nhận mật khẩu <span class="required-mark">*</span></label>
-                                <input type="password" v-model="passwordForm.confirmPassword" class="form-control" placeholder="Nhập lại mật khẩu" />
-                            </div>
+                <div class="penalty-section" style="margin-top: var(--spacing-xl);">
+                    <h3>💸 Cấu Hình Mức Phạt</h3>
+                    <div class="form-group">
+                        <label>Vắng mặt không phép</label>
+                        <div class="input-with-unit">
+                            <input type="number" v-model="penalties.absent" class="form-control">
+                            <span class="unit">VNĐ</span>
                         </div>
-                        <div class="form-actions">
-                            <button class="btn btn-primary" @click="changePassword" :disabled="savingPassword">
-                                <span v-if="savingPassword">Đang lưu...</span>
-                                <span v-else>🔑 Đổi Mật Khẩu</span>
-                            </button>
-                        </div>
-                        <div v-if="passwordSuccess" class="alert alert-success">✅ {{ passwordSuccess }}</div>
-                        <div v-if="passwordError" class="alert alert-danger">❌ {{ passwordError }}</div>
                     </div>
-
-                    <!-- MoMo Settings -->
-                    <div class="settings-section">
-                        <h2 class="section-title">💳 Cài Đặt MoMo</h2>
+                    <div class="penalty-grid">
                         <div class="form-group">
-                            <label>Số điện thoại MoMo nhận tiền</label>
-                            <input
-                                type="text"
-                                v-model="momoForm.momoPhone"
-                                class="form-control"
-                                placeholder="09xxxxxxxx"
-                                style="max-width: 300px;"
-                            />
+                            <label>Muộn < 10 phút</label>
+                            <div class="input-with-unit">
+                                <input type="number" v-model="penalties.late.lessThan10Min" class="form-control">
+                                <span class="unit">VNĐ</span>
+                            </div>
                         </div>
-                        <div class="form-actions">
-                            <button class="btn btn-primary" @click="saveMomoSettings">
-                                💾 Lưu Cài Đặt MoMo
-                            </button>
+                        <div class="form-group">
+                            <label>Muộn < 20 phút</label>
+                            <div class="input-with-unit">
+                                <input type="number" v-model="penalties.late.lessThan20Min" class="form-control">
+                                <span class="unit">VNĐ</span>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- Security Notice -->
-                    <div class="card" style="margin-top: var(--spacing-xl);">
-                        <div class="card-content">
-                            <div class="security-notice">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                                </svg>
-                                <div>
-                                    <h3>Lưu Ý Bảo Mật</h3>
-                                    <ul>
-                                        <li>Sử dụng mật khẩu mạnh, kết hợp chữ hoa, chữ thường, số và ký tự đặc biệt</li>
-                                        <li>Không chia sẻ mật khẩu với người khác</li>
-                                        <li>Thay đổi mật khẩu định kỳ để đảm bảo an toàn</li>
-                                        <li>Đăng xuất sau khi sử dụng xong</li>
-                                    </ul>
-                                </div>
+                        <div class="form-group">
+                            <label>Muộn > 20 phút</label>
+                            <div class="input-with-unit">
+                                <input type="number" v-model="penalties.late.moreThan20Min" class="form-control">
+                                <span class="unit">VNĐ</span>
                             </div>
                         </div>
                     </div>
-                </template>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" @click="savePenalties" :disabled="isSavingPenalties">
+                            {{ isSavingPenalties ? 'Đang lưu...' : '💾 Lưu mức phạt' }}
+                        </button>
+                        <button class="btn btn-secondary" @click="resetPenalties">Khôi phục mặc định</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fixed Match Schedules -->
+        <div v-if="permissions.canManageQRCode" class="card" style="margin-top: var(--spacing-xl);">
+            <div class="card-header">
+                <h2>🗓️ Lịch Trận Đấu Cố Định</h2>
+            </div>
+            <div class="card-content">
+                <p class="section-desc">Thiết lập các trận đấu định kỳ hàng tuần. Hệ thống sẽ tự động tạo trận đấu trước 1 ngày.</p>
+                
+                <div class="table-container" style="margin-bottom: 2rem;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Thứ</th>
+                                <th>Giờ</th>
+                                <th>Đối thủ</th>
+                                <th>Địa điểm</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="fixed in fixedMatches" :key="fixed.id">
+                                <td>{{ getDayName(fixed.dayOfWeek) }}</td>
+                                <td>{{ fixed.startTime }}</td>
+                                <td>{{ fixed.opponent || 'Nội bộ' }}</td>
+                                <td>{{ fixed.location || 'Sân vận động' }}</td>
+                                <td>
+                                    <button class="btn-icon-danger" @click="deleteFixedMatch(fixed.id)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr v-if="fixedMatches.length === 0">
+                                <td colspan="5" class="text-center" style="padding: 2rem; color: var(--text-muted);">Chưa có lịch cố định nào</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="add-fixed-form">
+                    <h3>➕ Thêm Lịch Cố Định Mới</h3>
+                    <div class="fixed-form-grid">
+                        <div class="form-group">
+                            <label>Thứ trong tuần</label>
+                            <select v-model="newFixed.dayOfWeek" class="form-control">
+                                <option value="1">Thứ 2</option>
+                                <option value="2">Thứ 3</option>
+                                <option value="3">Thứ 4</option>
+                                <option value="4">Thứ 5</option>
+                                <option value="5">Thứ 6</option>
+                                <option value="6">Thứ 7</option>
+                                <option value="0">Chủ Nhật</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Giờ bắt đầu</label>
+                            <input type="time" v-model="newFixed.startTime" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Đối thủ (tùy chọn)</label>
+                            <input type="text" v-model="newFixed.opponent" placeholder="Nội bộ..." class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Địa điểm</label>
+                            <input type="text" v-model="newFixed.location" placeholder="Tên sân..." class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-actions" style="margin-top: 1rem;">
+                        <button class="btn btn-primary" @click="handleAddFixedMatch">
+                            💾 Thêm vào lịch cố định
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useAuth } from '../composables/useAuth';
 import { useAppState } from '../composables/useAppState';
+import bcrypt from 'bcryptjs';
 
-const { settings, updateSettings } = useAppState();
+const { currentRole, ROLES, permissions } = useAuth();
+const { getPassword, updatePassword, settings, updateSettings, fixedMatches, addFixedMatch, deleteFixedMatch } = useAppState();
 
-const isAdmin = computed(() => settings.value?.currentRole === 'admin');
+const showPass = ref({ current: false, new: false, confirm: false });
+const passForm = ref({ currentPassword: '', newPassword: '', confirmPassword: '' });
+const isBusy = ref(false);
+const errorMsg = ref('');
+const successMsg = ref('');
 
-const saving = ref(false);
-const savingPassword = ref(false);
-const saveSuccess = ref(false);
-const saveError = ref('');
-const passwordSuccess = ref('');
-const passwordError = ref('');
+const sysSettings = ref({ fundQR: '', momoLink: '' });
+const qrInput = ref(null);
+const sysError = ref('');
+const sysSuccess = ref('');
 
-// Default penalty values
-const DEFAULT_PENALTIES = {
+const penalties = ref({
     absent: 50000,
-    lessThan10Min: 10000,
-    lessThan20Min: 20000,
-    moreThan20Min: 50000
+    late: { lessThan10Min: 10000, lessThan20Min: 20000, moreThan20Min: 50000 }
+});
+const isSavingPenalties = ref(false);
+
+const newFixed = ref({
+    dayOfWeek: '2',
+    startTime: '16:30',
+    opponent: '',
+    location: ''
+});
+
+const username = computed(() => {
+    if (currentRole.value === ROLES.ADMIN) return 'admin';
+    if (currentRole.value === ROLES.ACCOUNTANT) return 'ketoan';
+    return '';
+});
+
+const roleLabel = computed(() => {
+    if (currentRole.value === ROLES.ADMIN) return 'Quản Trị Viên';
+    if (currentRole.value === ROLES.ACCOUNTANT) return 'Kế Toán';
+    return '';
+});
+
+const roleBadgeClass = computed(() => {
+    if (currentRole.value === ROLES.ADMIN) return 'badge-primary';
+    if (currentRole.value === ROLES.ACCOUNTANT) return 'badge-success';
+    return '';
+});
+
+onMounted(() => {
+    if (settings.value) {
+        sysSettings.value.fundQR = settings.value.fundQR || '';
+        sysSettings.value.momoLink = settings.value.momoLink || '';
+        if (settings.value.penalties) {
+            penalties.value.absent = settings.value.penalties.absent || 50000;
+            penalties.value.late = { ...settings.value.penalties.late };
+        }
+    }
+});
+
+const handlePasswordChange = async () => {
+    errorMsg.value = '';
+    successMsg.value = '';
+
+    if (passForm.value.newPassword !== passForm.value.confirmPassword) {
+        errorMsg.value = 'Mật khẩu mới và xác nhận mật khẩu không khớp!';
+        return;
+    }
+
+    if (passForm.value.newPassword.length < 6) {
+        errorMsg.value = 'Mật khẩu mới phải có ít nhất 6 ký tự!';
+        return;
+    }
+
+    isBusy.value = true;
+    try {
+        const currentHash = await getPassword(username.value);
+        if (!currentHash) {
+            errorMsg.value = 'Lỗi kết nối. Vui lòng tải lại trang.';
+            return;
+        }
+
+        let isValid = false;
+        try {
+            if (!currentHash.startsWith('$2')) {
+                isValid = (passForm.value.currentPassword === currentHash);
+            } else {
+                isValid = bcrypt.compareSync(passForm.value.currentPassword, currentHash);
+            }
+        } catch (e) {
+            console.error('Lỗi hash:', e);
+        }
+
+        if (!isValid) {
+            errorMsg.value = 'Mật khẩu hiện tại không đúng!';
+            return;
+        }
+
+        await updatePassword(username.value, passForm.value.newPassword);
+        successMsg.value = 'Đổi mật khẩu thành công! Vui lòng sử dụng mật khẩu mới trong lần đăng nhập tới.';
+        passForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' };
+    } catch (e) {
+        console.error(e);
+        errorMsg.value = 'Có lỗi xảy ra khi đổi mật khẩu.';
+    } finally {
+        isBusy.value = false;
+    }
 };
 
-const penaltyForm = reactive({ ...DEFAULT_PENALTIES });
-const passwordForm = reactive({ role: 'admin', newPassword: '', confirmPassword: '' });
-const momoForm = reactive({ momoPhone: '' });
+const triggerQRUpload = () => qrInput.value.click();
 
-// Sync from settings
-watch(() => settings.value, (val) => {
-    if (val?.penalties) {
-        Object.assign(penaltyForm, {
-            absent: val.penalties.absent ?? DEFAULT_PENALTIES.absent,
-            lessThan10Min: val.penalties.lessThan10Min ?? DEFAULT_PENALTIES.lessThan10Min,
-            lessThan20Min: val.penalties.lessThan20Min ?? DEFAULT_PENALTIES.lessThan20Min,
-            moreThan20Min: val.penalties.moreThan20Min ?? DEFAULT_PENALTIES.moreThan20Min
-        });
+const handleQRUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+            sysError.value = '❌ Ảnh quá lớn. Vui lòng chọn ảnh < 2MB';
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            const dataUrl = ev.target.result;
+            // Generate simple SVG wrapping the image for consistency with deployed version if possible
+            // For now just use dataUrl as the QR content if it's already an SVG or wrap it.
+            // In the deployed version, it converts to SVG. We'll store as dataUrl-based SVG for simplicity.
+            const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><image href="${dataUrl}" width="200" height="200"/></svg>`;
+            sysSettings.value.fundQR = svgContent;
+            await updateSettings({ fundQR: svgContent });
+            sysSuccess.value = '✅ Đã cập nhật mã QR thành công!';
+            setTimeout(() => sysSuccess.value = '', 3000);
+        };
+        reader.readAsDataURL(file);
     }
-    if (val?.momoPhone) momoForm.momoPhone = val.momoPhone;
-}, { immediate: true });
+};
 
-const savePenaltySettings = async () => {
-    saving.value = true;
-    saveSuccess.value = false;
-    saveError.value = '';
+const deleteQR = async () => {
+    if (confirm('Bạn có chắc muốn xóa mã QR?')) {
+        sysSettings.value.fundQR = '';
+        await updateSettings({ fundQR: '' });
+        sysSuccess.value = '🗑️ Đã xóa mã QR thành công!';
+        setTimeout(() => sysSuccess.value = '', 3000);
+    }
+};
+
+const saveMomoLink = async () => {
+    await updateSettings({ momoLink: sysSettings.value.momoLink });
+    sysSuccess.value = '✅ Đã lưu link MoMo thành công!';
+    setTimeout(() => sysSuccess.value = '', 3000);
+};
+
+const savePenalties = async () => {
+    isSavingPenalties.value = true;
     try {
-        await updateSettings({ penalties: { ...penaltyForm } });
-        saveSuccess.value = true;
-        setTimeout(() => saveSuccess.value = false, 3000);
+        await updateSettings({ penalties: penalties.value });
+        sysSuccess.value = '✅ Đã lưu cài đặt phạt thành công!';
+        setTimeout(() => sysSuccess.value = '', 3000);
     } catch (e) {
-        saveError.value = e.message || 'Có lỗi xảy ra';
+        sysError.value = 'Lỗi khi lưu mức phạt';
     } finally {
-        saving.value = false;
+        isSavingPenalties.value = false;
     }
 };
 
 const resetPenalties = () => {
-    Object.assign(penaltyForm, DEFAULT_PENALTIES);
-};
-
-const changePassword = async () => {
-    passwordSuccess.value = '';
-    passwordError.value = '';
-    if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
-        passwordError.value = 'Vui lòng điền đầy đủ thông tin!';
-        return;
-    }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-        passwordError.value = 'Mật khẩu xác nhận không khớp!';
-        return;
-    }
-    if (passwordForm.newPassword.length < 6) {
-        passwordError.value = 'Mật khẩu phải có ít nhất 6 ký tự!';
-        return;
-    }
-    savingPassword.value = true;
-    try {
-        const key = passwordForm.role === 'admin' ? 'adminPassword' : 'treasurerPassword';
-        await updateSettings({ [key]: passwordForm.newPassword });
-        passwordSuccess.value = `Đã đổi mật khẩu ${passwordForm.role === 'admin' ? 'Quản trị viên' : 'Thủ quỹ'} thành công!`;
-        passwordForm.newPassword = '';
-        passwordForm.confirmPassword = '';
-        setTimeout(() => passwordSuccess.value = '', 5000);
-    } catch (e) {
-        passwordError.value = e.message || 'Đổi mật khẩu thất bại';
-    } finally {
-        savingPassword.value = false;
+    if (confirm('Bạn có chắc muốn khôi phục mức phạt về mặc định?')) {
+        penalties.value = {
+            absent: 50000,
+            late: { lessThan10Min: 10000, lessThan20Min: 20000, moreThan20Min: 50000 }
+        };
     }
 };
 
-const saveMomoSettings = async () => {
-    await updateSettings({ momoPhone: momoForm.momoPhone });
-    alert('✅ Đã lưu cài đặt MoMo!');
+const getDayName = (day) => {
+    const names = {
+        '1': 'Thứ 2', '2': 'Thứ 3', '3': 'Thứ 4', '4': 'Thứ 5', '5': 'Thứ 6', '6': 'Thứ 7', '0': 'Chủ Nhật'
+    };
+    return names[day] || day;
+};
+
+const handleAddFixedMatch = () => {
+    if (!newFixed.value.startTime || !newFixed.value.location) {
+        alert('Vui lòng điền đầy đủ giờ và địa điểm!');
+        return;
+    }
+    
+    addFixedMatch({ ...newFixed.value });
+    newFixed.value = { dayOfWeek: '2', startTime: '16:30', opponent: '', location: '' };
+    sysSuccess.value = '✅ Đã thêm lịch trận đấu cố định!';
+    setTimeout(() => sysSuccess.value = '', 3000);
 };
 </script>
 
 <style scoped>
-.settings-section {
-    margin-bottom: 2.5rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+.info-item { display: flex; flex-direction: column; gap: 0.5rem; }
+.info-item label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+.info-item span { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
 
-.settings-section:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-}
+.password-input-wrapper { position: relative; display: flex; align-items: center; }
+.password-input-wrapper input { width: 100%; padding: 0.75rem 3rem 0.75rem 1rem; background: var(--bg-tertiary); border: 1px solid var(--border-primary); border-radius: var(--radius-md); color: var(--text-primary); }
+.toggle-password { position: absolute; right: 1rem; background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.toggle-password svg { width: 20px; height: 20px; }
 
-.section-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin-bottom: 1.25rem;
-    color: var(--text-primary);
-}
+.section-desc { color: var(--text-secondary); margin-bottom: 1.5rem; }
+.form-hint { color: var(--text-muted); margin-top: 0.5rem; display: block; }
 
-.settings-grid {
+.branding-card { background: var(--bg-tertiary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); padding: 1.5rem; }
+.branding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.branding-preview { aspect-ratio: 1; background: var(--bg-secondary); border-radius: var(--radius-md); overflow: hidden; position: relative; border: 1px solid var(--border-primary); display: flex; align-items: center; justify-content: center; }
+.qr-svg-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: white; }
+.empty-preview { color: var(--text-muted); font-size: 0.85rem; }
+.media-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+.branding-preview:hover .media-overlay { opacity: 1; }
+
+.input-with-unit { position: relative; display: flex; align-items: center; }
+.input-with-unit input { padding-right: 3.5rem; }
+.unit { position: absolute; right: 1rem; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
+
+.penalty-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem; }
+
+.fixed-form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-top: 1.5rem;
 }
 
-.form-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1rem;
+.add-fixed-form {
+    background: var(--bg-tertiary);
+    border: 1px dashed var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
 }
 
-.alert {
-    margin-top: 0.75rem;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    font-size: 0.9rem;
-}
-
-.alert-success {
-    background: rgba(74, 222, 128, 0.1);
-    border: 1px solid rgba(74, 222, 128, 0.3);
-    color: #4ade80;
-}
-
-.alert-danger {
-    background: rgba(248, 113, 113, 0.1);
-    border: 1px solid rgba(248, 113, 113, 0.3);
-    color: #f87171;
-}
-
-.access-denied {
-    text-align: center;
-    padding: 3rem;
-    color: var(--text-muted);
-}
-
-.empty-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-.required-mark {
-    color: #f87171;
-}
-
-.security-notice {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-}
-
-.security-notice svg {
-    width: 40px;
-    height: 40px;
-    color: #4ade80;
-    flex-shrink: 0;
-}
-
-.security-notice h3 {
-    font-size: 1rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-}
-
-.security-notice ul {
-    list-style: disc;
-    padding-left: 1.25rem;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+@media (max-width: 768px) {
+    .info-grid,
+    .penalty-grid,
+    .fixed-form-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
 }
 </style>

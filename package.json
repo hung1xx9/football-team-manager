@@ -10,6 +10,7 @@
     "deploy": "yarn build && gh-pages -d dist"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "firebase": "^9.22.0",
     "qrcode": "^1.5.3",
     "vue": "^3.3.4",

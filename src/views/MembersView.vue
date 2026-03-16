@@ -1,22 +1,22 @@
 <template>
     <div class="page-content">
         <div class="page-actions">
-            <!-- Check if admin logic needs to be passed in or handled globally -->
-            <button class="btn btn-primary" @click="openMemberModal()">
+            <button class="btn btn-primary" @click="openAddModal">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
                 Thêm Thành Viên
             </button>
             <button class="btn btn-secondary" @click="showTiersModal = true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
                 </svg>
                 Quản Lý Mức Đóng Quỹ
             </button>
         </div>
+
         <div class="card">
             <div class="card-content">
                 <div class="table-container">
@@ -24,6 +24,7 @@
                         <thead>
                             <tr>
                                 <th>Tên</th>
+                                <th>Loại Đóng</th>
                                 <th>Mức Đóng Quỹ</th>
                                 <th>Tham Gia</th>
                                 <th>Quỹ</th>
@@ -35,35 +36,41 @@
                             <tr v-for="member in members" :key="member.id">
                                 <td><strong>{{ member.name }}</strong></td>
                                 <td>
-                                    <span v-if="member.contributionTierId" class="tier-badge" :style="getTierStyle(member.contributionTierId)">
-                                        {{ getTierIcon(member.contributionTierId) }}
-                                        {{ getTierName(member.contributionTierId) }}
+                                    <span v-if="member.paymentType === 'per-match'" class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+                                        ⚽ Đá theo trận
+                                    </span>
+                                    <span v-else class="badge badge-info" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+                                        👥 Đá theo đội
+                                    </span>
+                                </td>
+                                <td>
+                                    <span v-if="member.paymentType === 'per-match'" class="badge badge-secondary">
+                                        {{ formatCurrency(member.perMatchFee || 50000) }}/trận
+                                    </span>
+                                    <span v-else-if="member.contributionTierId" class="tier-badge" :style="getTierBadgeStyle(member.contributionTierId)">
+                                        {{ getTierIcon(member.contributionTierId) }} {{ getTierName(member.contributionTierId) }}
                                     </span>
                                     <span v-else class="badge badge-secondary">Chưa chọn</span>
                                 </td>
                                 <td>
-                                    <span class="badge" :class="getRateColor(getMemberStats(member.id).attendanceRate)">
+                                    <span class="badge" :class="getAttendanceRateClass(getMemberStats(member.id).attendanceRate)">
                                         {{ getMemberStats(member.id).attendanceRate }}%
                                     </span>
                                 </td>
                                 <td>{{ formatCurrency(member.fundPaid) }}</td>
                                 <td>{{ formatCurrency(member.fines) }}</td>
                                 <td>
-                                    <div>
-                                        <!-- Assuming simplified view for now, role check can be added later -->
-                                        <button class="btn btn-sm btn-secondary" @click="openMemberModal(member)">
+                                    <div class="table-actions">
+                                        <button class="btn btn-sm btn-secondary" @click="openEditModal(member)">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path
-                                                    d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                                <path
-                                                    d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                             </svg>
                                         </button>
-                                        <button class="btn btn-sm btn-danger" @click="handleDelete(member.id)">
+                                        <button class="btn btn-sm btn-danger" @click="handleDeleteMember(member.id)">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <polyline points="3 6 5 6 21 6" />
-                                                <path
-                                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                             </svg>
                                         </button>
                                     </div>
@@ -75,39 +82,51 @@
             </div>
         </div>
 
-        <!-- Member Modal could be moved to a separate component -->
-        <div class="modal" v-if="showModal" style="display: flex;">
+        <!-- Member Edit/Add Modal -->
+        <div v-if="showMemberModal" class="modal" style="display: flex;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>{{ form.id ? 'Sửa' : 'Thêm' }} Thành Viên</h2>
-                    <button class="modal-close" @click="closeModal">×</button>
+                    <h2>{{ memberForm.id ? 'Sửa' : 'Thêm' }} Thành Viên</h2>
+                    <button class="modal-close" @click="closeMemberModal">×</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Tên</label>
-                        <input type="text" v-model="form.name">
+                        <label>Tên thành viên</label>
+                        <input type="text" v-model="memberForm.name" placeholder="Nhập tên..." class="form-control">
                     </div>
+                    
                     <div class="form-group">
-                        <label>Mức Đóng Quỹ</label>
-                        <select v-model="form.contributionTierId">
-                            <option :value="null">-- Chưa chọn --</option>
+                        <label>Hình thức đóng phí</label>
+                        <select v-model="memberForm.paymentType" class="form-control">
+                            <option value="team-based">Đóng theo đội (Tháng)</option>
+                            <option value="per-match">Đóng theo trận (Vãng lai)</option>
+                        </select>
+                    </div>
+
+                    <div v-if="memberForm.paymentType === 'team-based'" class="form-group">
+                        <label>Mức Đóng Quỹ Tháng</label>
+                        <select v-model="memberForm.contributionTierId" class="form-control">
+                            <option :value="null">-- Chọn mức --</option>
                             <option v-for="tier in contributionTiers" :key="tier.id" :value="tier.id">
-                                {{ tier.icon }} {{ tier.name }} ({{ formatCurrency(tier.monthlyFee) }}/tháng)
+                                {{ tier.icon }} {{ tier.name }} ({{ formatCurrency(tier.monthlyFee) }})
                             </option>
                         </select>
                     </div>
+
+                    <div v-if="memberForm.paymentType === 'per-match'" class="form-group">
+                        <label>Mức Phí Theo Trận (₫/trận)</label>
+                        <input type="number" v-model="memberForm.perMatchFee" class="form-control">
+                    </div>
+
                     <div class="form-actions">
-                        <button class="btn btn-primary" @click="save">Lưu</button>
+                        <button class="btn btn-primary" @click="handleSaveMember">Lưu</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Contribution Tiers Modal -->
-        <ContributionTiersModal 
-            :show="showTiersModal" 
-            @close="showTiersModal = false"
-            @updated="onTiersUpdated" />
+        <ContributionTiersModal :show="showTiersModal" @close="showTiersModal = false" />
     </div>
 </template>
 
@@ -118,73 +137,80 @@ import ContributionTiersModal from '../components/ContributionTiersModal.vue';
 
 const { members, contributionTiers, getMemberStats, addMember, updateMember, deleteMember, getContributionTier } = useAppState();
 
-const showModal = ref(false);
+const showMemberModal = ref(false);
 const showTiersModal = ref(false);
-const form = reactive({ id: null, name: '', contributionTierId: null });
+const memberForm = reactive({
+    id: null,
+    name: '',
+    contributionTierId: null,
+    paymentType: 'team-based',
+    perMatchFee: 50000
+});
 
-const openMemberModal = (member = null) => {
-    if (member) {
-        form.id = member.id;
-        form.name = member.name;
-        form.contributionTierId = member.contributionTierId || null;
-    } else {
-        form.id = null;
-        form.name = '';
-        form.contributionTierId = null;
+const openAddModal = () => {
+    memberForm.id = null;
+    memberForm.name = '';
+    memberForm.contributionTierId = null;
+    memberForm.paymentType = 'team-based';
+    memberForm.perMatchFee = 50000;
+    showMemberModal.value = true;
+};
+
+const openEditModal = (member) => {
+    memberForm.id = member.id;
+    memberForm.name = member.name;
+    memberForm.contributionTierId = member.contributionTierId || null;
+    memberForm.paymentType = member.paymentType || 'team-based';
+    memberForm.perMatchFee = member.perMatchFee || 50000;
+    showMemberModal.value = true;
+};
+
+const closeMemberModal = () => {
+    showMemberModal.value = false;
+};
+
+const handleSaveMember = () => {
+    if (!memberForm.name) {
+        alert('Vui lòng nhập tên!');
+        return;
     }
-    showModal.value = true;
-};
 
-const closeModal = () => showModal.value = false;
-
-const save = () => {
-    if (form.id) {
-        const member = members.value.find(m => m.id === form.id);
-        if (member) {
-            member.name = form.name;
-            member.contributionTierId = form.contributionTierId;
-            updateMember(form.id, form.name);
-        }
+    if (memberForm.id) {
+        updateMember(memberForm.id, {
+            name: memberForm.name,
+            contributionTierId: memberForm.contributionTierId,
+            paymentType: memberForm.paymentType,
+            perMatchFee: memberForm.paymentType === 'per-match' ? memberForm.perMatchFee : undefined
+        });
     } else {
-        const newMember = {
-            id: Date.now(),
-            name: form.name,
-            fundPaid: 0,
-            fines: 0,
-            contributionTierId: form.contributionTierId
-        };
-        members.value.push(newMember);
+        addMember({
+            name: memberForm.name,
+            contributionTierId: memberForm.contributionTierId,
+            paymentType: memberForm.paymentType,
+            perMatchFee: memberForm.paymentType === 'per-match' ? memberForm.perMatchFee : undefined
+        });
     }
-    closeModal();
+    closeMemberModal();
 };
 
-const handleDelete = (id) => {
-    if(confirm('Xóa?')) deleteMember(id);
+const handleDeleteMember = (id) => {
+    if (confirm('Bạn có chắc chắn muốn xóa thành viên này?')) {
+        deleteMember(id);
+    }
 };
 
-const onTiersUpdated = () => {
-    // Refresh or show notification
-    console.log('Contribution tiers updated');
-};
-
-// Tier helpers
-const getTierName = (tierId) => {
-    const tier = getContributionTier(tierId);
+const getTierName = (id) => {
+    const tier = getContributionTier(id);
     return tier ? tier.name : '';
 };
 
-const getTierIcon = (tierId) => {
-    const tier = getContributionTier(tierId);
+const getTierIcon = (id) => {
+    const tier = getContributionTier(id);
     return tier ? tier.icon : '';
 };
 
-const getTierFee = (tierId) => {
-    const tier = getContributionTier(tierId);
-    return tier ? tier.monthlyFee : 0;
-};
-
-const getTierStyle = (tierId) => {
-    const tier = getContributionTier(tierId);
+const getTierBadgeStyle = (id) => {
+    const tier = getContributionTier(id);
     if (!tier) return {};
     return {
         backgroundColor: tier.color + '20',
@@ -200,9 +226,11 @@ const getTierStyle = (tierId) => {
     };
 };
 
-// Utils
-const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
-const getRateColor = (rate) => {
+const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
+};
+
+const getAttendanceRateClass = (rate) => {
     if (rate >= 75) return 'badge-success';
     if (rate >= 50) return 'badge-warning';
     return 'badge-danger';
@@ -210,8 +238,8 @@ const getRateColor = (rate) => {
 </script>
 
 <style scoped>
-.tier-badge small {
-    opacity: 0.8;
-    font-size: 0.75rem;
-}
+.page-content { padding: var(--spacing-xl); }
+.page-actions { display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-xl); }
+.table-actions { display: flex; gap: 0.5rem; justify-content: center; }
+.tier-badge { display: inline-flex; align-items: center; gap: 0.5rem; }
 </style>

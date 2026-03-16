@@ -1,5 +1,7 @@
 import { ref, computed } from 'vue';
 import { useFirebase } from './useFirebase';
+import { cleanupDeletedMatch } from './useQRAttendance';
+import bcrypt from 'bcryptjs';
 
 // --- Global State ---
 const members = ref([]);
@@ -7,12 +9,14 @@ const matches = ref([]);
 const transactions = ref([]);
 const pendingTransactions = ref([]); // Giao dịch chờ phê duyệt
 const leaveRequests = ref([]); // Đơn xin nghỉ
+const pendingAttendances = ref([]); // Yêu cầu điểm danh thủ công
+const fixedMatches = ref([]); // Trận đấu cố định (lịch hẹn)
 const contributionTiers = ref([]);
 const settings = ref({ momoPhone: '' });
 const isInitialized = ref(false);
 
 // Firebase integration
-const { uploadData, isSignedIn } = useFirebase();
+const { uploadData, uploadSingleItem, deleteSingleItem, isSignedIn, approvePendingTransactionAtomic, approveAttendanceAtomic } = useFirebase();
 
 // --- Computed Stats ---
 const stats = computed(() => {
@@ -24,7 +28,10 @@ const stats = computed(() => {
     let totalPossible = matches.value.length * members.value.length;
     if (matches.value.length > 0) {
         matches.value.forEach(m => {
-            totalAtt += m.attendance.filter(a => a.status === 'present').length;
+            if (m.attendance) {
+                const attList = Array.isArray(m.attendance) ? m.attendance : Object.values(m.attendance);
+                totalAtt += attList.filter(a => a && a.status === 'present').length;
+            }
         });
     }
 
@@ -58,6 +65,8 @@ const loadData = () => {
     const savedTransactions = localStorage.getItem('transactions');
     const savedPendingTransactions = localStorage.getItem('pendingTransactions');
     const savedLeaveRequests = localStorage.getItem('leaveRequests');
+    const savedPendingAttendances = localStorage.getItem('pendingAttendances');
+    const savedFixedMatches = localStorage.getItem('fixedMatches');
     const savedTiers = localStorage.getItem('contributionTiers');
     const savedSettings = localStorage.getItem('settings');
 
@@ -66,6 +75,8 @@ const loadData = () => {
     if (savedTransactions) transactions.value = JSON.parse(savedTransactions);
     if (savedPendingTransactions) pendingTransactions.value = JSON.parse(savedPendingTransactions);
     if (savedLeaveRequests) leaveRequests.value = JSON.parse(savedLeaveRequests);
+    if (savedPendingAttendances) pendingAttendances.value = JSON.parse(savedPendingAttendances);
+    if (savedFixedMatches) fixedMatches.value = JSON.parse(savedFixedMatches);
     if (savedTiers) contributionTiers.value = JSON.parse(savedTiers);
     if (savedSettings) settings.value = JSON.parse(savedSettings);
 
@@ -114,6 +125,7 @@ const loadData = () => {
     }
 
     isInitialized.value = true;
+    checkAndCreateFixedMatches();
 };
 
 const saveData = () => {
@@ -122,6 +134,8 @@ const saveData = () => {
     localStorage.setItem('transactions', JSON.stringify(transactions.value));
     localStorage.setItem('pendingTransactions', JSON.stringify(pendingTransactions.value));
     localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests.value));
+    localStorage.setItem('pendingAttendances', JSON.stringify(pendingAttendances.value));
+    localStorage.setItem('fixedMatches', JSON.stringify(fixedMatches.value));
     localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
     localStorage.setItem('settings', JSON.stringify(settings.value));
 
@@ -132,8 +146,10 @@ const saveData = () => {
             matches: matches.value,
             transactions: transactions.value,
             pendingTransactions: pendingTransactions.value,
+            pendingAttendances: pendingAttendances.value,
             leaveRequests: leaveRequests.value,
             contributionTiers: contributionTiers.value,
+            fixedMatches: fixedMatches.value,
             settings: settings.value
         };
 
@@ -171,6 +187,8 @@ const updateFromFirebase = (data) => {
     if (data.transactions) transactions.value = data.transactions;
     if (data.pendingTransactions) pendingTransactions.value = data.pendingTransactions;
     if (data.leaveRequests) leaveRequests.value = data.leaveRequests;
+    if (data.pendingAttendances) pendingAttendances.value = data.pendingAttendances;
+    if (data.fixedMatches) fixedMatches.value = data.fixedMatches;
     if (data.contributionTiers) contributionTiers.value = data.contributionTiers;
     if (data.settings) settings.value = data.settings;
     // Save to localStorage
@@ -178,24 +196,42 @@ const updateFromFirebase = (data) => {
     localStorage.setItem('matches', JSON.stringify(matches.value));
     localStorage.setItem('transactions', JSON.stringify(transactions.value));
     localStorage.setItem('pendingTransactions', JSON.stringify(pendingTransactions.value));
+    localStorage.setItem('pendingAttendances', JSON.stringify(pendingAttendances.value));
     localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests.value));
     localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
+    localStorage.setItem('fixedMatches', JSON.stringify(fixedMatches.value));
     localStorage.setItem('settings', JSON.stringify(settings.value));
 };
 
 // CRUD
-const addMember = (name) => {
-    members.value.push({ id: Date.now(), name, fundPaid: 0, fines: 0 });
-    saveData();
+const addMember = async (memberData) => {
+    const newMemberData = typeof memberData === 'string' ? { name: memberData } : memberData;
+    const newMember = { 
+        id: Date.now(), 
+        fundPaid: 0, 
+        fines: 0,
+        ...newMemberData 
+    };
+    members.value.push(newMember);
+    localStorage.setItem('members', JSON.stringify(members.value));
+    if (isSignedIn.value) await uploadSingleItem('members', newMember).catch(e => console.error(e));
 };
-const updateMember = (id, newName) => {
+const updateMember = async (id, memberData) => {
     const m = members.value.find(x => x.id === id);
-    if (m) m.name = newName;
-    saveData();
+    if (m) {
+        if (typeof memberData === 'string') {
+            m.name = memberData;
+        } else {
+            Object.assign(m, memberData);
+        }
+        localStorage.setItem('members', JSON.stringify(members.value));
+        if (isSignedIn.value) await uploadSingleItem('members', m).catch(e => console.error(e));
+    }
 };
-const deleteMember = (id) => {
+const deleteMember = async (id) => {
     members.value = members.value.filter(m => m.id !== id);
-    saveData();
+    localStorage.setItem('members', JSON.stringify(members.value));
+    if (isSignedIn.value) await deleteSingleItem('members', id).catch(e => console.error(e));
 };
 
 const saveMatch = (matchData) => {
@@ -304,7 +340,6 @@ const saveMatch = (matchData) => {
 };
 const deleteMatch = (id) => {
     // Clean up scan records for this match
-    const { cleanupDeletedMatch } = require('./useQRAttendance');
     const cleanedCount = cleanupDeletedMatch(id);
     console.log(`🗑️ Deleted match ${id}, cleaned up ${cleanedCount} scan records`);
 
@@ -312,12 +347,98 @@ const deleteMatch = (id) => {
     saveData();
 };
 
-const addTransaction = (tData) => {
-    transactions.value.push({
+const updateMatchAttendance = async (matchId, attendanceData) => {
+    const idx = matches.value.findIndex(m => m.id === matchId);
+    if (idx !== -1) {
+        matches.value[idx] = {
+            ...matches.value[idx],
+            attendance: attendanceData
+        };
+        localStorage.setItem('matches', JSON.stringify(matches.value));
+        if (isSignedIn.value) {
+            await uploadSingleItem('matches', matches.value[idx]).catch(e => console.error(e));
+        }
+        return true;
+    }
+    return false;
+};
+
+const addTransaction = async (tData) => {
+    const newTx = { id: Date.now(), ...tData };
+    transactions.value.push(newTx);
+
+    let updatedMember = null;
+    if (tData.type === 'income' && tData.memberId) {
+        const member = members.value.find(m => m.id === tData.memberId);
+        if (member) {
+            if (tData.category === 'fund') member.fundPaid = (member.fundPaid || 0) + tData.amount;
+            else if (tData.category === 'fine') member.fines = (member.fines || 0) + tData.amount;
+            updatedMember = member;
+        }
+    }
+
+    localStorage.setItem('transactions', JSON.stringify(transactions.value));
+    if (updatedMember) localStorage.setItem('members', JSON.stringify(members.value));
+
+    if (isSignedIn.value) {
+        uploadSingleItem('transactions', newTx).catch(e => console.error(e));
+        if (updatedMember) uploadSingleItem('members', updatedMember).catch(e => console.error(e));
+    }
+};
+
+const addFixedMatch = async (fixedData) => {
+    const newFixed = {
         id: Date.now(),
-        ...tData
+        ...fixedData
+    };
+    fixedMatches.value.push(newFixed);
+    localStorage.setItem('fixedMatches', JSON.stringify(fixedMatches.value));
+    if (isSignedIn.value) await uploadSingleItem('fixedMatches', newFixed).catch(e => console.error(e));
+};
+
+const deleteFixedMatch = async (id) => {
+    fixedMatches.value = fixedMatches.value.filter(m => m.id !== id);
+    localStorage.setItem('fixedMatches', JSON.stringify(fixedMatches.value));
+    if (isSignedIn.value) await deleteSingleItem('fixedMatches', id).catch(e => console.error(e));
+};
+
+const checkAndCreateFixedMatches = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const currentDay = today.getDay();
+
+    fixedMatches.value.forEach(fixed => {
+        const targetDay = Number(fixed.dayOfWeek);
+        
+        // Tính khoảng thời gian phải chờ cho lịch trình này
+        let daysUntilMatch = targetDay - currentDay;
+        // Nếu qua rồi hoặc âm thì tính cho trận của tuần tới
+        if (daysUntilMatch < 0) {
+            daysUntilMatch += 7;
+        }
+
+        // Tự động tạo trận nếu chưa có trận đấu nào sắp tới, rà soát bù trước 1 ngày
+        if (daysUntilMatch <= 1) {
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + daysUntilMatch);
+            const targetDateStr = targetDate.toISOString().split('T')[0];
+
+            // Rà soát lại xem đã tạo trận lịch đó chưa
+            const exists = matches.value.some(m => m.date === targetDateStr && m.fixedMatchId === fixed.id);
+
+            if (!exists) {
+                console.log(`🚀 Tự động kích hoạt lịch cố định (trước ${daysUntilMatch} ngày) cho ngày: ${targetDateStr}`);
+                saveMatch({
+                    date: targetDateStr,
+                    startTime: fixed.startTime,
+                    matchType: fixed.matchType || 'friendly',
+                    opponent: fixed.opponent || 'Nội bộ',
+                    location: fixed.location || 'Sân vận động',
+                    fixedMatchId: fixed.id // Flag để đánh dấu
+                });
+            }
+        }
     });
-    saveData();
 };
 const deleteTransaction = (id) => {
     transactions.value = transactions.value.filter(t => t.id !== id);
@@ -337,42 +458,35 @@ const addPendingTransaction = (tData) => {
     saveData();
 };
 
-const approvePendingTransaction = (id) => {
-    const pending = pendingTransactions.value.find(t => t.id === id);
-    if (!pending) return false;
-
-    // Move to transactions
-    const transaction = {
-        type: pending.type,
-        category: pending.category,
-        amount: pending.amount,
-        description: pending.description,
-        date: pending.date,
-        memberId: pending.memberId,
-        momoTransId: pending.momoTransId,
-        source: pending.source,
-        createdAt: new Date()
-    };
-    addTransaction(transaction);
-
-    // Update member's fundPaid or fines
-    const member = members.value.find(m => m.id === pending.memberId);
-    if (member) {
-        if (pending.category === 'fund') {
-            // Add to fundPaid
-            member.fundPaid = (member.fundPaid || 0) + pending.amount;
-            console.log(`✅ Updated ${member.name}: fundPaid += ${pending.amount} = ${member.fundPaid}`);
-        } else if (pending.category === 'fine') {
-            // Add to fines
-            member.fines = (member.fines || 0) + pending.amount;
-            console.log(`✅ Updated ${member.name}: fines += ${pending.amount} = ${member.fines}`);
+const approvePendingTransaction = async (id) => {
+    if (isSignedIn.value) {
+        try {
+            const result = await approvePendingTransactionAtomic(id);
+            pendingTransactions.value = pendingTransactions.value.filter(p => p.id !== id);
+            if (result.newTx && !transactions.value.some(t => t.id === result.newTx.id)) {
+                transactions.value.push(result.newTx);
+            }
+            if (result.memberId) {
+                // Member balance updated in Firebase, downloadData will sync local later
+            }
+            localStorage.setItem('pendingTransactions', JSON.stringify(pendingTransactions.value));
+            localStorage.setItem('transactions', JSON.stringify(transactions.value));
+            return true;
+        } catch (e) {
+            alert('Lỗi: ' + e.message);
+            throw e;
         }
+    } else {
+        const pending = pendingTransactions.value.find(t => t.id === id);
+        if (!pending) return false;
+        await addTransaction({
+            type: pending.type, category: pending.category, amount: pending.amount,
+            description: pending.description, date: pending.date, memberId: pending.memberId
+        });
+        pendingTransactions.value = pendingTransactions.value.filter(t => t.id !== id);
+        saveData();
+        return true;
     }
-
-    // Remove from pending
-    pendingTransactions.value = pendingTransactions.value.filter(t => t.id !== id);
-    saveData();
-    return true;
 };
 
 const rejectPendingTransaction = (id, reason = '') => {
@@ -401,9 +515,11 @@ const getMemberName = (id) => {
 const getMemberStats = (memberId) => {
     const total = matches.value.length;
     if (total === 0) return { attendanceRate: 0 };
-    const attended = matches.value.filter(m =>
-        m.attendance.some(a => a.memberId === memberId && a.status === 'present')
-    ).length;
+    const attended = matches.value.filter(m => {
+        if (!m.attendance) return false;
+        const attList = Array.isArray(m.attendance) ? m.attendance : Object.values(m.attendance);
+        return attList.some(a => (a.memberId === memberId || a.memberId === String(memberId) || a.memberId === Number(memberId)) && a.status === 'present');
+    }).length;
     return { attendanceRate: Math.round((attended / total) * 100) };
 };
 
@@ -488,6 +604,29 @@ const deleteLeaveRequest = (id) => {
     saveData();
 };
 
+// Pending Attendance Requests (Manual Check-ins)
+const updateManualAttendanceRequest = async (request, action = 'save') => {
+    if (action === 'approve' && isSignedIn.value) {
+        try {
+            await approveAttendanceAtomic(request.id, request.matchId, request.memberId);
+            pendingAttendances.value = pendingAttendances.value.filter(r => r.id !== request.id);
+            localStorage.setItem('pendingAttendances', JSON.stringify(pendingAttendances.value));
+            return;
+        } catch (e) {
+            alert('Lỗi: ' + e.message);
+            throw e;
+        }
+    }
+
+    const idx = pendingAttendances.value.findIndex(r => r.id === request.id);
+    if (idx !== -1) {
+        pendingAttendances.value[idx] = { ...request };
+    } else {
+        pendingAttendances.value.push({ ...request });
+    }
+    saveData();
+};
+
 const getMemberLeaveRequests = (memberId) => {
     return leaveRequests.value
         .filter(r => r.memberId === memberId)
@@ -502,6 +641,30 @@ const hasApprovedLeave = (memberId, date) => {
     );
 };
 
+const getPassword = (role) => {
+    // Default hashes for:
+    // admin: khongngungbocuoc
+    // ketoan: ketoantinhhoa
+    const defaultAdminHash = bcrypt.hashSync('khongngungbocuoc', 10);
+    const defaultAccountantHash = bcrypt.hashSync('tinhhoafc2025', 10);
+
+    if (role === 'admin') return settings.value.adminPassword || defaultAdminHash;
+    if (role === 'ketoan') return settings.value.accountantPassword || defaultAccountantHash;
+    return '';
+};
+
+const updatePassword = async (role, newPassword) => {
+    const salt = bcrypt.genSaltSync(10);
+    const hash = bcrypt.hashSync(newPassword, salt);
+    
+    if (role === 'admin') {
+        settings.value.adminPassword = hash;
+    } else if (role === 'ketoan') {
+        settings.value.accountantPassword = hash;
+    }
+    saveData();
+};
+
 
 export const useAppState = () => {
     return {
@@ -511,6 +674,8 @@ export const useAppState = () => {
         transactions,
         pendingTransactions,
         leaveRequests,
+        pendingAttendances,
+        fixedMatches,
         contributionTiers,
         settings,
         stats,
@@ -524,6 +689,7 @@ export const useAppState = () => {
         updateMember,
         deleteMember,
         saveMatch,
+        updateMatchAttendance,
         deleteMatch,
         addTransaction,
         deleteTransaction,
@@ -539,12 +705,18 @@ export const useAppState = () => {
         approveLeaveRequest,
         rejectLeaveRequest,
         deleteLeaveRequest,
+        updateManualAttendanceRequest,
+        addFixedMatch,
+        deleteFixedMatch,
+        checkAndCreateFixedMatches,
 
         // Helpers
         getMemberName,
         getMemberStats,
         getContributionTier,
         getMemberLeaveRequests,
-        hasApprovedLeave
+        hasApprovedLeave,
+        getPassword,
+        updatePassword
     };
 };
