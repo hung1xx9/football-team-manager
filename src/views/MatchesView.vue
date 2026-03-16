@@ -64,12 +64,7 @@
                             </svg>
                             Mã QR
                         </button>
-                        <button class="btn-action btn-attendance" @click="openAttendanceModal(match)">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                            Điểm danh
-                        </button>
+
                         <button class="btn-action btn-edit" @click="openEditModal(match)">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -127,46 +122,7 @@
             </div>
         </div>
 
-        <!-- Manual Attendance Modal -->
-        <div v-if="showAttendanceModal" class="modal" style="display: flex;">
-            <div class="modal-content modal-large">
-                <div class="modal-header">
-                    <h2>Điểm Danh Thủ Công</h2>
-                    <button class="modal-close" @click="closeAttendanceModal">×</button>
-                </div>
-                <div class="modal-body">
-                    <div v-if="selectedMatchForAttendance" class="match-info-banner">
-                        <h3>{{ getMatchDisplayTitle(selectedMatchForAttendance) }}</h3>
-                        <p>{{ selectedMatchForAttendance.opponent || 'Chưa có đối thủ' }} • {{ selectedMatchForAttendance.location || 'Chưa có địa điểm' }}</p>
-                    </div>
-                    <div class="form-group">
-                        <label>Chọn thành viên có mặt</label>
-                        <div class="attendance-list-enhanced">
-                            <div v-for="member in members" :key="member.id" class="attendance-item-enhanced">
-                                <div class="attendance-checkbox-wrapper">
-                                    <input type="checkbox" :id="'att-' + member.id" :value="member.id" v-model="attendanceState.attendanceIds">
-                                    <label :for="'att-' + member.id" class="attendance-label">
-                                        <span class="member-name">{{ member.name }}</span>
-                                        <span v-if="getManualAttendanceInfo(member.id)" class="attendance-info">
-                                            <span class="attendance-time">{{ formatManualTime(getManualAttendanceInfo(member.id).timestamp) }}</span>
-                                            <span class="attendance-method" :class="getManualAttendanceInfo(member.id).method === 'qr' ? 'method-qr' : 'method-manual'">
-                                                {{ getManualAttendanceInfo(member.id).method === 'qr' ? '📱 QR' : '✋ Thủ công' }}
-                                            </span>
-                                            <span v-if="getManualAttendanceInfo(member.id).isLate !== undefined" class="late-status" :class="getManualAttendanceInfo(member.id).isLate ? 'is-late' : 'on-time'">
-                                                {{ getManualAttendanceInfo(member.id).isLate ? `⏰ Muộn ${getManualAttendanceInfo(member.id).lateMinutes}p` : '✓ Đúng giờ' }}
-                                            </span>
-                                        </span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button class="btn btn-primary" @click="handleSaveAttendance">Lưu Điểm Danh</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+
 
         <!-- QR Code Modal -->
         <div v-if="showQRModal" class="modal" style="display: flex;">
@@ -211,12 +167,7 @@ const matchForm = reactive({
     location: ''
 });
 
-const showAttendanceModal = ref(false);
-const selectedMatchForAttendance = ref(null);
-const attendanceState = reactive({
-    attendanceIds: [],
-    originalAttendance: []
-});
+
 
 const showQRModal = ref(false);
 const qrCodeData = ref(null);
@@ -258,57 +209,9 @@ const handleSaveMatch = () => {
     closeMatchModal();
 };
 
-const openAttendanceModal = (match) => {
-    selectedMatchForAttendance.value = match;
-    const attList = Array.isArray(match.attendance) ? match.attendance : Object.values(match.attendance || {});
-    attendanceState.attendanceIds = attList
-        .filter(a => a.status === 'present')
-        .map(a => a.memberId);
-    attendanceState.originalAttendance = JSON.parse(JSON.stringify(attList));
-    showAttendanceModal.value = true;
-};
 
-const closeAttendanceModal = () => {
-    showAttendanceModal.value = false;
-    selectedMatchForAttendance.value = null;
-    attendanceState.attendanceIds = [];
-    attendanceState.originalAttendance = [];
-};
 
-const handleSaveAttendance = () => {
-    const match = selectedMatchForAttendance.value;
-    const data = {
-        id: match.id,
-        date: match.date,
-        startTime: match.startTime,
-        matchType: match.matchType,
-        opponent: match.opponent,
-        location: match.location,
-        attendanceIds: attendanceState.attendanceIds,
-        preserveAttendanceData: true,
-        originalAttendance: attendanceState.originalAttendance
-    };
-    saveMatch(data);
-    closeAttendanceModal();
-};
 
-const getManualAttendanceInfo = (memberId) => {
-    if (!selectedMatchForAttendance.value) return null;
-    const att = attendanceState.originalAttendance.find(a => a.memberId === memberId);
-    if (!att || att.status !== 'present') return null;
-    return {
-        timestamp: att.timestamp,
-        method: att.attendanceMethod || 'manual',
-        isLate: att.isLate,
-        lateMinutes: att.lateMinutes,
-        lateFine: att.lateFine
-    };
-};
-
-const formatManualTime = (ts) => {
-    if (!ts) return '';
-    return new Date(ts).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', hour12: false });
-};
 
 const generateAndShowQR = async (match) => {
     matchForQR.value = match;
@@ -439,7 +342,7 @@ const getAttendanceCount = (match, status) => {
     transition: all 0.3s;
 }
 .btn-qr { background: #0891b2; color: white; }
-.btn-attendance { background: #16a34a; color: white; }
+
 .btn-edit { background: #7c3aed; color: white; }
 .btn-delete { background: #dc2626; color: white; }
 .btn-action:hover {

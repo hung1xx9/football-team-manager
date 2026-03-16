@@ -71,6 +71,19 @@ const signOut = async () => {
 
 // --- Level 1 & 2: Granular Writes & Common Helpers ---
 
+const cleanObject = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    const cleaned = { ...obj };
+    Object.keys(cleaned).forEach(key => {
+        if (cleaned[key] === undefined) delete cleaned[key];
+        else if (cleaned[key] !== null && typeof cleaned[key] === 'object' && !Array.isArray(cleaned[key])) {
+            // Recursive clean for nested objects (not arrays)
+            cleaned[key] = cleanObject(cleaned[key]);
+        }
+    });
+    return cleaned;
+};
+
 /**
  * uploadData - Bulk sync use Batch + Merge (v2 architecture)
  */
@@ -81,11 +94,11 @@ const uploadData = async (data) => {
         const rootRef = db.collection('teams').doc('primary');
         const batch = db.batch();
 
-        batch.set(rootRef, {
+        batch.set(rootRef, cleanObject({
             settings: data.settings || {},
             lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
             archVersion: 'v2'
-        }, { merge: true });
+        }), { merge: true });
 
         const collections = {
             'members': data.members,
@@ -101,8 +114,9 @@ const uploadData = async (data) => {
         for (const [colName, items] of Object.entries(collections)) {
             const colRef = rootRef.collection(colName);
             (items || []).forEach(item => {
+                const cleanedItem = cleanObject(item);
                 batch.set(colRef.doc(String(item.id)), {
-                    ...item,
+                    ...cleanedItem,
                     _updatedAt: Date.now()
                 }, { merge: true });
             });
@@ -124,7 +138,8 @@ const uploadSingleItem = async (collectionName, item) => {
     try {
         const rootRef = db.collection('teams').doc('primary');
         const docRef = rootRef.collection(collectionName).doc(String(item.id));
-        await docRef.set({ ...item, _updatedAt: Date.now() }, { merge: true });
+        const cleanedItem = cleanObject(item);
+        await docRef.set({ ...cleanedItem, _updatedAt: Date.now() }, { merge: true });
         await rootRef.set({ lastUpdated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
         return true;
     } catch (e) {

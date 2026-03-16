@@ -6,15 +6,17 @@
 
 @media (max-width: 768px) {
     .sidebar {
-        width: 280px;
+        width: 85%;
+        max-width: 320px;
         transform: translate(-100%);
-        transition: transform var(--transition-base);
-        box-shadow: none
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: none;
+        background: rgba(15, 23, 42, 0.95); /* More opaque on mobile for focus */
     }
 
     .sidebar.open {
         transform: translate(0);
-        box-shadow: var(--shadow-xl)
+        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
     }
 
     .main-content { margin-left: 0 }
@@ -74,6 +76,18 @@
     .modal-body { padding: var(--spacing-md) }
 
     .notification { top: var(--spacing-md); right: var(--spacing-md); left: var(--spacing-md); min-width: auto; max-width: none }
+
+    /* Enhance touch targets for Sidebar items on mobile */
+    .sidebar .nav-item {
+        padding: 1.25rem 1.5rem; /* Larger touch area */
+        margin-bottom: 0.75rem;
+        font-size: 1.1rem; /* Easier to read */
+    }
+
+    .sidebar .nav-icon {
+        width: 24px; /* Larger icons */
+        height: 24px;
+    }
 
     .toggle-track { width: 52px; height: 28px }
     .toggle-thumb { width: 20px; height: 20px }

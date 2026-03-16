@@ -8,7 +8,7 @@ const members = ref([]);
 const matches = ref([]);
 const transactions = ref([]);
 const pendingTransactions = ref([]); // Giao dịch chờ phê duyệt
-const leaveRequests = ref([]); // Đơn xin nghỉ
+const leaveRequests = ref([]); // Đơn xin nghỉ/muộn
 const pendingAttendances = ref([]); // Yêu cầu điểm danh thủ công
 const fixedMatches = ref([]); // Trận đấu cố định (lịch hẹn)
 const contributionTiers = ref([]);
@@ -316,20 +316,24 @@ const saveMatch = (matchData) => {
         const idx = matches.value.findIndex(m => m.id === matchData.id);
         if (idx !== -1) {
             const originalId = matches.value[idx].id; // Preserve original ID
+            // Remove helper fields correctly using destructuring
+            const { 
+                preserveAttendanceData: _p, 
+                originalAttendance: _o, 
+                attendanceIds: _a, 
+                ...actualMatchData 
+            } = matchData;
+
             matches.value[idx] = {
                 ...matches.value[idx],
-                ...matchData,
+                ...actualMatchData,
                 id: originalId, // Ensure ID is not overwritten
-                attendance, // Use the attendance from above
-                // Remove helper fields
-                preserveAttendanceData: undefined,
-                originalAttendance: undefined,
-                attendanceIds: undefined
+                attendance // Use the attendance from above
             };
         }
     } else {
         // Create new match
-        const { id, preserveAttendanceData, originalAttendance, ...dataWithoutHelpers } = matchData;
+        const { id, preserveAttendanceData, originalAttendance, attendanceIds, ...dataWithoutHelpers } = matchData;
         matches.value.push({
             id: Date.now(), // Generate new ID
             ...dataWithoutHelpers,
@@ -555,7 +559,7 @@ const updateSettings = (newSettings) => {
     saveData();
 };
 
-// Leave Requests Management
+// Leave/Late Arrival Requests Management
 const createLeaveRequest = (requestData) => {
     const newRequest = {
         id: Date.now(),
@@ -564,6 +568,8 @@ const createLeaveRequest = (requestData) => {
         leaveDate: requestData.leaveDate,
         matchId: requestData.matchId || null,
         reason: requestData.reason.trim(),
+        type: requestData.type || 'leave', // 'leave' or 'late'
+        lateMinutes: requestData.lateMinutes || 0,
         status: 'pending',
         createdAt: new Date().toISOString(),
         processedAt: null,

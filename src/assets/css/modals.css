@@ -4,7 +4,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0,0,0,.8);
+    background: rgba(0, 0, 0, .8);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     display: none;
@@ -16,14 +16,19 @@
 }
 
 @keyframes fadeIn {
-    0% { opacity: 0 }
-    to { opacity: 1 }
+    0% {
+        opacity: 0
+    }
+
+    to {
+        opacity: 1
+    }
 }
 
 .modal-content {
-    background: linear-gradient(135deg,var(--bg-secondary),rgba(30,41,59,.95));
+    background: linear-gradient(135deg, var(--bg-secondary), rgba(30, 41, 59, .95));
     border-radius: var(--radius-xl);
-    border: 1px solid rgba(255,255,255,.1);
+    border: 1px solid rgba(255, 255, 255, .1);
     box-shadow: var(--shadow-xl);
     max-width: 500px;
     width: 100%;
@@ -35,8 +40,15 @@
 }
 
 @keyframes slideUp {
-    0% { opacity: 0; transform: translateY(20px) }
-    to { opacity: 1; transform: translateY(0) }
+    0% {
+        opacity: 0;
+        transform: translateY(20px)
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0)
+    }
 }
 
 .modal-large {
@@ -45,7 +57,7 @@
 
 .modal-header {
     padding: var(--spacing-xl);
-    border-bottom: 1px solid rgba(255,255,255,.05);
+    border-bottom: 1px solid rgba(255, 255, 255, .05);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -58,12 +70,13 @@
     color: var(--text-primary)
 }
 
-.modal-close,.btn-close {
+.modal-close,
+.btn-close {
     width: 36px;
     height: 36px;
     border-radius: var(--radius-md);
-    background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255, 255, 255, .05);
+    border: 1px solid rgba(255, 255, 255, .1);
     color: var(--text-secondary);
     font-size: 1.5rem;
     line-height: 1;
@@ -75,8 +88,9 @@
     font-weight: 300
 }
 
-.modal-close:hover,.btn-close:hover {
-    background: rgba(239,68,68,.15);
+.modal-close:hover,
+.btn-close:hover {
+    background: rgba(239, 68, 68, .15);
     border-color: var(--danger-500);
     color: var(--danger-400);
     transform: rotate(90deg)
@@ -84,29 +98,30 @@
 
 .modal-body {
     padding: var(--spacing-xl);
+    padding-top: 0;
     overflow-y: auto;
     flex: 1
 }
 
 .modal-footer {
     padding: 16px;
-    border-top: 1px solid rgba(255,255,255,.1);
+    border-top: 1px solid rgba(255, 255, 255, .1);
     display: flex;
     justify-content: flex-end;
     gap: 8px;
     flex-shrink: 0;
-    background: rgba(0,0,0,.2)
+    background: rgba(0, 0, 0, .2)
 }
 
 .notification {
     position: fixed;
     top: var(--spacing-xl);
     right: var(--spacing-xl);
-    background: linear-gradient(135deg,var(--bg-secondary),rgba(30,41,59,.95));
+    background: linear-gradient(135deg, var(--bg-secondary), rgba(30, 41, 59, .95));
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(255,255,255,.1);
+    border: 1px solid rgba(255, 255, 255, .1);
     box-shadow: var(--shadow-xl);
     padding: var(--spacing-lg) var(--spacing-xl);
     min-width: 300px;

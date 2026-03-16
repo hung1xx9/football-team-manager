@@ -20,7 +20,6 @@
             <header class="top-bar">
                 <h1 class="page-title">{{ $route.name }}</h1>
                 <div class="top-bar-actions">
-                    <ThemeToggle />
                     <div class="sync-controls" v-if="isAdmin">
                         <div class="sync-status" :class="{ 'has-update': hasNewUpdate }">
                             <svg class="sync-icon" :class="{ spinning: syncStatus === 'syncing', pulse: hasNewUpdate }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -32,7 +31,8 @@
                                     <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
                                 </template>
                                 <template v-else-if="syncStatus === 'success'">
-                                    <polyline points="20 6 9 17 4 12"/>
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
                                 </template>
                                 <template v-else-if="syncStatus === 'error'">
                                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -41,11 +41,11 @@
                                     <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
                                 </template>
                             </svg>
-                            <span>{{ syncStatusText }}</span>
+                            <span :class="{'text-success': syncStatus === 'success', 'text-warning': hasNewUpdate}">{{ syncStatusText }}</span>
                         </div>
                         <template v-if="isSignedIn">
                             <button class="btn btn-sm btn-primary" @click="uploadToFirebase" title="Đồng bộ dữ liệu lên Firebase">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                     <polyline points="17 8 12 3 7 8"></polyline>
                                     <line x1="12" y1="3" x2="12" y2="15"></line>
@@ -53,7 +53,7 @@
                                 Lên Cloud
                             </button>
                             <button class="btn btn-sm btn-info" @click="downloadFromFirebase" title="Lấy dữ liệu từ Firebase">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                     <polyline points="7 10 12 15 17 10"></polyline>
                                     <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -62,7 +62,12 @@
                             </button>
                         </template>
                     </div>
-                    <button class="btn btn-sm btn-secondary" style="margin-left: 10px;" @click="handleLogout">
+                    <button class="btn btn-sm btn-exit" @click="handleLogout">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1-2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
                         Thoát
                     </button>
                 </div>
@@ -71,16 +76,20 @@
             <router-view />
         </main>
 
-        <!-- Role Selection Modal (Simplified entry) -->
-        <div class="modal" v-if="!currentRole" style="background-color: rgba(0,0,0,0.9); z-index: 9999; display: flex;">
-            <div class="modal-content" style="max-width: 400px; text-align: center;">
-                <div class="modal-header" style="justify-content: center;"><h2>Tinh Hoa FC</h2></div>
+        <div class="modal login-modal" v-if="!currentRole" style="display: flex;">
+            <div class="modal-content login-modal-content">
+                <div class="modal-header login-modal-header">
+                    <div class="logo-wrapper">
+                        <img src="./assets/logo.png" alt="Tinh Hoa FC Logo" class="team-logo-img">
+                    </div>
+                    <h2>Tinh Hoa FC</h2>
+                </div>
                 <div class="modal-body">
-                    <p style="margin-bottom: 2rem;">Vui lòng chọn chế độ truy cập</p>
+                    <p v-if="!selectingAdmin && !selectingAccountant && !selectingGuest" style="margin-bottom: 2rem;">Vui lòng chọn chế độ truy cập</p>
                     
                     <!-- Admin/Accountant Login Form -->
                     <div v-if="selectingAdmin || selectingAccountant" style="text-align: left;">
-                        <div class="form-group" v-if="selectingAdmin">
+                        <div class="form-group">
                             <label>Tên Đăng Nhập</label>
                             <input 
                                 type="text" 
@@ -113,36 +122,59 @@
                     
                     <!-- Guest Mode - Select Member -->
                     <div v-else-if="selectingGuest" style="text-align: left;">
-                        <div class="form-group search-box" style="margin-top: 1rem;">
-                            <label>Tìm Kiếm Thành Viên</label>
-                            <input 
-                                type="text" 
-                                v-model="memberSearch" 
-                                placeholder="Nhập tên để tìm kiếm..."
-                                @focus="showMemberList = true"
-                                @click="showMemberList = true">
-                            <span class="search-icon">🔍</span>
-                            
-                            <!-- Member List -->
-                            <div v-if="showMemberList && filteredMembers.length > 0" class="combobox-dropdown">
-                                <div 
-                                    v-for="member in filteredMembers" 
-                                    :key="member.id"
-                                    class="combobox-item"
-                                    :class="{ selected: selectedMemberId === member.id }"
-                                    @click="selectMember(member)">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
-                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                        <circle cx="12" cy="7" r="4"></circle>
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label class="form-label">TÌM KIẾM THÀNH VIÊN</label>
+                            <div class="search-input-fancy-wrapper">
+                                <svg class="search-icon-fancy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                                <input 
+                                    type="text" 
+                                    v-model="memberSearch" 
+                                    placeholder="Nhập tên để tìm kiếm..."
+                                    @focus="onSearchFocus"
+                                    @blur="onSearchBlur"
+                                    @keydown="handleComboboxKeydown"
+                                    class="input-fancy"
+                                    ref="memberSearchInput">
+                                <button v-if="memberSearch" class="input-clear-btn" @click="clearMemberSelection" type="button">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
                                     </svg>
-                                    <span style="flex: 1;">{{ member.name }}</span>
-                                    <svg v-if="selectedMemberId === member.id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; color: var(--success-500);">
-                                        <polyline points="20 6 9 17 4 12"></polyline>
-                                    </svg>
-                                </div>
+                                </button>
                             </div>
-                            <div v-else-if="showMemberList && memberSearch" class="empty-state-dropdown" style="padding: 1rem; position: absolute; margin-top: 0.5rem; width: 100%; top: calc(100% + 8px); left: 0; right: 0; z-index: 1000; background: var(--glass-bg); backdrop-filter: blur(25px); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl);">
-                                <p style="margin: 0; font-size: 0.875rem; text-align: center; color: var(--text-muted);">Không tìm thấy thành viên</p>
+                            
+                            <!-- Member List Container (Persistent) -->
+                            <div class="member-list-fancy-container" ref="dropdownList">
+                                <template v-if="filteredMembers.length > 0">
+                                    <div 
+                                        v-for="(member, index) in filteredMembers" 
+                                        :key="member.id"
+                                        class="combobox-item fancy-item"
+                                        :class="{ 
+                                            selected: selectedMemberId === member.id,
+                                            highlight: index === activeIndex
+                                        }"
+                                        @mousedown.prevent="selectMember(member)">
+                                        <div class="member-item-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                                <circle cx="12" cy="7" r="4"></circle>
+                                            </svg>
+                                        </div>
+                                        <span class="member-name">{{ member.name }}</span>
+                                        <div v-if="selectedMemberId === member.id" class="selected-check">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </template>
+                                <div v-else-if="memberSearch" class="fancy-empty-inline">
+                                    <p>Không tìm thấy thành viên nào khớp với "{{ memberSearch }}"</p>
+                                </div>
                             </div>
                         </div>
                         
@@ -157,10 +189,61 @@
                     </div>
                     
                     <!-- Role Selection -->
-                    <div v-else class="form-actions" style="flex-direction: column; gap: 1rem;">
-                        <button class="btn btn-primary" style="width: 100%;" @click="selectingAdmin = true">Quản Trị Viên (Full)</button>
-                        <button class="btn btn-success" style="width: 100%;" @click="selectingAccountant = true">Kế Toán (Hạn chế)</button>
-                        <button class="btn btn-secondary" style="width: 100%;" @click="handleGuestClick">Thành viên (Chỉ xem)</button>
+                    <div v-else class="role-cards-grid">
+                        <div class="role-card" @click="selectingAdmin = true">
+                            <div class="role-card-icon role-admin">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                                </svg>
+                            </div>
+                            <div class="role-card-content">
+                                <h3>Quản Trị Viên</h3>
+                                <p>Toàn quyền quản lý đội bóng</p>
+                            </div>
+                            <div class="role-card-arrow">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div class="role-card" @click="selectingAccountant = true">
+                            <div class="role-card-icon role-accountant">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                                </svg>
+                            </div>
+                            <div class="role-card-content">
+                                <h3>Kế Toán</h3>
+                                <p>Quản lý thu chi và quỹ đội</p>
+                            </div>
+                            <div class="role-card-arrow">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div class="role-card" @click="handleGuestClick">
+                            <div class="role-card-icon role-guest">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                            </div>
+                            <div class="role-card-content">
+                                <h3>Thành viên</h3>
+                                <p>Xem thông tin & điểm danh</p>
+                            </div>
+                            <div class="role-card-arrow">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -174,10 +257,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import Sidebar from './components/Sidebar.vue';
-import ThemeToggle from './components/ThemeToggle.vue';
 import { useAppState } from './composables/useAppState';
 import { useFirebase } from './composables/useFirebase';
 import { useAuth } from './composables/useAuth';
@@ -196,6 +278,9 @@ const selectingGuest = ref(false);
 const selectedMemberId = ref('');
 const memberSearch = ref('');
 const showMemberList = ref(false);
+const memberSearchInput = ref(null);
+const dropdownList = ref(null);
+const activeIndex = ref(-1);
 const adminForm = reactive({
     username: '',
     password: ''
@@ -211,15 +296,60 @@ const syncStatusText = computed(() => {
     return 'Đã kết nối';
 });
 
+const removeAccents = (str) => {
+    if (!str) return '';
+    return str.normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toLowerCase();
+};
+
 // Filter members based on search
 const filteredMembers = computed(() => {
-    if (!memberSearch.value) return members.value;
+    const list = members.value || [];
+    if (!memberSearch.value) {
+        return [...list].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+    }
     
     const search = memberSearch.value.toLowerCase();
-    return members.value.filter(m => 
-        m.name.toLowerCase().includes(search)
-    );
+    return list.filter(m => 
+        m.name.toLowerCase().includes(search) || 
+        (m.position && m.position.toLowerCase().includes(search))
+    ).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
 });
+
+// Reset active index when filter changes
+watch(filteredMembers, () => {
+    activeIndex.value = -1;
+});
+
+// Auto-focus search input when opening guest mode
+watch(selectingGuest, (val) => {
+    if (val) {
+        setTimeout(() => {
+            if (memberSearchInput.value) memberSearchInput.value.focus();
+        }, 100);
+    }
+});
+
+const getInitials = (name) => {
+    if (!name) return '??';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
+
+const getInitialsColor = (name) => {
+    const colors = [
+        '#3b82f6', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+};
 
 const toggleMobileMenu = () => {
     mobileMenuOpen.value = !mobileMenuOpen.value;
@@ -356,6 +486,70 @@ const selectMember = (member) => {
     selectedMemberId.value = member.id;
     memberSearch.value = member.name;
     showMemberList.value = false;
+    activeIndex.value = -1;
+};
+
+const clearMemberSelection = () => {
+    memberSearch.value = '';
+    selectedMemberId.value = '';
+    activeIndex.value = -1;
+    if (memberSearchInput.value) memberSearchInput.value.focus();
+};
+
+const onSearchFocus = () => {
+    if (selectedMemberId.value && memberSearchInput.value) {
+        memberSearchInput.value.select();
+    }
+};
+
+const onSearchBlur = () => {
+    // Keep list visible - no need to hide
+    setTimeout(() => {
+        activeIndex.value = -1;
+        const member = members.value.find(m => m.id === selectedMemberId.value);
+        if (member) {
+            memberSearch.value = member.name;
+        }
+    }, 200);
+};
+
+const handleComboboxKeydown = (e) => {
+    switch (e.key) {
+        case 'ArrowDown':
+            e.preventDefault();
+            activeIndex.value = (activeIndex.value + 1) % filteredMembers.value.length;
+            scrollSelectedIntoView();
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            activeIndex.value = activeIndex.value <= 0 ? filteredMembers.value.length - 1 : activeIndex.value - 1;
+            scrollSelectedIntoView();
+            break;
+        case 'Enter':
+            e.preventDefault();
+            if (activeIndex.value !== -1 && filteredMembers.value[activeIndex.value]) {
+                selectMember(filteredMembers.value[activeIndex.value]);
+            }
+            break;
+    }
+};
+
+const scrollSelectedIntoView = () => {
+    if (activeIndex.value === -1) return;
+    setTimeout(() => {
+        const dropdown = dropdownList.value;
+        const selectedItem = dropdown?.children[activeIndex.value];
+        if (dropdown && selectedItem) {
+            const dropdownRect = dropdown.getBoundingClientRect();
+            const itemRect = selectedItem.getBoundingClientRect();
+            
+            if (itemRect.bottom > dropdownRect.bottom) {
+                dropdown.scrollTop += (itemRect.bottom - dropdownRect.bottom);
+            } else if (itemRect.top < dropdownRect.top) {
+                dropdown.scrollTop -= (dropdownRect.top - itemRect.top);
+            }
+        }
+    }, 0);
 };
 
 const cancelGuestSelection = () => {
@@ -568,5 +762,283 @@ const downloadFromFirebase = async () => {
 .sync-status.has-update span {
     color: var(--success-500);
     font-weight: 600;
+}
+
+/* Updated Login Modal Styles */
+.btn-exit {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-400);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    margin-left: 10px;
+}
+
+.btn-exit:hover {
+    background: var(--danger-500);
+    color: white;
+    border-color: var(--danger-500);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+}
+
+.login-modal {
+    background: radial-gradient(circle at center, rgba(15, 23, 42, 0.95) 0%, rgba(2, 6, 23, 1) 100%);
+    backdrop-filter: blur(12px);
+    z-index: 9999;
+}
+
+.login-modal-content {
+    max-width: 440px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.login-modal-header {
+    flex-direction: column;
+    padding: 3rem 2rem 2rem !important;
+    border-bottom: none !important;
+}
+
+.logo-wrapper {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.4));
+    animation: float 6s ease-in-out infinite;
+}
+
+.team-logo-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.login-modal-header h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+/* Role Cards Grid */
+.role-cards-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.role-card {
+    display: flex;
+    align-items: center;
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 1.25rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.role-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3);
+}
+
+.role-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1.25rem;
+    flex-shrink: 0;
+}
+
+.role-admin { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+.role-accountant { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
+.role-guest { background: rgba(168, 85, 247, 0.1); color: #c084fc; }
+
+.role-card-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.role-card-content {
+    text-align: left;
+    flex: 1;
+}
+
+.role-card-content h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: white;
+}
+
+.role-card-content p {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.role-card-arrow {
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.3s ease;
+    color: var(--text-muted);
+}
+
+.role-card:hover .role-card-arrow {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Fancy Search Input */
+.search-input-fancy-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon-fancy {
+    position: absolute;
+    left: 1rem;
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.input-fancy {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 1rem !important;
+    padding: 0.875rem 1rem 0.875rem 2.75rem !important;
+    color: white !important;
+    font-size: 0.9375rem !important;
+    transition: all 0.3s ease !important;
+}
+
+.input-fancy:focus {
+    border-color: var(--primary-500) !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15) !important;
+}
+
+.input-clear-btn {
+    position: absolute;
+    right: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-muted);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.input-clear-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+/* Fancy Member List - Persistent */
+.member-list-fancy-container {
+    margin-top: 1rem;
+    max-height: 300px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 1.25rem;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fancy-item {
+    display: flex;
+    align-items: center;
+    padding: 0.875rem 1rem !important;
+    border-radius: 0.875rem !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.fancy-item.highlight {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.fancy-item.selected {
+    background: var(--bg-active) !important;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.fancy-empty-inline {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.member-item-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1.25rem;
+    color: var(--text-muted);
+}
+
+.member-item-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.member-name {
+    font-weight: 500;
+    color: white;
+    font-size: 1rem;
+    flex: 1;
+}
+
+.selected-check {
+    color: var(--success-500);
+    width: 20px;
+}
+
+.fancy-empty {
+    padding: 2rem !important;
+    text-align: center;
+}
+
+.fancy-empty p {
+    color: var(--text-muted);
+    font-size: 0.875rem;
 }
 </style>

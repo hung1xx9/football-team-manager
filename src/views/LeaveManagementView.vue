@@ -2,7 +2,7 @@
     <div class="page-content">
         <div class="card">
             <div class="card-header">
-                <h2>Quản Lý Đơn Xin Nghỉ</h2>
+                <h2>Quản Lý Nghỉ/Muộn</h2>
             </div>
             <div class="card-content">
                 <div class="filters">
@@ -53,7 +53,8 @@
                         <thead>
                             <tr>
                                 <th>Thành Viên</th>
-                                <th>Ngày Nghỉ</th>
+                                <th>Loại Đơn</th>
+                                <th>Ngày</th>
                                 <th>Trận Đấu</th>
                                 <th>Lý Do</th>
                                 <th>Ngày Gửi</th>
@@ -66,12 +67,18 @@
                                 <td>
                                     <strong>{{ req.memberName || getMemberName(req.memberId) }}</strong>
                                 </td>
+                                <td>
+                                    <span class="type-badge" :class="req.type || 'leave'">
+                                        {{ req.type === 'late' ? 'Đi Muộn' : 'Xin Nghỉ' }}
+                                        <div v-if="req.type === 'late'" class="late-minutes">{{ req.lateMinutes }} phút</div>
+                                    </span>
+                                </td>
                                 <td>{{ formatDate(req.leaveDate) }}</td>
                                 <td>
                                     <span v-if="req.matchId" class="match-badge">{{ getMatchInfo(req.matchId) }}</span>
                                     <span v-else style="color: var(--text-muted);">--</span>
                                 </td>
-                                <td style="max-width: 300px;">{{ req.reason }}</td>
+                                <td style="max-width: 250px;">{{ req.reason }}</td>
                                 <td>{{ formatFullDate(req.createdAt) }}</td>
                                 <td>
                                     <span class="badge" :class="getStatusBadgeClass(req.status)">
@@ -90,7 +97,7 @@
                     </table>
                 </div>
                 <div v-else class="empty-state">
-                    <p>Không có đơn xin nghỉ nào</p>
+                    <p>Không có đơn xin nghỉ/muộn nào</p>
                 </div>
             </div>
         </div>
@@ -105,7 +112,8 @@
                 <div class="modal-body">
                     <div v-if="selectedReq">
                         <p><strong>Thành viên:</strong> {{ selectedReq.memberName || getMemberName(selectedReq.memberId) }}</p>
-                        <p><strong>Ngày nghỉ:</strong> {{ formatDate(selectedReq.leaveDate) }}</p>
+                        <p><strong>Loại đơn:</strong> {{ selectedReq.type === 'late' ? 'Đi Muộn' : 'Xin Nghỉ' }} <span v-if="selectedReq.type === 'late'">({{ selectedReq.lateMinutes }} phút)</span></p>
+                        <p><strong>Ngày:</strong> {{ formatDate(selectedReq.leaveDate) }}</p>
                         <p v-if="selectedReq.matchId"><strong>Trận đấu:</strong> {{ getMatchInfo(selectedReq.matchId) }}</p>
                         <p><strong>Lý do:</strong> {{ selectedReq.reason }}</p>
                     </div>
@@ -127,7 +135,7 @@
         <div v-if="showDetailsModal" class="modal" style="display: flex;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Chi Tiết Đơn Xin Nghỉ</h2>
+                    <h2>Chi Tiết Đơn Gửi</h2>
                     <button class="modal-close" @click="showDetailsModal = false">×</button>
                 </div>
                 <div v-if="selectedReq" class="modal-body">
@@ -136,7 +144,11 @@
                         <span>{{ selectedReq.memberName || getMemberName(selectedReq.memberId) }}</span>
                     </div>
                     <div class="detail-row">
-                        <strong>Ngày nghỉ:</strong>
+                        <strong>Loại đơn:</strong>
+                        <span>{{ selectedReq.type === 'late' ? 'Đi Muộn' : 'Xin Nghỉ' }} {{ selectedReq.type === 'late' ? `(${selectedReq.lateMinutes} phút)` : '' }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>Ngày:</strong>
                         <span>{{ formatDate(selectedReq.leaveDate) }}</span>
                     </div>
                     <div v-if="selectedReq.matchId" class="detail-row">
@@ -268,4 +280,10 @@ const formatFullDate = (date) => (date ? new Date(date).toLocaleString('vi-VN', 
 .detail-row { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-primary); }
 .detail-row:last-child { border-bottom: none; }
 .detail-row strong { color: var(--text-secondary); }
+
+.type-badge { display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; }
+.type-badge.leave { color: var(--danger-400); }
+.type-badge.late { color: var(--warning-400); }
+.late-minutes { font-size: 0.7rem; opacity: 0.8; }
 </style>
+

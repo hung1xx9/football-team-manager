@@ -10,8 +10,8 @@
                         </svg>
                     </button>
                     <div class="current-month">
-                        <h2>Tháng {{ displayMonth }}</h2>
-                        <p>Năm {{ displayYear }}</p>
+                        <h2>{{ displayMonth }}</h2>
+                        <p>{{ displayYear }}</p>
                     </div>
                     <button class="btn btn-sm btn-secondary" @click="nextMonth">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -24,7 +24,6 @@
                     <div class="legend-item"><div class="legend-color status-late"></div><span>Muộn</span></div>
                     <div class="legend-item"><div class="legend-color status-absent-cp"></div><span>Vắng (CP)</span></div>
                     <div class="legend-item"><div class="legend-color status-absent"></div><span>Vắng</span></div>
-                    <div class="legend-item"><div class="legend-color status-pending"></div><span>Chưa ĐD</span></div>
                 </div>
             </div>
 
@@ -33,9 +32,9 @@
                     <thead>
                         <tr>
                             <th class="sticky-col header-cell">STT</th>
-                            <th class="sticky-col-name header-cell">TÊN<br>THÀNH VIÊN</th>
+                            <th class="sticky-col-name header-cell">Tên<br>Thành viên</th>
                             <th class="header-cell month-header" :colspan="Math.max(monthMatches.length, 5)">
-                                THÁNG {{ displayMonth }}
+                                {{ displayMonth }}
                             </th>
                         </tr>
                         <tr>
@@ -60,28 +59,39 @@
                             >
                                 <div class="status-content">
                                     {{ getStatusLabel(member.id, match) }}
-                                    <span v-if="getLateMin(member.id, match) > 0" class="late-minutes-text">
-                                        ({{ getLateMin(member.id, match) }}')
+                                    <span v-if="getInternalStatus(member.id, match) === 'late'" class="late-minutes-text">
+                                        ({{ getLateMinutes(member.id, match) }}')
                                     </span>
                                 </div>
 
                                 <!-- Edit Popover -->
                                 <div v-if="isEditing(member.id, match.id)" class="edit-popover" @click.stop>
-                                    <div class="popover-header">Cập nhật điểm danh</div>
+                                    <div class="popover-header">
+                                        <div class="popover-title">Cập nhật điểm danh</div>
+                                        <div class="popover-subtitle">{{ member.name }} - Trận {{ formatDateShort(match.date) }}</div>
+                                    </div>
                                     <div class="popover-body">
                                         <div class="status-toggle">
-                                            <button type="button" class="status-btn btn-present" :class="{ active: editForm.status === 'present' }" @click="editForm.status = 'present'">Có mặt</button>
-                                            <button type="button" class="status-btn btn-late" :class="{ active: editForm.status === 'late' }" @click="editForm.status = 'late'">Muộn</button>
-                                            <button type="button" class="status-btn btn-absent" :class="{ active: editForm.status === 'absent' }" @click="editForm.status = 'absent'">Vắng</button>
+                                            <button type="button" class="status-btn btn-present" :class="{ active: editStatus === 'present' }" @click.stop="editStatus = 'present'">Có mặt</button>
+                                            <button type="button" class="status-btn btn-late" :class="{ active: editStatus === 'late' }" @click.stop="editStatus = 'late'">Muộn</button>
+                                            <button type="button" class="status-btn btn-absent" :class="{ active: editStatus === 'absent' }" @click.stop="editStatus = 'absent'">Vắng</button>
                                         </div>
-                                        <div v-if="editForm.status === 'late'" class="late-input-container">
+
+                                        <div v-if="editStatus === 'absent'" class="cp-checkbox-container" @click.stop>
+                                            <label class="checkbox-label">
+                                                <input type="checkbox" v-model="editIsCP">
+                                                <span>Có phép (CP)</span>
+                                            </label>
+                                        </div>
+
+                                        <div v-if="editStatus === 'late'" class="late-input-container">
                                             <label>Số phút muộn:</label>
-                                            <input type="number" v-model="editForm.lateMinutes" class="compact-input" min="1" @keyup.enter="saveEdit(member.id, match)">
+                                            <input type="number" v-model="editLateMinutes" class="compact-input" min="1" v-focus @keyup.enter="saveEdit(member.id, match)" @click.stop>
                                         </div>
                                     </div>
                                     <div class="popover-footer">
-                                        <button type="button" class="btn btn-xs btn-ghost" @click="cancelEdit">Hủy</button>
-                                        <button type="button" class="btn btn-xs btn-primary" @click="saveEdit(member.id, match)">Lưu</button>
+                                        <button type="button" class="btn btn-xs btn-ghost" @click.stop="cancelEdit">Hủy</button>
+                                        <button type="button" class="btn btn-xs btn-primary" @click.stop="saveEdit(member.id, match)">Lưu</button>
                                     </div>
                                 </div>
                             </td>
@@ -103,54 +113,86 @@ import { useAppState } from '../composables/useAppState';
 import { useAuth } from '../composables/useAuth';
 import { usePenalties } from '../composables/usePenalties';
 
-const { members, matches, updateMatchAttendance, hasApprovedLeave } = useAppState();
-const { permissions } = useAuth();
+const { members, matches, hasApprovedLeave, saveMatch } = useAppState();
+const { isAdmin, isAccountant } = useAuth();
 const { getLatePenalty } = usePenalties();
 
-const canEdit = computed(() => permissions.value.canManageAttendance);
+// Focus directive
+const vFocus = {
+    mounted: (el) => el.focus()
+};
 
-const currentMonthStr = ref(new Date().toISOString().substring(0, 7)); // YYYY-MM
-const displayMonth = computed(() => parseInt(currentMonthStr.value.split('-')[1]));
-const displayYear = computed(() => currentMonthStr.value.split('-')[0]);
+const canEdit = computed(() => isAdmin.value || isAccountant.value);
+
+const editingCell = ref(null);
+const editStatus = ref("");
+const editIsCP = ref(false);
+const editLateMinutes = ref(0);
+
+const currentMonthStr = ref((() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
+})());
+
+const displayMonth = computed(() => {
+    const [_, m] = currentMonthStr.value.split("-");
+    return `Tháng ${parseInt(m)}`;
+});
+
+const displayYear = computed(() => {
+    const [y] = currentMonthStr.value.split("-");
+    return `Năm ${y}`;
+});
 
 const monthMatches = computed(() => {
-    const [y, m] = currentMonthStr.value.split('-').map(Number);
-    return matches.value
-        .filter(match => {
-            const d = new Date(match.date);
-            return d.getFullYear() === y && d.getMonth() + 1 === m;
-        })
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
+    const [y, m] = currentMonthStr.value.split("-");
+    return matches.value.filter(match => {
+        const d = new Date(match.date);
+        return d.getFullYear() === parseInt(y) && d.getMonth() + 1 === parseInt(m);
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
 });
 
 const prevMonth = () => {
-    const d = new Date(currentMonthStr.value + '-01');
+    const [y, m] = currentMonthStr.value.split("-");
+    const d = new Date(parseInt(y), parseInt(m) - 1, 1);
     d.setMonth(d.getMonth() - 1);
-    currentMonthStr.value = d.toISOString().substring(0, 7);
+    currentMonthStr.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
 const nextMonth = () => {
-    const d = new Date(currentMonthStr.value + '-01');
+    const [y, m] = currentMonthStr.value.split("-");
+    const d = new Date(parseInt(y), parseInt(m) - 1, 1);
     d.setMonth(d.getMonth() + 1);
-    currentMonthStr.value = d.toISOString().substring(0, 7);
+    currentMonthStr.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
-
-const formatDateShort = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '';
-
-// Direct Editing State
-const editingCell = ref(null);
-const editForm = ref({ status: 'present', lateMinutes: 0 });
 
 const isEditing = (mId, matchId) => editingCell.value && editingCell.value.memberId === mId && editingCell.value.matchId === matchId;
 
 const startEdit = (mId, match) => {
     if (!canEdit.value) return;
+    const att = match.attendance?.find(a => a.memberId === mId);
     editingCell.value = { memberId: mId, matchId: match.id };
-    const existing = getAttendance(mId, match) || {};
-    editForm.value = {
-        status: existing.status === 'present' ? (existing.isLate ? 'late' : 'present') : (existing.status || 'absent'),
-        lateMinutes: existing.lateMinutes || 0
-    };
+    
+    if (att) {
+        if (att.status === "present") {
+            editStatus.value = att.isLate ? "late" : "present";
+            editIsCP.value = false;
+        } else {
+            editStatus.value = "absent";
+            editIsCP.value = att.status === "absent-cp";
+        }
+        editLateMinutes.value = att.lateMinutes || 0;
+    } else if (hasApprovedLeave(mId, match.date)) {
+        editStatus.value = "absent";
+        editIsCP.value = true;
+        editLateMinutes.value = 0;
+    } else {
+        editStatus.value = "absent";
+        editIsCP.value = false;
+        editLateMinutes.value = 0;
+    }
 };
 
 const cancelEdit = () => {
@@ -158,59 +200,72 @@ const cancelEdit = () => {
 };
 
 const saveEdit = async (mId, match) => {
-    const isLate = editForm.value.status === 'late';
-    const status = isLate ? 'present' : editForm.value.status;
-    const lateMinutes = isLate ? parseInt(editForm.value.lateMinutes) : 0;
-    
-    const attList = Array.isArray(match.attendance) ? [...match.attendance] : Object.values(match.attendance || {});
-    const idx = attList.findIndex(a => a.memberId === mId || a.memberId === String(mId) || a.memberId === Number(mId));
-    
-    const updObj = {
-        memberId: mId,
-        status,
-        isLate,
-        lateMinutes,
-        lateFine: isLate ? getLatePenalty(lateMinutes) : 0,
-        timestamp: new Date().toISOString(),
-        method: 'table_edit'
-    };
-    
-    if (idx !== -1) {
-        attList[idx] = { ...attList[idx], ...updObj };
-    } else {
-        attList.push(updObj);
+    try {
+        const isLate = editStatus.value === "late";
+        const isCP = editStatus.value === "absent" && editIsCP.value;
+        const status = isCP ? "absent-cp" : (isLate ? "present" : editStatus.value);
+        const lateMinutes = isLate ? parseInt(editLateMinutes.value) || 0 : 0;
+        
+        const attendance = [...(match.attendance || [])];
+        const idx = attendance.findIndex(a => a.memberId === mId);
+        
+        const newRecord = {
+            memberId: mId,
+            status,
+            isLate,
+            lateMinutes: isLate ? lateMinutes : 0,
+            lateFine: isLate ? getLatePenalty(lateMinutes) : 0,
+            timestamp: new Date().toISOString(),
+            attendanceMethod: "table-edit"
+        };
+        
+        if (idx !== -1) {
+            attendance[idx] = newRecord;
+        } else {
+            attendance.push(newRecord);
+        }
+        
+        const updatedMatch = { ...match, attendance };
+        editingCell.value = null;
+        await saveMatch(updatedMatch);
+    } catch (error) {
+        console.error("Error saving attendance:", error);
+        editingCell.value = null;
     }
-
-    await updateMatchAttendance(match.id, attList);
-    editingCell.value = null;
 };
 
-const getAttendance = (mId, match) => {
-    if (!match.attendance) return null;
-    const attList = Array.isArray(match.attendance) ? match.attendance : Object.values(match.attendance);
-    return attList.find(a => a.memberId === mId || a.memberId === String(mId) || a.memberId === Number(mId));
+const getLateMinutes = (mId, match) => {
+    return match.attendance?.find(a => a.memberId === mId)?.lateMinutes || 0;
 };
 
-const getStatusClass = (mId, match) => {
-    const att = getAttendance(mId, match);
-    if (att && att.status === 'present') return att.isLate ? 'status-late' : 'status-present';
-    if (hasApprovedLeave(mId, match.date)) return 'status-absent-cp';
-    if (att?.status === 'absent') return 'status-absent';
-    return 'status-pending';
+const getInternalStatus = (mId, match) => {
+    const att = match.attendance?.find(a => a.memberId === mId);
+    if (att && att.status === "present") {
+        return att.isLate ? "late" : "present";
+    }
+    if (hasApprovedLeave(mId, match.date)) {
+        return "absent-cp";
+    }
+    return att?.status || "absent";
 };
 
 const getStatusLabel = (mId, match) => {
-    const s = getStatusClass(mId, match);
-    return {
-        'status-present': 'có mặt',
-        'status-late': 'muộn',
-        'status-absent-cp': 'vắng CP',
-        'status-absent': 'vắng',
-        'status-pending': '-' // or empty string
-    }[s] || '';
+    const status = getInternalStatus(mId, match);
+    switch (status) {
+        case "present": return "có mặt";
+        case "late": return "muộn";
+        case "absent-cp": return "vắng (CP)";
+        case "absent": return "vắng";
+        default: return "";
+    }
 };
 
-const getLateMin = (mId, match) => getAttendance(mId, match)?.lateMinutes || 0;
+const getStatusClass = (mId, match) => `status-${getInternalStatus(mId, match)}`;
+
+const formatDateShort = (date) => new Date(date).toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit"
+});
 </script>
 
 <style scoped>
@@ -254,13 +309,20 @@ const getLateMin = (mId, match) => getAttendance(mId, match)?.lateMinutes || 0;
 .is-editable:hover { background: rgba(255, 255, 255, 0.05); }
 
 .edit-popover { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); z-index: 100; background: var(--bg-secondary); border: 1px solid var(--primary-500); border-radius: var(--radius-md); box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 1rem; width: 220px; }
-.popover-header { font-weight: 700; margin-bottom: 1rem; color: var(--text-primary); }
+.popover-header { margin-bottom: 1.25rem; }
+.popover-title { font-weight: 700; font-size: 0.9rem; color: var(--text-primary); }
+.popover-subtitle { font-size: 0.75rem; color: var(--primary-400); margin-top: 0.2rem; }
+
 .status-toggle { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin-bottom: 1rem; }
 .status-btn { font-size: 0.7rem; padding: 0.4rem; border: 1px solid var(--border-primary); border-radius: 4px; background: transparent; color: var(--text-primary); cursor: pointer; }
 .status-btn:hover { background: var(--bg-hover); }
 .status-btn.active.btn-present { background: var(--success-500); color: white; border-color: var(--success-500); }
 .status-btn.active.btn-late { background: #ec4899; color: white; border-color: #ec4899; }
-.status-btn.active.btn-absent { background: var(--danger-500); color: white; border-color: var(--danger-500); }
+.status-btn.active.btn-absent, .status-btn.active.btn-absent-cp { background: var(--danger-500); color: white; border-color: var(--danger-500); }
+
+.cp-checkbox-container { margin-top: 0.8rem; padding: 0.5rem; background: var(--bg-tertiary); border-radius: 4px; border: 1px solid var(--border-primary); }
+.checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.8rem; color: var(--text-primary); }
+.checkbox-label input { width: 16px; height: 16px; cursor: pointer; }
 
 .late-input-container { margin-top: 1rem; text-align: left; }
 .late-input-container label { font-size: 0.7rem; margin-bottom: 0.4rem; display: block; }
