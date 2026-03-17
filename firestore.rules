@@ -1,20 +1,31 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Shared public team data
+    // 1. Primary team data: Publicly readable, writable by any authenticated user
     match /teams/primary {
       allow read: if true;
-      allow write: if request.auth != null; // Allow any authenticated user (including anonymous)
+      allow write: if request.auth != null;
     }
     
-    // Legacy user-specific data (for migration/backup)
+    // 2. All subcollections of primary: Publicly readable, writable by any authenticated user
+    match /teams/primary/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // 3. User-specific data (Legacy/Migrated)
     match /teams/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && (request.auth.uid == userId || userId == 'primary');
+
+      match /{allPaths=**} {
+        allow read, write: if request.auth != null && (request.auth.uid == userId || userId == 'primary');
+      }
     }
     
-    // Default rule: deny all others
-    match /{document=**} {
-      allow read, write: if false;
+    // 4. Fallback for any other 'teams' access (Authenticated)
+    match /teams/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
     }
   }
 }

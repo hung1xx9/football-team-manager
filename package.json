@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "deploy": "yarn build && gh-pages -d dist"
+    "clean": "if exist dist rmdir /s /q dist && if exist .firebase rmdir /s /q .firebase",
+    "build": "npm run clean && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

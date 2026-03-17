@@ -787,8 +787,9 @@ const downloadFromFirebase = async () => {
 
 .login-modal-content {
     max-width: 440px !important;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid var(--glass-border) !important;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
@@ -821,14 +822,12 @@ const downloadFromFirebase = async () => {
 }
 
 .login-modal-header h2 {
-    font-size: 2rem;
+    font-size: 2.25rem;
     font-weight: 800;
     letter-spacing: -0.025em;
     margin-bottom: 0.5rem;
-    background: linear-gradient(to right, #fff, #94a3b8);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #ffffff;
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
 }
 
 .subtitle {

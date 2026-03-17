@@ -38,7 +38,7 @@
                 <div class="match-card-body">
                     <div class="attendance-grid">
                         <template v-for="att in match.attendance" :key="att.memberId">
-                            <div v-if="getMemberName(att.memberId)" class="attendance-item">
+                            <div v-if="getMemberName(att.memberId)" class="attendance-item" :class="att.status">
                                 <div class="attendance-status" :class="att.status"></div>
                                 <div class="attendance-content">
                                     <div class="attendance-name">{{ getMemberName(att.memberId) }}</div>
@@ -273,54 +273,75 @@ const getAttendanceCount = (match, status) => {
 .page-content { padding: var(--spacing-xl); }
 .page-actions { margin-bottom: var(--spacing-xl); }
 .matches-list { display: flex; flex-direction: column; gap: var(--spacing-xl); }
-.match-card { background: var(--bg-tertiary); border: 1px solid var(--border-primary); border-radius: var(--radius-xl); overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; }
+.match-card { background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: var(--radius-xl); overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; }
 .match-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-xl); }
-.match-card-header { padding: var(--spacing-lg); background: rgba(255, 255, 255, 0.05); border-bottom: 1px solid var(--border-primary); display: flex; justify-content: space-between; align-items: center; }
-.match-card-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; }
-.match-card-date { font-size: 0.875rem; color: var(--text-secondary); }
-.match-card-body { padding: var(--spacing-lg); flex: 1; }
+.match-card-header { 
+    padding: var(--spacing-lg) var(--spacing-xl); 
+    background: rgba(15, 23, 42, 0.6); 
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08); 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+}
+.match-card-title { font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+.match-card-date { font-size: 0.9rem; color: var(--text-muted); font-weight: 500; }
+.match-card-body { padding: var(--spacing-xl); flex: 1; }
 .attendance-grid { 
     display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
-    gap: 0.75rem; 
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+    gap: 0.85rem; 
     margin-bottom: var(--spacing-lg); 
 }
 .attendance-item { 
     display: flex; 
-    align-items: center; 
-    gap: 0.6rem; 
-    padding: 0.75rem; 
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-md); 
-    transition: all 0.2s;
+    align-items: flex-start; 
+    gap: 0.75rem; 
+    padding: 0.85rem 1rem; 
+    background: rgba(30, 41, 59, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-lg); 
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+.attendance-item.present {
+    border-left: 3px solid var(--success-500);
+    background: linear-gradient(to right, rgba(34, 197, 94, 0.05), rgba(255, 255, 255, 0.02));
+}
+.attendance-item.absent {
+    border-left: 3px solid var(--danger-500);
+    background: linear-gradient(to right, rgba(239, 68, 68, 0.05), rgba(255, 255, 255, 0.02));
 }
 .attendance-item:hover {
-    background: rgba(255, 255, 255, 0.06);
-    transform: translateY(-2px);
+    background: rgba(51, 65, 85, 0.7);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 .attendance-status { 
-    width: 6px; 
-    height: 6px; 
+    width: 8px; 
+    height: 8px; 
     border-radius: 50%; 
-    margin-top: 0; 
+    margin-top: 5px; 
     flex-shrink: 0; 
 }
 .attendance-status.present { background: var(--success-500); box-shadow: 0 0 10px var(--success-500); }
 .attendance-status.absent { background: var(--danger-500); box-shadow: 0 0 10px var(--danger-500); }
 .attendance-name { 
-    font-size: 0.8rem; 
+    font-size: 0.875rem; 
     color: var(--text-primary); 
-    font-weight: 600;
-    line-height: 1.3;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
 }
 .attendance-detail {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     margin-top: 4px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
+    font-weight: 500;
 }
 .match-card-actions { 
     margin-top: 1rem; 

@@ -2,7 +2,7 @@
     <aside class="sidebar">
         <div class="sidebar-header">
             <div class="logo">
-                <img src="/src/assets/logo.png" alt="Tinh Hoa FC" class="logo-image">
+                <img src="../assets/logo.png" alt="Tinh Hoa FC" class="logo-image">
                 <span class="logo-text">Tinh Hoa FC</span>
             </div>
         </div>
@@ -160,7 +160,7 @@ const { permissions } = useAuth();
 <style scoped>
 .sidebar {
     width: 280px;
-    background: rgba(15, 23, 42, 0.6);
+    background: var(--glass-bg);
     backdrop-filter: blur(25px);
     -webkit-backdrop-filter: blur(25px);
     border-right: 1px solid var(--glass-border);

@@ -5,9 +5,6 @@
   "targets": {
     "football-team-manager-14a39": {
       "hosting": {
-        "legacy": [
-          "football-team-manager-14a39"
-        ],
         "tinhhoafc": [
           "tinhhoafc"
         ]

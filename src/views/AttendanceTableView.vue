@@ -57,8 +57,9 @@
                                 :class="[getStatusClass(member.id, match), { 'is-editable': canEdit, 'active-editing': isEditing(member.id, match.id) }]"
                                 @click="startEdit(member.id, match)"
                             >
-                                <div class="status-content">
-                                    {{ getStatusLabel(member.id, match) }}
+                                <div class="status-inner">
+                                    <div class="status-indicator"></div>
+                                    <span class="status-label-text">{{ getStatusLabel(member.id, match) }}</span>
                                     <span v-if="getInternalStatus(member.id, match) === 'late'" class="late-minutes-text">
                                         ({{ getLateMinutes(member.id, match) }}')
                                     </span>
@@ -90,8 +91,8 @@
                                         </div>
                                     </div>
                                     <div class="popover-footer">
-                                        <button type="button" class="btn btn-xs btn-ghost" @click.stop="cancelEdit">Hủy</button>
-                                        <button type="button" class="btn btn-xs btn-primary" @click.stop="saveEdit(member.id, match)">Lưu</button>
+                                        <button type="button" class="btn btn-sm btn-secondary" @click.stop="cancelEdit">Hủy</button>
+                                        <button type="button" class="btn btn-sm btn-primary" @click.stop="saveEdit(member.id, match)">Lưu</button>
                                     </div>
                                 </div>
                             </td>
@@ -288,16 +289,49 @@ const formatDateShort = (date) => new Date(date).toLocaleDateString("vi-VN", {
 
 .date-header { width: 100px; text-align: center; background: var(--bg-tertiary); font-size: 0.75rem; color: var(--text-secondary); padding: 1rem 0.5rem; border-bottom: 1px solid var(--border-primary); border-right: 1px solid var(--border-primary); }
 .header-cell { background: var(--bg-tertiary); padding: 1rem; font-size: 0.85rem; color: var(--text-primary); border-bottom: 1px solid var(--border-primary); }
-.status-cell { text-align: center; border-bottom: 1px solid var(--border-primary); border-right: 1px solid var(--border-primary); font-size: 0.75rem; cursor: pointer; height: 60px; position: relative; padding: 4px; }
+.status-cell { text-align: center; border-bottom: 1px solid var(--border-primary); border-right: 1px solid var(--border-primary); font-size: 0.75rem; cursor: pointer; height: 60px; position: relative; padding: 4px; transition: z-index 0.3s; }
+.status-cell.active-editing { z-index: 1001; }
 
-.status-content { transition: transform 0.2s; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; border-radius: 4px; }
-.status-cell:hover .status-content { transform: scale(1.05); }
+.status-inner { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    width: 100%; 
+    height: 100%; 
+    border-radius: 8px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
 
-.status-present .status-content { color: #fff; background: var(--success-500); }
-.status-late .status-content { color: #fff; background: #ec4899; }
-.status-absent .status-content { color: #fff; background: var(--danger-500); }
-.status-absent-cp .status-content { color: #fff; background: var(--warning-500); }
-.status-pending .status-content { color: var(--text-muted); background: rgba(255, 255, 255, 0.05); }
+.status-label-text {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.status-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-bottom: 4px;
+}
+
+.status-present .status-inner { background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.2); color: #4ade80; }
+.status-present .status-indicator { background: #4ade80; box-shadow: 0 0 10px #4ade80; }
+
+.status-late .status-inner { background: rgba(236, 72, 153, 0.1); border-color: rgba(236, 72, 153, 0.2); color: #f472b6; }
+.status-late .status-indicator { background: #f472b6; box-shadow: 0 0 10px #f472b6; }
+
+.status-absent .status-inner { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #f87171; }
+.status-absent .status-indicator { background: #f87171; box-shadow: 0 0 10px #f87171; }
+
+.status-absent-cp .status-inner { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.status-absent-cp .status-indicator { background: #fbbf24; box-shadow: 0 0 10px #fbbf24; }
+
+.status-pending .status-inner { background: rgba(255, 255, 255, 0.02); color: var(--text-muted); }
+.status-pending .status-indicator { background: var(--text-muted); opacity: 0.3; }
 
 .legend-item .status-present { background-color: var(--success-500); }
 .legend-item .status-late { background-color: #ec4899; }
@@ -308,17 +342,30 @@ const formatDateShort = (date) => new Date(date).toLocaleDateString("vi-VN", {
 .late-minutes-text { font-size: 0.7rem; font-weight: 700; display: block; }
 .is-editable:hover { background: rgba(255, 255, 255, 0.05); }
 
-.edit-popover { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); z-index: 100; background: var(--bg-secondary); border: 1px solid var(--primary-500); border-radius: var(--radius-md); box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 1rem; width: 220px; }
-.popover-header { margin-bottom: 1.25rem; }
-.popover-title { font-weight: 700; font-size: 0.9rem; color: var(--text-primary); }
-.popover-subtitle { font-size: 0.75rem; color: var(--primary-400); margin-top: 0.2rem; }
+.edit-popover { 
+    position: absolute; 
+    top: calc(100% + 10px); 
+    left: 50%; 
+    transform: translateX(-50%); 
+    z-index: 1002; 
+    background: #111a2e; 
+    border: 1px solid var(--primary-500); 
+    border-radius: var(--radius-xl); 
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 20px rgba(59, 130, 246, 0.2); 
+    padding: 1.5rem; 
+    width: 300px;
+    backdrop-filter: blur(25px);
+}
+.popover-header { margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 1rem; }
+.popover-title { font-weight: 800; font-size: 1.25rem; color: #ffffff; letter-spacing: -0.02em; }
+.popover-subtitle { font-size: 0.95rem; color: #94a3b8; margin-top: 0.5rem; font-weight: 500; }
 
-.status-toggle { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin-bottom: 1rem; }
-.status-btn { font-size: 0.7rem; padding: 0.4rem; border: 1px solid var(--border-primary); border-radius: 4px; background: transparent; color: var(--text-primary); cursor: pointer; }
-.status-btn:hover { background: var(--bg-hover); }
-.status-btn.active.btn-present { background: var(--success-500); color: white; border-color: var(--success-500); }
-.status-btn.active.btn-late { background: #ec4899; color: white; border-color: #ec4899; }
-.status-btn.active.btn-absent, .status-btn.active.btn-absent-cp { background: var(--danger-500); color: white; border-color: var(--danger-500); }
+.status-toggle { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 1rem 0; }
+.status-btn { font-size: 0.8rem; padding: 0.6rem; border: 1px solid var(--border-primary); border-radius: 8px; background: rgba(255, 255, 255, 0.03); color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
+.status-btn:hover { background: var(--bg-hover); color: #fff; }
+.status-btn.active.btn-present { background: var(--success-500); color: white; border-color: var(--success-500); font-weight: 700; box-shadow: 0 0 15px rgba(34, 197, 94, 0.3); }
+.status-btn.active.btn-late { background: #ec4899; color: white; border-color: #ec4899; font-weight: 700; box-shadow: 0 0 15px rgba(236, 72, 153, 0.3); }
+.status-btn.active.btn-absent, .status-btn.active.btn-absent-cp { background: var(--danger-500); color: white; border-color: var(--danger-500); font-weight: 700; box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
 
 .cp-checkbox-container { margin-top: 0.8rem; padding: 0.5rem; background: var(--bg-tertiary); border-radius: 4px; border: 1px solid var(--border-primary); }
 .checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.8rem; color: var(--text-primary); }
@@ -329,5 +376,5 @@ const formatDateShort = (date) => new Date(date).toLocaleDateString("vi-VN", {
 .compact-input { width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border-primary); color: var(--text-primary); padding: 0.4rem; border-radius: 4px; }
 .popover-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
 
-.edit-backdrop { position: fixed; inset: 0; z-index: 90; }
+.edit-backdrop { position: fixed; inset: 0; z-index: 900; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }
 </style>
