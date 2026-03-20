@@ -107,6 +107,7 @@ const uploadData = async (data) => {
             'pendingTransactions': data.pendingTransactions,
             'pendingAttendances': data.pendingAttendances,
             'leaveRequests': data.leaveRequests,
+            'receivables': data.receivables,
             'contributionTiers': data.contributionTiers,
             'fixedMatches': data.fixedMatches
         };
@@ -285,7 +286,7 @@ const downloadData = async () => {
             fixedMatches: []
         };
 
-        const colNames = ['members', 'matches', 'transactions', 'pendingTransactions', 'pendingAttendances', 'leaveRequests', 'contributionTiers', 'fixedMatches'];
+        const colNames = ['members', 'matches', 'transactions', 'pendingTransactions', 'pendingAttendances', 'leaveRequests', 'receivables', 'contributionTiers', 'fixedMatches'];
         const results = await Promise.all(colNames.map(name => rootRef.collection(name).get()));
 
         results.forEach((snap, idx) => {
@@ -322,7 +323,7 @@ const setupRealtimeListener = (onUpdate) => {
     };
 
     const unsubRoot = rootRef.onSnapshot((doc) => { if (doc.exists) triggerUpdate(); });
-    const colNames = ['members', 'matches', 'transactions', 'pendingTransactions', 'pendingAttendances', 'leaveRequests', 'contributionTiers', 'fixedMatches'];
+    const colNames = ['members', 'matches', 'transactions', 'pendingTransactions', 'pendingAttendances', 'leaveRequests', 'receivables', 'contributionTiers', 'fixedMatches'];
     const subUnsubs = colNames.map(name => rootRef.collection(name).onSnapshot(() => triggerUpdate()));
 
     realtimeListeners = [unsubRoot, ...subUnsubs];

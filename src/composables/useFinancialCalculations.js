@@ -43,14 +43,21 @@ export const useFinancialCalculations = () => {
         return calculateRemainingFund(member) + calculateRemainingFines(member);
     };
 
-    const getMemberFinancialStatus = (member) => {
-        const fundRequired = calculateRequiredFund(member);
-        const fundPaid = member.fundPaid || 0;
-        const fundMissing = Math.max(0, fundRequired - fundPaid);
+    const getMemberFinancialStatus = (memberId) => {
+        const member = members.value.find(m => m.id === memberId);
+        if (!member) return null;
 
-        const fineRequired = calculateRequiredFines(member.id);
-        const finePaid = member.fines || 0;
-        const fineMissing = Math.max(0, fineRequired - finePaid);
+        const memberReceivables = receivables.value.filter(r => r.memberId === memberId);
+        
+        const fundRequired = memberReceivables.filter(r => r.type === 'monthly_fund').reduce((sum, r) => sum + r.amount, 0);
+        const fundPaid = memberReceivables.filter(r => r.type === 'monthly_fund' && r.status === 'paid').reduce((sum, r) => sum + r.amount, 0);
+        const fundMissing = fundRequired - fundPaid;
+
+        const fineRequired = memberReceivables.filter(r => (r.type === 'fine' || r.type === 'pitch_fee')).reduce((sum, r) => sum + r.amount, 0);
+        const finePaid = memberReceivables.filter(r => (r.type === 'fine' || r.type === 'pitch_fee') && r.status === 'paid').reduce((sum, r) => sum + r.amount, 0);
+        const fineMissing = fineRequired - finePaid;
+
+        const otherDebt = memberReceivables.filter(r => r.type === 'legacy_debt' && r.status === 'unpaid').reduce((sum, r) => sum + r.amount, 0);
 
         return {
             fundRequired,
@@ -59,8 +66,8 @@ export const useFinancialCalculations = () => {
             fineRequired,
             finePaid,
             fineMissing,
-            totalDebt: fundMissing + fineMissing,
-            isPaidUp: fundMissing === 0 && fineMissing === 0
+            totalDebt: fundMissing + fineMissing + otherDebt,
+            isPaidUp: (fundMissing + fineMissing + otherDebt) === 0
         };
     };
 

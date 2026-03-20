@@ -27,8 +27,8 @@
                                 <th>Loại Đóng</th>
                                 <th>Mức Đóng Quỹ</th>
                                 <th>Tham Gia</th>
-                                <th>Quỹ</th>
-                                <th>Tiền Phạt</th>
+                                <th>Dư Nợ Quỹ</th>
+                                <th>Tiền Phạt Treo</th>
                                 <th>Hành Động</th>
                             </tr>
                         </thead>
@@ -57,17 +57,25 @@
                                         {{ getMemberStats(member.id).attendanceRate }}%
                                     </span>
                                 </td>
-                                <td>{{ formatCurrency(member.fundPaid) }}</td>
-                                <td>{{ formatCurrency(member.fines) }}</td>
+                                <td>
+                                    <span :class="{'text-danger': getMemberDebt(member.id, 'monthly_fund') > 0, 'text-success': getMemberDebt(member.id, 'monthly_fund') === 0}">
+                                        {{ formatCurrency(getMemberDebt(member.id, 'monthly_fund')) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span :class="{'text-danger': getMemberDebt(member.id, 'fine') > 0, 'text-success': getMemberDebt(member.id, 'fine') === 0}">
+                                        {{ formatCurrency(getMemberDebt(member.id, 'fine')) }}
+                                    </span>
+                                </td>
                                 <td>
                                     <div class="table-actions">
-                                        <button class="btn btn-sm btn-secondary" @click="openEditModal(member)">
+                                        <button class="btn-icon-edit" @click="openEditModal(member)" title="Sửa">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                             </svg>
                                         </button>
-                                        <button class="btn btn-sm btn-danger" @click="handleDeleteMember(member.id)">
+                                        <button class="btn-icon-danger" @click="handleDeleteMember(member.id)" title="Xóa">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <polyline points="3 6 5 6 21 6"></polyline>
                                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -135,7 +143,16 @@ import { ref, reactive } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import ContributionTiersModal from '../components/ContributionTiersModal.vue';
 
-const { members, contributionTiers, getMemberStats, addMember, updateMember, deleteMember, getContributionTier } = useAppState();
+const { 
+    members, contributionTiers, receivables, getMemberStats, 
+    addMember, updateMember, deleteMember, getContributionTier 
+} = useAppState();
+
+const getMemberDebt = (memberId, type) => {
+    return receivables.value
+        .filter(r => r.memberId === memberId && r.status === 'unpaid' && (type === 'all' || r.type === type || (type === 'fine' && r.type === 'pitch_fee')))
+        .reduce((sum, r) => sum + r.amount, 0);
+};
 
 const showMemberModal = ref(false);
 const showTiersModal = ref(false);

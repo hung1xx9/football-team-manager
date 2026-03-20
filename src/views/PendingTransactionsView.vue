@@ -133,7 +133,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Từ Chối Giao Dịch</h2>
-                    <button class="close-btn" @click="closeRejectModal">×</button>
+                    <button class="modal-close" @click="closeRejectModal">×</button>
                 </div>
                 <div class="modal-body">
                     <p>Bạn có chắc chắn muốn từ chối giao dịch này?</p>

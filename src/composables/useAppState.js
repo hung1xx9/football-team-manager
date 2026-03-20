@@ -11,9 +11,13 @@ const pendingTransactions = ref([]); // Giao dịch chờ phê duyệt
 const leaveRequests = ref([]); // Đơn xin nghỉ/muộn
 const pendingAttendances = ref([]); // Yêu cầu điểm danh thủ công
 const fixedMatches = ref([]); // Trận đấu cố định (lịch hẹn)
+const receivables = ref([]); // Các khoản phải thu (phạt, quỹ, phí sân...)
 const contributionTiers = ref([]);
 const settings = ref({ momoPhone: '' });
 const isInitialized = ref(false);
+const isSyncingLocal = ref(false); // Guard against race conditions during local writes
+
+let uploadDebounceTimer = null;
 
 // Firebase integration
 const { uploadData, uploadSingleItem, deleteSingleItem, isSignedIn, approvePendingTransactionAtomic, approveAttendanceAtomic } = useFirebase();
@@ -35,12 +39,17 @@ const stats = computed(() => {
         });
     }
 
+    const totalUnpaidReceivables = receivables.value
+        .filter(r => r.status === 'unpaid')
+        .reduce((sum, r) => sum + r.amount, 0);
+
     return {
         totalMembers: members.value.length,
         totalMatches: matches.value.length,
         balance: totalIncome - totalExpense,
         totalIncome,
         totalExpense,
+        totalUnpaidReceivables,
         attendanceRate: totalPossible > 0 ? Math.round((totalAtt / totalPossible) * 100) : 0
     };
 });
@@ -67,6 +76,7 @@ const loadData = () => {
     const savedLeaveRequests = localStorage.getItem('leaveRequests');
     const savedPendingAttendances = localStorage.getItem('pendingAttendances');
     const savedFixedMatches = localStorage.getItem('fixedMatches');
+    const savedReceivables = localStorage.getItem('receivables');
     const savedTiers = localStorage.getItem('contributionTiers');
     const savedSettings = localStorage.getItem('settings');
 
@@ -77,6 +87,7 @@ const loadData = () => {
     if (savedLeaveRequests) leaveRequests.value = JSON.parse(savedLeaveRequests);
     if (savedPendingAttendances) pendingAttendances.value = JSON.parse(savedPendingAttendances);
     if (savedFixedMatches) fixedMatches.value = JSON.parse(savedFixedMatches);
+    if (savedReceivables) receivables.value = JSON.parse(savedReceivables);
     if (savedTiers) contributionTiers.value = JSON.parse(savedTiers);
     if (savedSettings) settings.value = JSON.parse(savedSettings);
 
@@ -126,9 +137,56 @@ const loadData = () => {
 
     isInitialized.value = true;
     checkAndCreateFixedMatches();
+    checkAndCreateMonthlyDebts();
 };
 
-const saveData = () => {
+const checkAndCreateMonthlyDebts = () => {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+
+    const newReceivables = [];
+    
+    members.value.forEach(member => {
+        // Chỉ áp dụng cho thành viên đá theo đội
+        if (member.paymentType === 'per-match') return;
+        
+        // Kiểm tra xem đã có khoản nợ quỹ tháng này chưa
+        const exists = receivables.value.some(r => 
+            r.memberId === member.id && 
+            r.type === 'monthly_fund' && 
+            r.monthKey === monthKey
+        );
+
+        if (!exists) {
+            const tier = contributionTiers.value.find(t => t.id === member.contributionTierId);
+            const amount = tier ? tier.monthlyFee : 0;
+            
+            if (amount > 0) {
+                newReceivables.push({
+                    id: Date.now() + Math.random(),
+                    memberId: member.id,
+                    amount: amount,
+                    type: 'monthly_fund',
+                    description: `Quỹ tháng ${month}/${year}`,
+                    date: now.toISOString().split('T')[0],
+                    monthKey: monthKey,
+                    status: 'unpaid',
+                    createdAt: now.toISOString()
+                });
+            }
+        }
+    });
+
+    if (newReceivables.length > 0) {
+        console.log(`📊 Đã tự động tạo ${newReceivables.length} khoản nợ quỹ tháng cho tháng ${month}/${year}`);
+        receivables.value.push(...newReceivables);
+        saveData();
+    }
+};
+
+const saveData = (skipFirebase = false) => {
     localStorage.setItem('members', JSON.stringify(members.value));
     localStorage.setItem('matches', JSON.stringify(matches.value));
     localStorage.setItem('transactions', JSON.stringify(transactions.value));
@@ -136,52 +194,52 @@ const saveData = () => {
     localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests.value));
     localStorage.setItem('pendingAttendances', JSON.stringify(pendingAttendances.value));
     localStorage.setItem('fixedMatches', JSON.stringify(fixedMatches.value));
+    localStorage.setItem('receivables', JSON.stringify(receivables.value));
     localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
     localStorage.setItem('settings', JSON.stringify(settings.value));
 
-    // Auto-upload to Firebase if signed in with retry mechanism
+    if (skipFirebase) return;
+
     if (isSignedIn && isSignedIn.value && uploadData) {
-        const dataToUpload = {
-            members: members.value,
-            matches: matches.value,
-            transactions: transactions.value,
-            pendingTransactions: pendingTransactions.value,
-            pendingAttendances: pendingAttendances.value,
-            leaveRequests: leaveRequests.value,
-            contributionTiers: contributionTiers.value,
-            fixedMatches: fixedMatches.value,
-            settings: settings.value
-        };
+        if (uploadDebounceTimer) clearTimeout(uploadDebounceTimer);
+        uploadDebounceTimer = setTimeout(() => {
+            const dataToUpload = {
+                members: members.value,
+                matches: matches.value,
+                transactions: transactions.value,
+                pendingTransactions: pendingTransactions.value,
+                pendingAttendances: pendingAttendances.value,
+                leaveRequests: leaveRequests.value,
+                receivables: receivables.value,
+                contributionTiers: contributionTiers.value,
+                fixedMatches: fixedMatches.value,
+                settings: settings.value
+            };
 
-        // Retry function with exponential backoff
-        const retryUpload = async (attempt = 1, maxAttempts = 3) => {
-            try {
-                await uploadData(dataToUpload);
-                console.log('✅ Auto-upload to Firebase successful');
-            } catch (error) {
-                console.warn(`⚠️ Auto-upload attempt ${attempt} failed:`, error.message);
-
-                if (attempt < maxAttempts) {
-                    // Exponential backoff: 1s, 2s, 4s
-                    const delay = Math.pow(2, attempt - 1) * 1000;
-                    console.log(`🔄 Retrying in ${delay}ms...`);
-
-                    setTimeout(() => {
-                        retryUpload(attempt + 1, maxAttempts);
-                    }, delay);
-                } else {
-                    console.error('❌ Auto-upload to Firebase failed after', maxAttempts, 'attempts');
-                    console.log('📱 Data is still saved locally');
+            const retryUpload = async (attempt = 1, maxAttempts = 3) => {
+                try {
+                    isSyncingLocal.value = true;
+                    await uploadData(dataToUpload);
+                    console.log('✅ Bulk auto-upload successful');
+                } catch (error) {
+                    console.warn(`⚠️ Bulk upload attempt ${attempt} failed:`, error.message);
+                    if (attempt < maxAttempts) {
+                        setTimeout(() => retryUpload(attempt + 1, maxAttempts), Math.pow(2, attempt - 1) * 2000);
+                    }
+                } finally {
+                    setTimeout(() => { isSyncingLocal.value = false; }, 2000);
                 }
-            }
-        };
-
-        // Start upload with retry
-        retryUpload();
+            };
+            retryUpload();
+        }, 5000);
     }
 };
 
 const updateFromFirebase = (data) => {
+    if (isSyncingLocal.value) {
+        console.log('⏳ Skipping Firebase snapshot update while local write is in progress to prevent state revert.');
+        return;
+    }
     if (data.members) members.value = data.members;
     if (data.matches) matches.value = data.matches;
     if (data.transactions) transactions.value = data.transactions;
@@ -189,15 +247,17 @@ const updateFromFirebase = (data) => {
     if (data.leaveRequests) leaveRequests.value = data.leaveRequests;
     if (data.pendingAttendances) pendingAttendances.value = data.pendingAttendances;
     if (data.fixedMatches) fixedMatches.value = data.fixedMatches;
+    if (data.receivables) receivables.value = data.receivables;
     if (data.contributionTiers) contributionTiers.value = data.contributionTiers;
     if (data.settings) settings.value = data.settings;
-    // Save to localStorage
+    
     localStorage.setItem('members', JSON.stringify(members.value));
     localStorage.setItem('matches', JSON.stringify(matches.value));
     localStorage.setItem('transactions', JSON.stringify(transactions.value));
     localStorage.setItem('pendingTransactions', JSON.stringify(pendingTransactions.value));
     localStorage.setItem('pendingAttendances', JSON.stringify(pendingAttendances.value));
     localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests.value));
+    localStorage.setItem('receivables', JSON.stringify(receivables.value));
     localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
     localStorage.setItem('fixedMatches', JSON.stringify(fixedMatches.value));
     localStorage.setItem('settings', JSON.stringify(settings.value));
@@ -213,28 +273,43 @@ const addMember = async (memberData) => {
         ...newMemberData 
     };
     members.value.push(newMember);
-    localStorage.setItem('members', JSON.stringify(members.value));
-    if (isSignedIn.value) await uploadSingleItem('members', newMember).catch(e => console.error(e));
+    saveData(true);
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        uploadSingleItem('members', newMember)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
 };
 const updateMember = async (id, memberData) => {
-    const m = members.value.find(x => x.id === id);
-    if (m) {
+    const idx = members.value.findIndex(x => x.id === id);
+    if (idx !== -1) {
         if (typeof memberData === 'string') {
-            m.name = memberData;
+            members.value[idx].name = memberData;
         } else {
-            Object.assign(m, memberData);
+            Object.assign(members.value[idx], memberData);
         }
-        localStorage.setItem('members', JSON.stringify(members.value));
-        if (isSignedIn.value) await uploadSingleItem('members', m).catch(e => console.error(e));
+        saveData(true);
+        if (isSignedIn.value) {
+            isSyncingLocal.value = true;
+            uploadSingleItem('members', members.value[idx])
+                .catch(e => console.error(e))
+                .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+        }
     }
 };
 const deleteMember = async (id) => {
     members.value = members.value.filter(m => m.id !== id);
-    localStorage.setItem('members', JSON.stringify(members.value));
-    if (isSignedIn.value) await deleteSingleItem('members', id).catch(e => console.error(e));
+    saveData(true);
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        deleteSingleItem('members', id)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
 };
 
-const saveMatch = (matchData) => {
+const saveMatch = async (matchData) => {
     let attendance;
 
     // Check if we need to preserve attendance data (when admin manually marks attendance)
@@ -311,6 +386,7 @@ const saveMatch = (matchData) => {
         }));
     }
 
+    let matchToUpload = null;
     if (matchData.id) {
         // Update existing match
         const idx = matches.value.findIndex(m => m.id === matchData.id);
@@ -330,25 +406,123 @@ const saveMatch = (matchData) => {
                 id: originalId, // Ensure ID is not overwritten
                 attendance // Use the attendance from above
             };
+            matchToUpload = matches.value[idx];
         }
     } else {
         // Create new match
         const { id, preserveAttendanceData, originalAttendance, attendanceIds, ...dataWithoutHelpers } = matchData;
-        matches.value.push({
+        const newMatch = {
             id: Date.now(), // Generate new ID
             ...dataWithoutHelpers,
             attendance
-        });
+        };
+        matches.value.push(newMatch);
+        matchToUpload = newMatch;
     }
-    saveData();
+    saveData(true);
+    
+    // Level 2: Granular sync for match
+    if (isSignedIn.value && matchToUpload) {
+        isSyncingLocal.value = true;
+        uploadSingleItem('matches', matchToUpload)
+            .catch(e => console.error('Error syncing match:', e))
+            .finally(() => {
+                // Keep flag for a bit to let Firestore listeners settle
+                setTimeout(() => { isSyncingLocal.value = false; }, 2000);
+            });
+    }
 };
-const deleteMatch = (id) => {
-    // Clean up scan records for this match
+
+const finalizeMatch = async (matchId, penaltyList) => {
+    const match = matches.value.find(m => m.id === matchId);
+    if (!match || match.finalized) return;
+
+    // 1. Create receivables for each penalty
+    const now = new Date().toISOString();
+    const newReceivables = penaltyList.map(p => ({
+        id: Date.now() + Math.random(),
+        memberId: p.memberId,
+        amount: p.amount,
+        type: p.type, // 'fine', 'pitch_fee'
+        description: p.description,
+        date: match.date,
+        matchId: match.id,
+        status: 'unpaid',
+        createdAt: now
+    }));
+
+    receivables.value.push(...newReceivables);
+    match.finalized = true;
+    saveData(true);
+
+    // 2. Sync to Firebase
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        const syncPromises = [uploadSingleItem('matches', match)];
+        for (const r of newReceivables) syncPromises.push(uploadSingleItem('receivables', r));
+        await Promise.all(syncPromises)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
+};
+
+const addReceivable = async (rData) => {
+    const newR = {
+        id: Date.now(),
+        status: 'unpaid',
+        createdAt: new Date().toISOString(),
+        ...rData
+    };
+    receivables.value.push(newR);
+    saveData(true);
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        uploadSingleItem('receivables', newR)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
+};
+
+const updateReceivable = async (id, updates) => {
+    const idx = receivables.value.findIndex(r => r.id === id);
+    if (idx !== -1) {
+        receivables.value[idx] = { ...receivables.value[idx], ...updates };
+        saveData(true);
+        if (isSignedIn.value) {
+            isSyncingLocal.value = true;
+            uploadSingleItem('receivables', receivables.value[idx])
+                .catch(e => console.error(e))
+                .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+        }
+    }
+};
+const deleteMatch = async (id) => {
+    // 1. Clean up scan records for this match
     const cleanedCount = cleanupDeletedMatch(id);
     console.log(`🗑️ Deleted match ${id}, cleaned up ${cleanedCount} scan records`);
 
+    // 2. Remove associated receivables
+    const initialCount = receivables.value.length;
+    receivables.value = receivables.value.filter(r => r.matchId !== id);
+    const removedCount = initialCount - receivables.value.length;
+    if (removedCount > 0) {
+        console.log(`📊 Removed ${removedCount} associated receivables for match ${id}`);
+    }
+
+    // 3. Remove the match
     matches.value = matches.value.filter(m => m.id !== id);
-    saveData();
+    
+    saveData(true);
+
+    // Level 2: Granular sync for delete
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        deleteSingleItem('matches', id)
+            .catch(e => console.error('Error deleting match:', e))
+            .finally(() => {
+                setTimeout(() => { isSyncingLocal.value = false; }, 2000);
+            });
+    }
 };
 
 const updateMatchAttendance = async (matchId, attendanceData) => {
@@ -358,9 +532,12 @@ const updateMatchAttendance = async (matchId, attendanceData) => {
             ...matches.value[idx],
             attendance: attendanceData
         };
-        localStorage.setItem('matches', JSON.stringify(matches.value));
+        saveData(true);
         if (isSignedIn.value) {
-            await uploadSingleItem('matches', matches.value[idx]).catch(e => console.error(e));
+            isSyncingLocal.value = true;
+            uploadSingleItem('matches', matches.value[idx])
+                .catch(e => console.error(e))
+                .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
         }
         return true;
     }
@@ -372,22 +549,97 @@ const addTransaction = async (tData) => {
     transactions.value.push(newTx);
 
     let updatedMember = null;
+    let affectedReceivables = [];
+
     if (tData.type === 'income' && tData.memberId) {
+        // 1. Update member totals (legacy support)
         const member = members.value.find(m => m.id === tData.memberId);
         if (member) {
             if (tData.category === 'fund') member.fundPaid = (member.fundPaid || 0) + tData.amount;
             else if (tData.category === 'fine') member.fines = (member.fines || 0) + tData.amount;
             updatedMember = member;
         }
+
+        // 2. Auto Allocation for Receivables (Smart Debt Clearing)
+        let remainingAmount = tData.amount;
+        // Sort: Fines first, then everything else (by date)
+        const unpaidList = receivables.value
+            .filter(r => r.memberId === tData.memberId && r.status === 'unpaid')
+            .sort((a, b) => {
+                if (a.type === 'fine' && b.type !== 'fine') return -1;
+                if (a.type !== 'fine' && b.type === 'fine') return 1;
+                return new Date(a.date) - new Date(b.date);
+            });
+
+        for (const r of unpaidList) {
+            if (remainingAmount <= 0) break;
+            
+            if (remainingAmount >= r.amount) {
+                r.status = 'paid';
+                r.paidAt = new Date().toISOString();
+                r.transactionId = newTx.id;
+                remainingAmount -= r.amount;
+                affectedReceivables.push(r);
+            } else {
+                // Partial payment (optional complexity, for now we just cover full ones or skip)
+                // In a true ledger we'd track balance, but here let's just mark what we CAN pay fully
+                // OR we can allow partial if needed. Let's stick to full for simplicity in this MVP.
+            }
+        }
     }
 
-    localStorage.setItem('transactions', JSON.stringify(transactions.value));
-    if (updatedMember) localStorage.setItem('members', JSON.stringify(members.value));
+    saveData(true);
 
     if (isSignedIn.value) {
-        uploadSingleItem('transactions', newTx).catch(e => console.error(e));
-        if (updatedMember) uploadSingleItem('members', updatedMember).catch(e => console.error(e));
+        isSyncingLocal.value = true;
+        const syncPromises = [uploadSingleItem('transactions', newTx)];
+        if (updatedMember) syncPromises.push(uploadSingleItem('members', updatedMember));
+        for (const r of affectedReceivables) {
+            syncPromises.push(uploadSingleItem('receivables', r));
+        }
+        Promise.all(syncPromises)
+            .catch(e => console.error('Error syncing transaction data:', e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
     }
+};
+
+const migrateToReceivables = async (memberStatusList) => {
+    // 1. Create legacy receivables for all existing debts
+    const now = new Date().toISOString();
+    const migrationReceivables = [];
+
+    memberStatusList.forEach(m => {
+        if (m.totalDebt > 0) {
+            migrationReceivables.push({
+                id: Date.now() + Math.random(),
+                memberId: m.id,
+                amount: m.totalDebt,
+                type: 'legacy_debt',
+                description: `Dư nợ cũ chuyển đổi (Quỹ: ${m.fundMissing}, Phạt: ${m.fineMissing})`,
+                date: new Date().toISOString().split('T')[0],
+                status: 'unpaid',
+                createdAt: now
+            });
+        }
+    });
+
+    // 2. Mark all existing matches as finalized
+    matches.value.forEach(m => {
+        m.finalized = true;
+    });
+
+    receivables.value.push(...migrationReceivables);
+    saveData(true);
+
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        const syncPromises = matches.value.map(m => uploadSingleItem('matches', m));
+        migrationReceivables.forEach(r => syncPromises.push(uploadSingleItem('receivables', r)));
+        await Promise.all(syncPromises)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
+    return true;
 };
 
 const addFixedMatch = async (fixedData) => {
@@ -396,14 +648,24 @@ const addFixedMatch = async (fixedData) => {
         ...fixedData
     };
     fixedMatches.value.push(newFixed);
-    localStorage.setItem('fixedMatches', JSON.stringify(fixedMatches.value));
-    if (isSignedIn.value) await uploadSingleItem('fixedMatches', newFixed).catch(e => console.error(e));
+    saveData(true);
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        uploadSingleItem('fixedMatches', newFixed)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
 };
 
 const deleteFixedMatch = async (id) => {
     fixedMatches.value = fixedMatches.value.filter(m => m.id !== id);
-    localStorage.setItem('fixedMatches', JSON.stringify(fixedMatches.value));
-    if (isSignedIn.value) await deleteSingleItem('fixedMatches', id).catch(e => console.error(e));
+    saveData(true);
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        deleteSingleItem('fixedMatches', id)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
 };
 
 const checkAndCreateFixedMatches = () => {
@@ -687,6 +949,7 @@ export const useAppState = () => {
         stats,
         sortedMatches,
         futureMatches,
+        receivables,
 
         // Actions
         loadData,
@@ -695,10 +958,13 @@ export const useAppState = () => {
         updateMember,
         deleteMember,
         saveMatch,
+        finalizeMatch,
         updateMatchAttendance,
         deleteMatch,
         addTransaction,
         deleteTransaction,
+        addReceivable,
+        updateReceivable,
         addPendingTransaction,
         approvePendingTransaction,
         rejectPendingTransaction,
@@ -715,6 +981,7 @@ export const useAppState = () => {
         addFixedMatch,
         deleteFixedMatch,
         checkAndCreateFixedMatches,
+        migrateToReceivables,
 
         // Helpers
         getMemberName,

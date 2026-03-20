@@ -9,15 +9,47 @@
                 <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 2rem;">
                     <div class="stat-card stat-info">
                         <div class="stat-content">
-                            <div class="stat-label">Quỹ Còn Phải Đóng</div>
-                            <div class="stat-value">{{ formatCurrency(remainingFund) }}</div>
+                            <div class="stat-label">Các Khoản Nợ ({{ unpaidReceivables.length }})</div>
+                            <div class="stat-value text-danger">{{ formatCurrency(totalDebt) }}</div>
                         </div>
                     </div>
-                    <div class="stat-card stat-warning">
+                    <div class="stat-card stat-success">
                         <div class="stat-content">
-                            <div class="stat-label">Phạt Còn Phải Đóng</div>
-                            <div class="stat-value">{{ formatCurrency(remainingFines) }}</div>
+                            <div class="stat-label">Tổng Đã Đóng</div>
+                            <div class="stat-value text-success">{{ formatCurrency(totalPaid) }}</div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Debt Ledger -->
+                <div v-if="unpaidReceivables.length > 0" class="debt-ledger-section" style="margin-bottom: 2.5rem;">
+                    <h3 style="margin-bottom: 1rem; color: var(--warning-400);">📝 Chi Tiết Các Khoản Nợ</h3>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Ngày phát sinh</th>
+                                    <th>Nội dung</th>
+                                    <th class="text-right">Số tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="r in unpaidReceivables" :key="r.id">
+                                    <td>{{ formatDate(r.date) }}</td>
+                                    <td>
+                                        <span class="type-tag" :class="r.type">{{ r.type === 'fine' ? 'Phạt' : (r.type === 'fund' ? 'Quỹ' : 'Khác') }}</span>
+                                        {{ r.description }}
+                                    </td>
+                                    <td class="text-right font-bold text-danger">{{ formatCurrency(r.amount) }}</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="2" class="text-right"><strong>TỔNG CỘNG:</strong></td>
+                                    <td class="text-right font-bold text-danger" style="font-size: 1.2rem;">{{ formatCurrency(totalDebt) }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
                     </div>
                 </div>
 
@@ -29,8 +61,9 @@
                         <div class="qr-guide">
                             <p>Quét mã QR bên cạnh để thực hiện chuyển khoản đóng quỹ/phạt nhanh chóng.</p>
                             <ul>
-                                <li>Nội dung: <strong>{{ currentMember?.name }} dong quy</strong></li>
-                                <li>Sau khi chuyển, hãy báo cho thủ quỹ để được duyệt</li>
+                                <li>Nội dung: <strong>{{ currentMember?.name }} thanh toan</strong></li>
+                                <li>Số tiền: <strong>{{ formatCurrency(totalDebt) }}</strong></li>
+                                <li>Sau khi chuyển, hãy tải ảnh minh chứng bên dưới.</li>
                             </ul>
                             <button v-if="settings.momoLink" @click="openMoMo" class="btn-momo-full">
                                 <img src="../assets/momo-logo.png" alt="MoMo">
@@ -50,10 +83,10 @@
                             <div class="form-grid-custom" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                                 <div class="form-group">
                                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Loại thanh toán</label>
-                                    <select v-model="form.category" style="width: 100%; padding: 0.75rem; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-primary); color: var(--text-primary);">
-                                        <option value="fund">Đóng quỹ tháng</option>
-                                        <option value="fine">Đóng tiền phạt</option>
-                                    </select>
+                                    <BaseSelect 
+                                        v-model="form.category"
+                                        :options="categoryOptions"
+                                    />
                                 </div>
                                 <div class="form-group">
                                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Số tiền đã chuyển (VNĐ)</label>
@@ -151,12 +184,17 @@ import { ref, computed } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useAuth } from '../composables/useAuth';
 import { useFinancialCalculations } from '../composables/useFinancialCalculations';
+import BaseSelect from '../components/BaseSelect.vue';
 
-const { transactions, pendingTransactions, addPendingTransaction, deletePendingTransaction, settings, members } = useAppState();
+const { transactions, pendingTransactions, addPendingTransaction, deletePendingTransaction, settings, members, receivables } = useAppState();
 const { guestMemberId } = useAuth();
-const { calculateRemainingFund, calculateRemainingFines } = useFinancialCalculations();
+const { getStatusText } = useFinancialCalculations();
 
 const form = ref({ category: 'fund', amount: null, description: '' });
+const categoryOptions = [
+    { label: 'Đóng quỹ tháng', value: 'fund' },
+    { label: 'Đóng tiền phạt', value: 'fine' }
+];
 
 const currentMember = computed(() => members.value.find(m => m.id === guestMemberId.value));
 
@@ -174,8 +212,14 @@ const pendingRequests = computed(() => {
         .sort((a, b) => new Date(b.date) - new Date(a.date));
 });
 
-const remainingFund = computed(() => currentMember.value ? calculateRemainingFund(currentMember.value) : 0);
-const remainingFines = computed(() => currentMember.value ? calculateRemainingFines(currentMember.value) : 0);
+const myReceivables = computed(() => {
+    if (!guestMemberId.value) return [];
+    return receivables.value.filter(r => r.memberId === guestMemberId.value);
+});
+
+const unpaidReceivables = computed(() => myReceivables.value.filter(r => r.status === 'unpaid').sort((a,b) => new Date(a.date) - new Date(b.date)));
+const totalDebt = computed(() => unpaidReceivables.value.reduce((sum, r) => sum + r.amount, 0));
+const totalPaid = computed(() => myReceivables.value.filter(r => r.status === 'paid').reduce((sum, r) => sum + r.amount, 0));
 
 const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '';
@@ -248,4 +292,9 @@ const deletePending = async (id) => {
 
 .pulse-dot { width: 8px; height: 8px; background: var(--warning-500); border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
 @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
+
+.type-tag { font-size: 0.7rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-right: 6px; border: 1px solid currentColor; }
+.type-tag.fine { color: var(--danger-400); background: rgba(239, 68, 68, 0.1); }
+.type-tag.fund { color: var(--primary-400); background: rgba(59, 130, 246, 0.1); }
+.type-tag.pitch_fee { color: var(--success-400); background: rgba(16, 185, 129, 0.1); }
 </style>

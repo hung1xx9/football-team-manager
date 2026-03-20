@@ -149,5 +149,8 @@ h2 { font-size: 1.5rem }
 h3 { font-size: 1.25rem }
 
 .text-muted { color: var(--text-muted) }
+.text-danger { color: var(--danger-400) }
+.text-success { color: var(--success-400) }
+.text-warning { color: var(--warning-400) }
 .text-sm { font-size: .875rem }
 .text-xs { font-size: .75rem }

@@ -37,6 +37,12 @@
                         <div class="stat-value">{{ formatCurrency(stats.totalExpense) }}</div>
                     </div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-content">
+                        <div class="stat-label">Tổng Dư Nợ (Phải Thu)</div>
+                        <div class="stat-value text-danger">{{ formatCurrency(stats.totalUnpaidReceivables) }}</div>
+                    </div>
+                </div>
                 <div class="stat-card stat-info">
                     <div class="stat-content">
                         <div class="stat-label">Số Dư</div>
@@ -45,8 +51,14 @@
                 </div>
             </div>
             <div class="page-actions">
-                <button class="btn btn-success" @click="openTransactionModal('income')">Thêm Thu</button>
-                <button class="btn btn-danger" @click="openTransactionModal('expense')">Thêm Chi</button>
+                <button class="btn btn-hero btn-hero-income" @click="openTransactionModal('income')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                    Thêm Thu
+                </button>
+                <button class="btn btn-hero btn-hero-expense" @click="openTransactionModal('expense')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                    Thêm Chi
+                </button>
             </div>
         </div>
 
@@ -194,15 +206,18 @@
                 <div class="card-header">
                     <h2>Danh Sách Đóng Quỹ Theo Tháng</h2>
                     <div class="card-actions" style="display:flex;gap:0.75rem;align-items:center;">
-                        <select v-model="selectedYear" class="year-selector">
-                            <option v-for="year in availableYears" :key="year" :value="year">Năm {{ year }}</option>
-                        </select>
+                        <BaseSelect 
+                            v-model="selectedYear"
+                            :options="yearOptions"
+                            style="min-width: 140px;"
+                        />
                     </div>
                 </div>
                 <div class="card-content">
-                    <div v-if="perMatchMembersForFund.length > 0" class="info-notice">
-                        <span class="notice-icon">ℹ️</span>
-                        <span>Bảng này chỉ hiển thị thành viên <strong>đóng quỹ theo tháng</strong>. {{ perMatchMembersForFund.length }} thành viên đá theo trận không có trong danh sách này.</span>
+                    <div class="statistics-summary" style="margin-top: 0; margin-bottom: 2rem;">
+                        <div class="mf-stat-card"><div class="mf-stat-icon">👥</div><div class="mf-stat-info"><div class="stat-label">Thành viên đóng quỹ tháng</div><div class="stat-value">{{ monthlyMembersForFund.length }}</div></div></div>
+                        <div class="mf-stat-card success"><div class="mf-stat-icon">✅</div><div class="mf-stat-info"><div class="stat-label">Đã thu năm {{ selectedYear }}</div><div class="stat-value">{{ formatCurrency(actualYearlyTotal) }}</div></div></div>
+                        <div class="mf-stat-card warning"><div class="mf-stat-icon">⏳</div><div class="mf-stat-info"><div class="stat-label">Còn thiếu (đến tháng {{ currentMonth }})</div><div class="stat-value">{{ formatCurrency(mfTotalMissing) }}</div></div></div>
                     </div>
                     <div class="table-wrapper">
                         <table class="monthly-fund-table">
@@ -256,96 +271,55 @@
                             </tfoot>
                         </table>
                     </div>
-                    <div class="statistics-summary">
-                        <div class="mf-stat-card"><div class="mf-stat-icon">👥</div><div class="mf-stat-info"><div class="stat-label">Thành viên đóng quỹ tháng</div><div class="stat-value">{{ monthlyMembersForFund.length }}</div></div></div>
-                        <div class="mf-stat-card"><div class="mf-stat-icon">💰</div><div class="mf-stat-info"><div class="stat-label">Quỹ dự kiến/tháng</div><div class="stat-value">{{ formatCurrency(expectedMonthlyTotal) }}</div></div></div>
-                        <div class="mf-stat-card"><div class="mf-stat-icon">📊</div><div class="mf-stat-info"><div class="stat-label">Dự kiến cả năm {{ selectedYear }}</div><div class="stat-value">{{ formatCurrency(expectedYearlyTotal) }}</div></div></div>
-                        <div class="mf-stat-card success"><div class="mf-stat-icon">✅</div><div class="mf-stat-info"><div class="stat-label">Đã thu năm {{ selectedYear }}</div><div class="stat-value">{{ formatCurrency(actualYearlyTotal) }}</div></div></div>
-                        <div class="mf-stat-card warning"><div class="mf-stat-icon">⏳</div><div class="mf-stat-info"><div class="stat-label">Còn thiếu (đến tháng {{ currentMonth }})</div><div class="stat-value">{{ formatCurrency(mfTotalMissing) }}</div></div></div>
-                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Per Match Tab -->
         <div v-if="activeTab === 'per-match'" class="tab-content">
-            <div class="card" style="margin-bottom: var(--spacing-xl);">
-                <div class="card-header">
-                    <h2>⚽ Đóng Quỹ Theo Trận</h2>
-                    <div class="card-actions"><span class="badge badge-warning">{{ pmPerMatchMembers.length }} thành viên đá theo trận</span></div>
+            <template v-if="pmPerMatchMembers.length === 0">
+                <div style="padding:3rem;text-align:center;color:var(--text-secondary);">
+                    <div style="font-size:2rem;margin-bottom:1rem;">⚽</div>
+                    <h3>Chưa có thành viên đá theo trận</h3>
+                    <p>Vào <strong>Thành Viên</strong> → Thêm/Sửa thành viên → Chọn loại <strong>"Đá theo trận"</strong></p>
                 </div>
-                <div class="card-content">
-                    <div v-if="pmPerMatchMembers.length === 0" style="padding:3rem;text-align:center;color:var(--text-secondary);">
-                        <div style="font-size:2rem;margin-bottom:1rem;">⚽</div>
-                        <h3>Chưa có thành viên đá theo trận</h3>
-                        <p>Vào <strong>Thành Viên</strong> → Thêm/Sửa thành viên → Chọn loại <strong>"Đá theo trận"</strong></p>
+            </template>
+            <template v-else>
+                <div class="card">
+                    <div class="card-header">
+                        <h2>📋 Tổng Hợp Tất Cả Trận</h2>
+                        <div class="card-actions">
+                            <span class="badge badge-success">Tổng thu: {{ formatCurrency(pmGrandTotalCollected) }}</span>
+                        </div>
                     </div>
-                    <template v-else>
-                        <div class="form-group" style="margin-bottom: var(--spacing-xl);">
-                            <label>Chọn Trận Đấu</label>
-                            <select v-model="pmSelectedMatchId">
-                                <option :value="null">-- Chọn trận để xem & quản lý --</option>
-                                <option v-for="match in sortedMatches" :key="match.id" :value="match.id">{{ pmFormatDate(match.date) }} - {{ match.location || 'Sân đấu' }}</option>
-                            </select>
+                    <div class="card-content">
+                        <div v-if="pmAllStats.length === 0" style="padding:3rem;text-align:center;color:var(--text-secondary);">
+                            <p>Chưa có trận đấu nào</p>
                         </div>
-                        <div v-if="pmSelectedMatchId && pmCurrentMatch">
-                            <div class="stats-grid" style="margin-bottom: var(--spacing-xl);">
-                                <div class="stat-card"><div class="stat-content"><div class="stat-value">{{ pmMatchRevenue.totalPerMatchPlayers }}</div><div class="stat-label">Thành viên theo trận</div></div></div>
-                                <div class="stat-card stat-success"><div class="stat-content"><div class="stat-value">{{ pmMatchRevenue.attendedPerMatchPlayers }}</div><div class="stat-label">Đã tham gia</div></div></div>
-                                <div class="stat-card stat-info"><div class="stat-content"><div class="stat-value">{{ formatCurrency(pmMatchRevenue.totalRevenue) }}</div><div class="stat-label">Tổng phải thu</div></div></div>
-                                <div class="stat-card"><div class="stat-content"><div class="stat-value">{{ formatCurrency(pmMatchRevenue.totalCollected) }}</div><div class="stat-label">Đã thu được</div></div></div>
-                            </div>
-                            <div class="table-container">
-                                <table class="data-table">
-                                    <thead><tr><th>Thành Viên</th><th class="text-center">Giá/Trận</th><th class="text-center">Điểm danh</th><th class="text-center">Đã thu tiền</th><th class="text-center">Thao tác</th></tr></thead>
-                                    <tbody>
-                                        <tr v-for="player in pmMatchRevenue.players" :key="player.id" :class="{ 'row-absent': !player.attended, 'row-paid': player.attended && player.isPaid }">
-                                            <td><strong>{{ player.name }}</strong></td>
-                                            <td class="text-center">{{ formatCurrency(player.perMatchFee) }}</td>
-                                            <td class="text-center"><span v-if="player.attended" class="badge badge-success">✅ Có mặt</span><span v-else class="badge badge-secondary">❌ Vắng</span></td>
-                                            <td class="text-center"><template v-if="player.attended"><span v-if="player.isPaid" class="badge badge-success">✔ Đã thu</span><span v-else class="badge badge-warning">⏳ Chưa thu</span></template><span v-else class="badge badge-secondary">N/A</span></td>
-                                            <td class="text-center"><template v-if="player.attended"><button v-if="!player.isPaid" class="btn btn-sm btn-success" @click="pmCollectFee(player)">💵 Thu tiền</button><button v-else class="btn btn-sm btn-secondary" @click="pmUndoCollectFee(player)">↩ Hoàn tác</button></template><span v-else class="text-muted">—</span></td>
-                                        </tr>
-                                    </tbody>
-                                    <tfoot>
-                                        <tr style="font-weight:700;"><td colspan="3" style="text-align:right;">Tổng phải thu:</td><td class="text-center" style="color:var(--success-500);">{{ formatCurrency(pmMatchRevenue.totalRevenue) }}</td><td></td></tr>
-                                        <tr style="font-weight:700;"><td colspan="3" style="text-align:right;">Đã thu:</td><td class="text-center" style="color:var(--primary-500);">{{ formatCurrency(pmMatchRevenue.totalCollected) }}<span v-if="pmMatchRevenue.totalCollected < pmMatchRevenue.totalRevenue" style="color:var(--warning-500);font-size:0.8rem;display:block;">Còn thiếu: {{ formatCurrency(pmMatchRevenue.totalRevenue - pmMatchRevenue.totalCollected) }}</span></td><td></td></tr>
-                                    </tfoot>
-                                </table>
-                            </div>
+                        <div v-else class="table-container">
+                            <table class="data-table">
+                                <thead><tr><th>Ngày</th><th>Địa Điểm</th><th class="text-center">Theo trận / Có mặt</th><th class="text-center">Phải thu</th><th class="text-center">Đã thu</th><th class="text-center">Trạng thái</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="stat in pmAllStats" :key="stat.id" @click="pmOpenDetail(stat.id)" style="cursor:pointer;" :class="{ 'selected-row': pmSelectedMatchId === stat.id }">
+                                        <td>{{ pmFormatDate(stat.date) }}</td>
+                                        <td>{{ stat.location || 'Sân đấu' }}</td>
+                                        <td class="text-center">{{ stat.totalPerMatchPlayers }} / {{ stat.attendedPerMatchPlayers }}</td>
+                                        <td class="text-center"><strong style="color:var(--success-500)">{{ formatCurrency(stat.totalRevenue) }}</strong></td>
+                                        <td class="text-center"><strong style="color:var(--primary-500)">{{ formatCurrency(stat.totalCollected) }}</strong></td>
+                                        <td class="text-center">
+                                            <span v-if="stat.attendedPerMatchPlayers === 0" class="badge badge-secondary">Không ai tham gia</span>
+                                            <span v-else-if="stat.totalCollected >= stat.totalRevenue && stat.totalRevenue > 0" class="badge badge-success">✔ Đủ</span>
+                                            <span v-else-if="stat.totalCollected > 0" class="badge badge-warning">⏳ Chưa đủ</span>
+                                            <span v-else class="badge badge-danger">✗ Chưa thu</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                <tfoot><tr style="font-weight:700;"><td colspan="3" style="text-align:right;">Tổng Tất Cả:</td><td class="text-center" style="color:var(--success-500);font-size:1.1rem;">{{ formatCurrency(pmGrandTotalRevenue) }}</td><td class="text-center" style="color:var(--primary-500);font-size:1.1rem;">{{ formatCurrency(pmGrandTotalCollected) }}</td><td colspan="1"></td></tr></tfoot>
+                            </table>
                         </div>
-                    </template>
-                </div>
-            </div>
-            <!-- Summary Across All Matches -->
-            <div v-if="pmPerMatchMembers.length > 0" class="card">
-                <div class="card-header"><h2>📋 Tổng Hợp Tất Cả Trận</h2><div class="card-actions"><span class="badge badge-success">Tổng thu: {{ formatCurrency(pmGrandTotalCollected) }}</span></div></div>
-                <div class="card-content">
-                    <div v-if="pmAllStats.length === 0" style="padding:3rem;text-align:center;color:var(--text-secondary);"><p>Chưa có trận đấu nào</p></div>
-                    <div v-else class="table-container">
-                        <table class="data-table">
-                            <thead><tr><th>Ngày</th><th>Địa Điểm</th><th class="text-center">Theo trận / Có mặt</th><th class="text-center">Phải thu</th><th class="text-center">Đã thu</th><th class="text-center">Trạng thái</th><th class="text-center">Thao tác</th></tr></thead>
-                            <tbody>
-                                <tr v-for="stat in pmAllStats" :key="stat.id" @click="pmScrollToMatch(stat.id)" style="cursor:pointer;" :class="{ 'selected-row': pmSelectedMatchId === stat.id }">
-                                    <td>{{ pmFormatDate(stat.date) }}</td>
-                                    <td>{{ stat.location || 'Sân đấu' }}</td>
-                                    <td class="text-center">{{ stat.totalPerMatchPlayers }} / {{ stat.attendedPerMatchPlayers }}</td>
-                                    <td class="text-center"><strong style="color:var(--success-500)">{{ formatCurrency(stat.totalRevenue) }}</strong></td>
-                                    <td class="text-center"><strong style="color:var(--primary-500)">{{ formatCurrency(stat.totalCollected) }}</strong></td>
-                                    <td class="text-center">
-                                        <span v-if="stat.attendedPerMatchPlayers === 0" class="badge badge-secondary">Không ai tham gia</span>
-                                        <span v-else-if="stat.totalCollected >= stat.totalRevenue && stat.totalRevenue > 0" class="badge badge-success">✔ Đủ</span>
-                                        <span v-else-if="stat.totalCollected > 0" class="badge badge-warning">⏳ Chưa đủ</span>
-                                        <span v-else class="badge badge-danger">✗ Chưa thu</span>
-                                    </td>
-                                    <td class="text-center"><button class="btn btn-sm btn-ghost" @click.stop="pmScrollToMatch(stat.id)">Chi tiết</button></td>
-                                </tr>
-                            </tbody>
-                            <tfoot><tr style="font-weight:700;"><td colspan="3" style="text-align:right;">Tổng Tất Cả:</td><td class="text-center" style="color:var(--success-500);font-size:1.1rem;">{{ formatCurrency(pmGrandTotalRevenue) }}</td><td class="text-center" style="color:var(--primary-500);font-size:1.1rem;">{{ formatCurrency(pmGrandTotalCollected) }}</td><td colspan="2"></td></tr></tfoot>
-                        </table>
                     </div>
                 </div>
-            </div>
+            </template>
         </div>
 
         <!-- Pending Transactions Tab -->
@@ -445,7 +419,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>{{ form.type === 'income' ? '💰 Thêm Khoản Thu' : '💸 Thêm Khoản Chi' }}</h2>
-                    <button class="close-btn" @click="closeModal">&times;</button>
+                    <button class="modal-close" @click="closeModal">×</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
@@ -454,16 +428,19 @@
                     </div>
                     <div class="form-group">
                         <label>Phân Loại</label>
-                        <select v-model="form.category">
-                            <option v-for="cat in currentCategories" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
-                        </select>
+                        <BaseSelect 
+                            v-model="form.category"
+                            :options="currentCategories"
+                            placeholder="Chọn phân loại..."
+                        />
                     </div>
                     <div v-if="form.type === 'income'" class="form-group">
                         <label>Thành Viên Kèm Theo</label>
-                        <select v-model="form.memberId">
-                            <option :value="null">-- Không bắt buộc --</option>
-                            <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}</option>
-                        </select>
+                        <BaseSelect 
+                            v-model="form.memberId"
+                            :options="memberOptions"
+                            placeholder="-- Không bắt buộc --"
+                        />
                     </div>
                     <div class="form-group">
                         <label>Số Tiền (VNĐ)</label>
@@ -481,6 +458,39 @@
                 </div>
             </div>
         </div>
+
+        <!-- Per Match Detail Modal -->
+        <div v-if="showPMDetailModal" class="modal" style="display: flex;">
+            <div class="modal-content" style="max-width: 900px;">
+                <div class="modal-header">
+                    <h2>⚽ Chi Tiết Thu Tiền Trận - {{ pmFormatDate(pmDetailMatch?.date) }}</h2>
+                    <button class="modal-close" @click="showPMDetailModal = false">×</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="pmDetailMatch" class="stats-grid" style="margin-top: var(--spacing-xl);margin-bottom: var(--spacing-xl);">
+                        <div class="stat-card stat-info"><div class="stat-content"><div class="stat-value">{{ formatCurrency(pmDetailMatchRevenue.totalRevenue) }}</div><div class="stat-label">Tổng phải thu</div></div></div>
+                        <div class="stat-card"><div class="stat-content"><div class="stat-value">{{ formatCurrency(pmDetailMatchRevenue.totalCollected) }}</div><div class="stat-label">Đã thu được</div></div></div>
+                    </div>
+                    <div class="table-container" style="max-height: 400px; border: 1px solid var(--border-primary);">
+                        <table class="data-table">
+                            <thead><tr><th>Thành Viên</th><th class="text-center">Giá/Trận</th><th class="text-center">Điểm danh</th><th class="text-center">Đã thu tiền</th><th class="text-center">Thao tác</th></tr></thead>
+                            <tbody>
+                                <tr v-for="player in pmDetailMatchRevenue.players" :key="player.id" :class="{ 'row-absent': !player.attended, 'row-paid': player.attended && player.isPaid }">
+                                    <td><strong>{{ player.name }}</strong></td>
+                                    <td class="text-center">{{ formatCurrency(player.perMatchFee) }}</td>
+                                    <td class="text-center"><span v-if="player.attended" class="badge badge-success">✅ Có mặt</span><span v-else class="badge badge-secondary">❌ Vắng</span></td>
+                                    <td class="text-center"><template v-if="player.attended"><span v-if="player.isPaid" class="badge badge-success">✔ Đã thu</span><span v-else class="badge badge-warning">⏳ Chưa thu</span></template><span v-else class="badge badge-secondary">N/A</span></td>
+                                    <td class="text-center"><template v-if="player.attended"><button v-if="!player.isPaid" class="btn btn-sm btn-success" @click="pmCollectFeeModal(player)">💵 Thu tiền</button><button v-else class="btn btn-sm btn-secondary" @click="pmUndoCollectFeeModal(player)">Hoàn tác</button></template><span v-else class="text-muted">—</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-actions" style="margin-top: 2rem;">
+                        <button class="btn btn-primary" @click="showPMDetailModal = false">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -490,15 +500,17 @@ import { useAppState } from '../composables/useAppState';
 import { usePenalties } from '../composables/usePenalties';
 import { useFinancialCalculations } from '../composables/useFinancialCalculations';
 import { useAuth } from '../composables/useAuth';
+import BaseSelect from '../components/BaseSelect.vue';
 
 const { 
     transactions, stats, members, getMemberName, 
     addTransaction, deleteTransaction, 
     pendingTransactions, approvePendingTransaction, rejectPendingTransaction,
-    contributionTiers, matches, sortedMatches, getContributionTier
+    contributionTiers, matches, sortedMatches, getContributionTier,
+    receivables
 } = useAppState();
 
-const { getMemberFinancialStatus, getStatusText } = useFinancialCalculations();
+const { getStatusText } = useFinancialCalculations();
 const { permissions } = useAuth();
 
 const props = defineProps({
@@ -510,6 +522,8 @@ const props = defineProps({
 
 const activeTab = ref(props.initialTab);
 const showModal = ref(false);
+const showPMDetailModal = ref(false);
+const pmDetailMatchId = ref(null);
 const activeDropdownId = ref(null);
 const dropdownDirection = ref('down');
 
@@ -524,36 +538,74 @@ const form = reactive({
 });
 
 const incomeCategories = [
-    { value: 'fund', label: 'Quỹ tháng' },
-    { value: 'fine', label: 'Tiền phạt' },
-    { value: 'sponsor', label: 'Tài trợ' },
-    { value: 'other', label: 'Khác' }
+    { value: 'fund', label: 'Đóng Quỹ Tháng' },
+    { value: 'fine', label: 'Nộp Phạt' },
+    { value: 'sponsor', label: 'Ủng Hộ / Tài Trợ' },
+    { value: 'other_income', label: 'Thu Nhập Khác' }
 ];
 
 const expenseCategories = [
-    { value: 'pitch', label: 'Thuê sân' },
-    { value: 'water', label: 'Nước uống' },
-    { value: 'equipment', label: 'Dụng cụ' },
-    { value: 'party', label: 'Liên hoan' },
-    { value: 'other', label: 'Khác' }
+    { value: 'pitch', label: 'Tiền Sân' },
+    { value: 'water', label: 'Tiền Nước' },
+    { value: 'equipment', label: 'Mua Dụng Cụ' },
+    { value: 'event', label: 'Tiền Liên Hoan' },
+    { value: 'referee', label: 'Tiền Trọng Tài' },
+    { value: 'other_expense', label: 'Chi Phí Khác' }
 ];
 
 const currentCategories = computed(() => form.type === 'income' ? incomeCategories : expenseCategories);
 
+const memberOptions = computed(() => [
+    { label: '-- Không bắt buộc --', value: null },
+    ...members.value.map(m => ({ label: m.name, value: m.id }))
+]);
+
 const currentMonth = new Date().getMonth() + 1;
 const currentYear = new Date().getFullYear();
+
+const getMemberReceivableStatus = (memberId) => {
+    const memberReceivables = receivables.value.filter(r => r.memberId === memberId);
+    
+    // Split into categories
+    const fundReceivables = memberReceivables.filter(r => r.type === 'fund' || r.type === 'legacy_debt' && r.description.includes('Quỹ'));
+    const fineReceivables = memberReceivables.filter(r => r.type === 'fine' || r.type === 'legacy_debt' && r.description.includes('Phạt'));
+    const otherReceivables = memberReceivables.filter(r => r.type === 'legacy_debt' && !r.description.includes('Quỹ') && !r.description.includes('Phạt'));
+
+    const fundRequired = fundReceivables.reduce((s, r) => s + r.amount, 0);
+    const fundPaid = fundReceivables.filter(r => r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+    const fundMissing = fundRequired - fundPaid;
+
+    const fineRequired = fineReceivables.reduce((s, r) => s + r.amount, 0);
+    const finePaid = fineReceivables.filter(r => r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+    const fineMissing = fineRequired - finePaid;
+
+    const totalDebt = fundMissing + fineMissing + otherReceivables.filter(r => r.status === 'unpaid').reduce((s, r) => s + r.amount, 0);
+
+    return {
+        fundRequired, fundPaid, fundMissing,
+        fineRequired, finePaid, fineMissing,
+        totalDebt,
+        isPaidUp: totalDebt <= 0
+    };
+};
 
 const monthlyMembers = computed(() => {
     return members.value
         .filter(m => m.paymentType !== 'per-match')
-        .map(m => ({ ...m, ...getMemberFinancialStatus(m), statusText: getStatusText(getMemberFinancialStatus(m)) }))
+        .map(m => {
+            const status = getMemberReceivableStatus(m.id);
+            return { ...m, ...status, statusText: getStatusText(status) };
+        })
         .sort((a, b) => b.totalDebt - a.totalDebt);
 });
 
 const perMatchMembers = computed(() => {
     return members.value
         .filter(m => m.paymentType === 'per-match')
-        .map(m => ({ ...m, ...getMemberFinancialStatus(m), fundMissing: 0, fundRequired: 0, statusText: getStatusText(getMemberFinancialStatus(m)) }))
+        .map(m => {
+            const status = getMemberReceivableStatus(m.id);
+            return { ...m, ...status, statusText: getStatusText(status) };
+        })
         .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
 });
 
@@ -593,15 +645,18 @@ const handleDeleteTransaction = (id) => {
 };
 
 const handleAutoClear = async (member) => {
-    if (!confirm(`Xác nhận đóng hết nợ cho ${member.name}?\n- Nợ Quỹ: ${formatCurrency(member.fundMissing)}\n- Nợ Phạt: ${formatCurrency(member.fineMissing)}`)) return;
+    if (member.totalDebt <= 0) return;
+    if (!confirm(`Xác nhận thu TIỀN MẶT và xóa nợ cho ${member.name}?\nTổng số tiền: ${formatCurrency(member.totalDebt)}`)) return;
     
     const today = new Date().toISOString().split('T')[0];
-    if (member.fundMissing > 0) {
-        await addTransaction({ type: 'income', category: 'fund', amount: member.fundMissing, description: 'Đóng bù quỹ tháng (Auto)', date: today, memberId: member.id });
-    }
-    if (member.fineMissing > 0) {
-        await addTransaction({ type: 'income', category: 'fine', amount: member.fineMissing, description: 'Đóng bù tiền phạt (Auto)', date: today, memberId: member.id });
-    }
+    await addTransaction({ 
+        type: 'income', 
+        category: 'other', 
+        amount: member.totalDebt, 
+        description: `Thu tiền mặt xóa nợ - ${member.name}`, 
+        date: today, 
+        memberId: member.id 
+    });
     closeDropdown();
 };
 
@@ -687,6 +742,7 @@ const getCategoryClass = (tx) => {
 // ==================== MONTHLY FUND TAB LOGIC ====================
 const selectedYear = ref(currentYear);
 const availableYears = computed(() => [currentYear, currentYear - 1, currentYear - 2]);
+const yearOptions = computed(() => availableYears.value.map(y => ({ label: `Năm ${y}`, value: y })));
 const monthlyMembersForFund = computed(() => members.value.filter(m => m.paymentType !== 'per-match'));
 const perMatchMembersForFund = computed(() => members.value.filter(m => m.paymentType === 'per-match'));
 const sortedMonthlyMembersForFund = computed(() => [...monthlyMembersForFund.value].sort((a, b) => a.name.localeCompare(b.name, 'vi')));
@@ -766,7 +822,6 @@ const getMFTierStyle = (id) => {
 
 // ==================== PER-MATCH TAB LOGIC ====================
 const pmSelectedMatchId = ref(null);
-const pmCurrentMatch = computed(() => pmSelectedMatchId.value ? matches.value.find(m => m.id === pmSelectedMatchId.value) : null);
 const pmPerMatchMembers = computed(() => members.value.filter(m => m.paymentType === 'per-match'));
 
 const pmIsAttended = (match, memberId) => {
@@ -787,11 +842,7 @@ const pmCollectedMap = computed(() => {
 const pmIsPaid = (memberId, matchId) => pmCollectedMap.value[`${memberId}-${matchId}`] !== undefined;
 
 const pmMatchRevenue = computed(() => {
-    const match = pmCurrentMatch.value;
-    if (!match) return { totalPerMatchPlayers: 0, attendedPerMatchPlayers: 0, totalRevenue: 0, totalCollected: 0, players: [] };
-    const players = pmPerMatchMembers.value.map(m => ({ id: m.id, name: m.name, perMatchFee: m.perMatchFee || 50000, attended: pmIsAttended(match, m.id), isPaid: pmIsPaid(m.id, match.id) }));
-    const attended = players.filter(p => p.attended);
-    return { totalPerMatchPlayers: players.length, attendedPerMatchPlayers: attended.length, totalRevenue: attended.reduce((a, p) => a + p.perMatchFee, 0), totalCollected: attended.filter(p => p.isPaid).reduce((a, p) => a + p.perMatchFee, 0), players };
+    return { totalPerMatchPlayers: 0, attendedPerMatchPlayers: 0, totalRevenue: 0, totalCollected: 0, players: [] };
 });
 
 const pmAllStats = computed(() => matches.value.map(match => {
@@ -802,21 +853,31 @@ const pmAllStats = computed(() => matches.value.map(match => {
 
 const pmGrandTotalRevenue = computed(() => pmAllStats.value.reduce((a, s) => a + s.totalRevenue, 0));
 const pmGrandTotalCollected = computed(() => pmAllStats.value.reduce((a, s) => a + s.totalCollected, 0));
+const pmOpenDetail = (id) => { pmDetailMatchId.value = id; showPMDetailModal.value = true; };
+const pmDetailMatch = computed(() => pmDetailMatchId.value ? matches.value.find(m => m.id === pmDetailMatchId.value) : null);
+const pmDetailMatchRevenue = computed(() => {
+    const match = pmDetailMatch.value;
+    if (!match) return { totalPerMatchPlayers: 0, attendedPerMatchPlayers: 0, totalRevenue: 0, totalCollected: 0, players: [] };
+    const players = pmPerMatchMembers.value.map(m => ({ id: m.id, name: m.name, perMatchFee: m.perMatchFee || 50000, attended: pmIsAttended(match, m.id), isPaid: pmIsPaid(m.id, match.id) }));
+    const attended = players.filter(p => p.attended);
+    return { totalPerMatchPlayers: players.length, attendedPerMatchPlayers: attended.length, totalRevenue: attended.reduce((a, p) => a + p.perMatchFee, 0), totalCollected: attended.filter(p => p.isPaid).reduce((a, p) => a + p.perMatchFee, 0), players };
+});
 
-const pmCollectFee = async (player) => {
-    const match = pmCurrentMatch.value;
+const pmCollectFeeModal = async (player) => {
+    const match = pmDetailMatch.value;
     if (!match) return;
     if (confirm(`Thu tiền trận của ${player.name}?\nSố tiền: ${formatCurrency(player.perMatchFee)}`)) {
         await addTransaction({ type: 'income', category: 'per_match_fund', amount: player.perMatchFee, description: `Thu tiền trận ${pmFormatDate(match.date)} - ${player.name}`, date: match.date || new Date().toISOString(), memberId: player.id, perMatchFundMeta: { matchId: match.id, matchDate: match.date } });
     }
 };
 
-const pmUndoCollectFee = async (player) => {
-    const tId = pmCollectedMap.value[`${player.id}-${pmCurrentMatch.value.id}`];
+const pmUndoCollectFeeModal = async (player) => {
+    const match = pmDetailMatch.value;
+    if (!match) return;
+    const tId = pmCollectedMap.value[`${player.id}-${match.id}`];
     if (tId && confirm(`Hoàn tác thu tiền của ${player.name}?`)) { await deleteTransaction(tId); }
 };
 
-const pmScrollToMatch = (id) => { pmSelectedMatchId.value = id; window.scrollTo({ top: 0, behavior: 'smooth' }); };
 const pmFormatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' }) : '—';
 </script>
 
@@ -831,7 +892,50 @@ const pmFormatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { weekda
 .stat-label { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem; }
 .stat-value { font-size: 1.5rem; font-weight: 700; }
 
-.page-actions { display: flex; gap: 1rem; margin-bottom: 2rem; }
+.page-actions { display: flex; gap: 1rem; margin-bottom: 2.5rem; }
+
+.btn-hero {
+    padding: 0.85rem 1.75rem;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-normal);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-hero svg {
+    width: 20px;
+    height: 20px;
+    opacity: 0.9;
+}
+
+.btn-hero-income {
+    background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%);
+    box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+}
+
+.btn-hero-expense {
+    background: linear-gradient(135deg, var(--danger-500) 0%, var(--danger-600) 100%);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+.btn-hero:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    filter: brightness(1.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-hero:active {
+    transform: translateY(-1px) scale(0.98);
+}
 
 .summary-badge { padding: 0.5rem 1rem; border-radius: var(--radius-full); font-weight: 600; font-size: 0.85rem; }
 .summary-badge.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b; }
@@ -862,18 +966,25 @@ const pmFormatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { weekda
 .year-selector { height: 42px; padding-left: 1rem !important; padding-right: 2.75rem !important; font-weight: 600; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-primary); color: var(--text-primary); }
 .info-notice { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-lg); padding: 1rem; display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
 .notice-icon { font-size: 1.25rem; }
-.table-wrapper { overflow-x: auto; margin-bottom: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-primary); }
-.monthly-fund-table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--bg-secondary); }
+.table-wrapper { overflow: auto; margin-bottom: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-primary); max-height: 600px; }
+.monthly-fund-table { width: 100%; border-collapse: collapse; background: var(--bg-secondary); }
 .monthly-fund-table th, .monthly-fund-table td { padding: 0.75rem 1rem; border: 1px solid var(--border-primary); text-align: center; }
-.mf-sticky-col { position: sticky; left: 0; background: var(--bg-secondary); z-index: 10; font-weight: 600; }
+.monthly-fund-table thead th { position: sticky; top: -1px; z-index: 100; background: #111a2e; border-bottom: 2px solid rgba(255,255,255,0.2); font-weight: 950; height: 45px; text-transform: uppercase; color: #fff; vertical-align: middle; box-shadow: 0 1px 0 #111a2e; font-size: 0.85rem; }
+.monthly-fund-table thead tr:nth-child(2) th { top: 44px; z-index: 100; height: 38px; background: #1e293b; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); box-shadow: 0 1px 0 #1e293b; font-size: 0.75rem; padding: 0.25rem 0.5rem; }
+.monthly-fund-table tfoot td { position: sticky; z-index: 100; background: #111a2e; border-top: 1px solid rgba(255,255,255,0.1); font-weight: 850; height: 42px; vertical-align: middle; box-shadow: 0 1px 0 #111a2e, 0 -2px 0 #111a2e; font-size: 0.8rem; }
+.amount-summary-row td { bottom: -1px; border-top: 2px solid rgba(255,255,255,0.2) !important; }
+.summary-row td { bottom: 41px; }
+.mf-sticky-col { position: sticky; left: 0; background: #111a2e; z-index: 90; font-weight: 850; border-right: 2px solid var(--border-primary) !important; color: #fff; }
+.monthly-fund-table thead th.mf-sticky-col { z-index: 120; }
+.monthly-fund-table tfoot td.mf-sticky-col { z-index: 120; }
 .mf-name-col { min-width: 250px; text-align: left !important; left: 60px; }
 .mf-sticky-col:first-child { width: 60px; border-left: none; }
-.months-header { background: rgba(59, 130, 246, 0.1); font-weight: 700; }
+.months-header { background: rgba(59, 130, 246, 0.15); font-weight: 900; color: #fff; }
 .month-col { width: 45px; min-width: 45px; font-size: 0.85rem; }
-.current-month { background: rgba(59, 130, 246, 0.2); border: 2px solid var(--primary-500) !important; }
-.member-info { display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; }
-.tier-badge-small { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; white-space: nowrap; font-weight: 600; }
-.month-cell { position: relative; padding: 0 !important; }
+.current-month { background: rgba(59, 130, 246, 0.25); border: 2px solid var(--primary-500) !important; }
+.member-info { display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.tier-badge-small { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; white-space: nowrap; font-weight: 700; }
+.month-cell { position: relative; padding: 0 !important; background: rgba(15, 23, 42, 0.3); }
 .future-month { background: rgba(255, 255, 255, 0.02); }
 .checkbox-wrapper { display: flex; align-items: center; justify-content: center; width: 100%; height: 45px; cursor: pointer; transition: background 0.2s; }
 .checkbox-wrapper:hover:not(.disabled) { background: rgba(255, 255, 255, 0.05); }
@@ -883,7 +994,8 @@ const pmFormatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { weekda
 .checkbox-wrapper input:checked + .checkmark { background: var(--success-500); border-color: var(--success-500); box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
 .checkbox-wrapper input:checked + .checkmark::after { display: block; }
 .checkbox-wrapper.disabled { cursor: not-allowed; opacity: 0.5; }
-.summary-row, .amount-summary-row { background: rgba(0, 0, 0, 0.2); }
+.summary-row, .amount-summary-row { background: #111a2e; }
+.summary-row td, .amount-summary-row td { color: var(--text-primary); }
 .statistics-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem; }
 .mf-stat-card { background: var(--bg-tertiary); padding: 1rem; border-radius: var(--radius-lg); border: 1px solid var(--border-primary); display: flex; align-items: center; gap: 1rem; }
 .mf-stat-icon { font-size: 1.5rem; }

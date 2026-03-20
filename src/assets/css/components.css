@@ -11,27 +11,45 @@
 }
 
 .data-table thead {
-    background: var(--bg-secondary);
+    background: #111a2e;
     position: sticky;
     top: 0;
-    z-index: 100
+    z-index: 100;
+}
+
+.data-table tfoot {
+    background: #111a2e;
+    position: sticky;
+    bottom: -1px;
+    z-index: 100;
 }
 
 .data-table th {
-    padding: var(--spacing-lg);
+    padding: 0.65rem 1rem;
     text-align: left;
-    font-weight: 600;
-    color: var(--text-secondary);
-    font-size: .875rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    font-size: .8125rem;
     text-transform: uppercase;
     letter-spacing: .05em;
-    border-bottom: 1px solid rgba(255,255,255,.05)
+    border-bottom: 2px solid rgba(255,255,255,.1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.data-table tfoot td {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    font-weight: 800;
+    color: var(--text-primary);
+    border-top: 2px solid rgba(255,255,255,.1);
+    background: #111a2e;
+    box-shadow: 0 -1px 0 #111a2e;
 }
 
 .data-table td {
     padding: var(--spacing-lg) var(--spacing-xl);
     border-bottom: 1px solid rgba(255,255,255,.05);
-    color: var(--text-primary)
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 
 .data-table tbody tr {

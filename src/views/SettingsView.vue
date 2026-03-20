@@ -254,6 +254,38 @@
                 </div>
             </div>
         </div>
+
+        <!-- Data & Migration Settings -->
+        <div v-if="permissions.canManageQRCode" class="card" style="margin-top: var(--spacing-xl);">
+            <div class="card-header">
+                <h2>📦 Dữ Liệu & Chuyển Đổi</h2>
+            </div>
+            <div class="card-content">
+                <p class="section-desc">Chuyển đổi dữ liệu nợ cũ sang cơ chế <strong>"Hóa đơn" (Receivables)</strong> để quản lý chính xác và chuyên nghiệp hơn.</p>
+                
+                <div class="migration-banner" :class="{ 'already-done': hasReceivables }">
+                    <div class="banner-icon">🚀</div>
+                    <div class="banner-text">
+                        <template v-if="!hasReceivables">
+                            <h4>Hệ thống nợ mới đã sẵn sàng!</h4>
+                            <p>Bấm nút bên dưới để gộp toàn bộ nợ cũ (Quỹ + Phạt) của thành viên vào sổ nợ mới.</p>
+                        </template>
+                        <template v-else>
+                            <h4>Dữ liệu đã được chuyển đổi</h4>
+                            <p>Bạn đã có {{ receivables.length }} bản ghi nợ trong hệ thống. Nếu nhấn chuyển đổi lần nữa, nợ cũ sẽ bị tính trùng.</p>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="form-actions" style="margin-top: 2rem;">
+                    <button class="btn btn-warning" @click="handleMigration" :disabled="isMigrating">
+                        <span v-if="isMigrating">Đang chuyển đổi...</span>
+                        <span v-else>🔄 Bắt đầu Chuyển đổi Dữ liệu</span>
+                    </button>
+                    <small style="display: block; margin-top: 1rem; color: var(--danger-400);">* Lưu ý: Hãy chắc chắn bạn đã sao lưu dữ liệu trước khi thực hiện.</small>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -261,10 +293,17 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '../composables/useAuth';
 import { useAppState } from '../composables/useAppState';
+import { useFinancialCalculations } from '../composables/useFinancialCalculations';
 import bcrypt from 'bcryptjs';
 
 const { currentRole, ROLES, permissions } = useAuth();
-const { getPassword, updatePassword, settings, updateSettings, fixedMatches, addFixedMatch, deleteFixedMatch } = useAppState();
+const { 
+    getPassword, updatePassword, settings, updateSettings, 
+    fixedMatches, addFixedMatch, deleteFixedMatch,
+    receivables, migrateToReceivables, members
+} = useAppState();
+
+const { getMemberFinancialStatus } = useFinancialCalculations();
 
 const showPass = ref({ current: false, new: false, confirm: false });
 const passForm = ref({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -289,6 +328,9 @@ const newFixed = ref({
     opponent: '',
     location: ''
 });
+
+const isMigrating = ref(false);
+const hasReceivables = computed(() => receivables.value.length > 0);
 
 const username = computed(() => {
     if (currentRole.value === ROLES.ADMIN) return 'admin';
@@ -449,6 +491,30 @@ const handleAddFixedMatch = () => {
     sysSuccess.value = '✅ Đã thêm lịch trận đấu cố định!';
     setTimeout(() => sysSuccess.value = '', 3000);
 };
+
+const handleMigration = async () => {
+    if (hasReceivables.value) {
+        if (!confirm('Hệ thống đã có dữ liệu nợ mới. Chuyển đổi lần nữa có thể làm sai lệch số liệu. Bạn vẫn muốn tiếp tục?')) return;
+    } else {
+        if (!confirm('Xác nhận chuyển đổi toàn bộ nợ cũ sang cơ chế sổ nợ mới? Các trận đấu cũ sẽ được đánh dấu là "Đã chốt".')) return;
+    }
+
+    isMigrating.value = true;
+    try {
+        const statusList = members.value.map(m => ({
+            id: m.id,
+            ...getMemberFinancialStatus(m)
+        }));
+        
+        await migrateToReceivables(statusList);
+        sysSuccess.value = '✅ Chuyển đổi dữ liệu thành công!';
+        setTimeout(() => sysSuccess.value = '', 5000);
+    } catch (e) {
+        alert('Lỗi: ' + e.message);
+    } finally {
+        isMigrating.value = false;
+    }
+};
 </script>
 
 <style scoped>
@@ -492,6 +558,23 @@ const handleAddFixedMatch = () => {
     border-radius: var(--radius-lg);
     padding: 1.5rem;
 }
+
+.migration-banner {
+    display: flex;
+    gap: 1.5rem;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    align-items: center;
+}
+.migration-banner.already-done {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.2);
+}
+.banner-icon { font-size: 2.5rem; }
+.banner-text h4 { margin: 0 0 0.25rem 0; color: #fff; }
+.banner-text p { margin: 0; font-size: 0.9rem; color: var(--text-secondary); }
 
 @media (max-width: 768px) {
     .info-grid,
