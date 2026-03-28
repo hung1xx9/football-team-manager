@@ -2,7 +2,7 @@
     <div class="page-content">
         <!-- Stats Overview -->
         <div class="stats-grid">
-            <div class="stat-card stat-primary">
+            <div class="stat-card stat-primary animate-spring animate-stagger-1">
                 <div class="stat-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -10,23 +10,23 @@
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                     </svg>
                 </div>
-                <div class="stat-content">
+                <div class="stat-content" :class="{ 'skeleton': stats.totalMembers === 0 }">
                     <div class="stat-label">Tổng Thành Viên</div>
                     <div class="stat-value">{{ stats.totalMembers }}</div>
                 </div>
             </div>
-            <div class="stat-card stat-success">
+            <div class="stat-card stat-success animate-spring animate-stagger-2">
                 <div class="stat-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                     </svg>
                 </div>
-                <div class="stat-content">
+                <div class="stat-content" :class="{ 'skeleton': stats.totalMembers === 0 }">
                     <div class="stat-label">Tỷ Lệ Tham Gia</div>
                     <div class="stat-value">{{ stats.attendanceRate }}%</div>
                 </div>
             </div>
-            <div class="stat-card stat-warning">
+            <div class="stat-card stat-warning animate-spring animate-stagger-3">
                 <div class="stat-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -39,29 +39,65 @@
                     <div class="stat-value">{{ stats.totalMatches }}</div>
                 </div>
             </div>
-            <div class="stat-card stat-info">
+            <div class="stat-card stat-info animate-spring animate-stagger-4">
                 <div class="stat-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="1" x2="12" y2="23"></line>
                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                     </svg>
                 </div>
-                <div class="stat-content">
+                <div class="stat-content" :class="{ 'skeleton': stats.totalMembers === 0 }">
                     <div class="stat-label">Quỹ Đội</div>
                     <div class="stat-value">{{ formatCurrency(stats.balance) }}</div>
                 </div>
             </div>
         </div>
 
+        <!-- Quick Actions -->
+        <div class="page-header-fancy" v-if="isAdmin">
+            <div class="header-action-btns">
+                <button class="btn btn-hero btn-hero-primary" @click="$router.push('/attendance-table')">
+                    <div class="btn-hero-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <polyline points="16 11 18 13 22 9"></polyline>
+                        </svg>
+                    </div>
+                    <span class="btn-hero-text">Ghi Điểm Danh</span>
+                </button>
+                <button class="btn btn-hero btn-hero-income" @click="$router.push('/finance')">
+                    <div class="btn-hero-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                    </div>
+                    <span class="btn-hero-text">Ghi Thu Chi</span>
+                </button>
+                <button class="btn btn-hero btn-hero-secondary" @click="$router.push('/members')">
+                    <div class="btn-hero-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <span class="btn-hero-text">Quản Lý Thành Viên</span>
+                </button>
+            </div>
+        </div>
+
         <div class="dashboard-grid">
             <!-- Recent Matches -->
-            <div class="card">
+            <div class="card animate-spring animate-stagger-1">
                 <div class="card-header">
                     <h2>Trận Đấu Gần Đây</h2>
                 </div>
                 <div class="card-content">
                     <div v-if="recentMatches.length > 0" class="recent-matches-list">
-                        <div v-for="match in recentMatches" :key="match.id" class="match-item">
+                        <div v-for="(match, index) in recentMatches" :key="match.id" class="match-item list-item-animate" :class="{ 'mobile-match-item': isMobile }" :style="{ animationDelay: (0.1 + index * 0.05) + 's' }">
                             <div class="match-info">
                                 <div class="match-date">{{ formatDate(match.date) }} {{ match.startTime ? `- ${match.startTime}` : '' }}</div>
                                 <div class="match-opponent">
@@ -70,16 +106,16 @@
                                     </span>
                                     {{ match.opponent || 'Chưa có đối thủ' }}
                                 </div>
-                                <div class="match-stats">{{ match.location || 'Chưa có địa điểm' }}</div>
+                                <div class="match-stats">📍 {{ match.location || 'Chưa có địa điểm' }}</div>
                             </div>
                             <div class="match-actions">
                                 <div class="match-attendance">
                                     <span class="attendance-present">{{ getPresentCount(match) }}</span>
-                                    /
+                                    <span class="attendance-separator">/</span>
                                     <span class="attendance-absent">{{ getAbsentCount(match) }}</span>
                                 </div>
-                                <button v-if="canCheckin(match)" class="btn btn-primary btn-sm" @click="handleCheckin(match)" :disabled="isCheckingIn">
-                                    {{ isCheckingIn ? 'Đang xử lý...' : 'Điểm Danh' }}
+                                <button v-if="canCheckin(match)" class="btn btn-primary" :class="isMobile ? 'btn-md' : 'btn-sm'" @click="handleCheckin(match)" :disabled="isCheckingIn">
+                                    {{ isCheckingIn ? '...' : 'Điểm Danh' }}
                                 </button>
                             </div>
                         </div>
@@ -91,13 +127,13 @@
             </div>
 
             <!-- Board of Gold (Hall of Fame Compact) -->
-            <div class="card">
+            <div class="card animate-spring animate-stagger-2">
                 <div class="card-header">
                     <h2>🏆 Bảng Vàng</h2>
                 </div>
                 <div class="card-content">
                     <div v-if="hasAwards" class="awards-compact">
-                        <div v-for="(award, key) in activeAwards" :key="key" class="award-compact-item">
+                        <div v-for="(award, key, index) in activeAwards" :key="key" class="award-compact-item list-item-animate" :style="{ animationDelay: (0.1 + index * 0.05) + 's' }">
                             <span class="award-icon">{{ awardIcons[key] }}</span>
                             <div class="award-info">
                                 <div class="award-title">{{ awardLabels[key] }}</div>
@@ -134,12 +170,14 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useBreakpoints } from '../composables/useBreakpoints';
 import { useAppState } from '../composables/useAppState';
 import { useAuth } from '../composables/useAuth';
 import { usePenalties } from '../composables/usePenalties';
 
+const { isMobile } = useBreakpoints();
 const { stats: appStats, sortedMatches, members, settings, saveMatch } = useAppState();
-const { isGuest, guestMemberId } = useAuth();
+const { isAdmin, isGuest, guestMemberId } = useAuth();
 const { getLatePenalty } = usePenalties();
 
 const isCheckingIn = ref(false);
@@ -222,7 +260,6 @@ const activeAwards = computed(() => {
 const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '';
 
-// Attendance counting — supports Array format (website standard)
 const getPresentCount = (match, status) => {
     const att = match.attendance;
     if (!att) return 0;
@@ -237,90 +274,47 @@ const getAbsentCount = (match) => {
     return list.filter(a => a && a.status === 'absent').length;
 };
 
-// canCheckin — matches website logic:
-// Guest only, needs startTime + date, window: 15 min before ~ 120 min after, member not already present
 const canCheckin = (match) => {
     if (!isGuest.value || !guestMemberId.value || !match.startTime || !match.date) return false;
-
-    // Time window check
     const [h, m] = match.startTime.split(':').map(Number);
     const matchStart = new Date(match.date);
     matchStart.setHours(h, m, 0, 0);
-
     const diffMinutes = (matchStart - new Date()) / (1000 * 60);
-    // Show button from 15 min before to 120 min after match start
     if (diffMinutes > 15 || diffMinutes < -120) return false;
-
-    // Check if member is already present (flexible ID matching)
     const att = match.attendance;
     if (!att) return false;
     const list = Array.isArray(att) ? att : Object.values(att);
-
-    const myAtt = list.find(a =>
-        a.memberId === guestMemberId.value
-        || String(a.memberId) === String(guestMemberId.value)
-        || Number(a.memberId) === Number(guestMemberId.value)
-    );
-
+    const myAtt = list.find(a => String(a.memberId) === String(guestMemberId.value));
     if (myAtt && myAtt.status === 'present') return false;
-
-    // Check member exists in the match roster  
-    const inRoster = list.some(a =>
-        a.memberId === guestMemberId.value
-        || String(a.memberId) === String(guestMemberId.value)
-        || Number(a.memberId) === Number(guestMemberId.value)
-    );
-
-    return inRoster;
+    return list.some(a => String(a.memberId) === String(guestMemberId.value));
 };
 
-// handleCheckin — matches website logic:
-// Uses saveMatch, Array attendance, status:'present' with isLate, calculates lateFine via usePenalties
 const handleCheckin = async (match) => {
     if (isCheckingIn.value) return;
     isCheckingIn.value = true;
-
     try {
         const att = Array.isArray(match.attendance) ? match.attendance : Object.values(match.attendance || {});
-
-        // Find member index in attendance array
-        const memberIdx = att.findIndex(a =>
-            a.memberId === guestMemberId.value
-            || String(a.memberId) === String(guestMemberId.value)
-            || Number(a.memberId) === Number(guestMemberId.value)
-        );
-
+        const memberIdx = att.findIndex(a => String(a.memberId) === String(guestMemberId.value));
         if (memberIdx === -1) {
             showResult(false, 'Bạn không có trong danh sách trận này');
             return;
         }
-
-        if (att[memberIdx].status === 'present') {
-            showResult(false, 'Bạn đã điểm danh trận này rồi');
-            return;
-        }
-
         const now = new Date();
         let isLate = false;
         let lateMinutes = 0;
         let lateFine = 0;
-
         if (match.startTime) {
             const [h, m] = match.startTime.split(':').map(Number);
             const matchStart = new Date(match.date);
             matchStart.setHours(h, m, 0, 0);
-
             const nowMinutes = Math.floor(now.getTime() / 60000);
             const startMinutes = Math.floor(matchStart.getTime() / 60000);
-
-            isLate = (nowMinutes - startMinutes) > 1; // 1-minute grace period
+            isLate = (nowMinutes - startMinutes) > 1;
             if (isLate) {
                 lateMinutes = nowMinutes - startMinutes;
                 lateFine = getLatePenalty(lateMinutes);
             }
         }
-
-        // Build updated attendance record
         const updatedRecord = {
             memberId: att[memberIdx].memberId,
             status: 'present',
@@ -330,26 +324,13 @@ const handleCheckin = async (match) => {
             lateMinutes: lateMinutes || 0,
             lateFine: lateFine || 0
         };
-
         const newAttendance = [...att];
         newAttendance[memberIdx] = updatedRecord;
-
-        // Use saveMatch to persist (same as website)
-        const matchToSave = { ...match, attendance: newAttendance };
-        await saveMatch(matchToSave);
-
-        // Build result message
-        let message = '✅ Điểm danh thành công!';
+        await saveMatch({ ...match, attendance: newAttendance });
         let details = isLate ? `Đi muộn ${lateMinutes} phút` : 'Đúng giờ';
-
-        if (lateFine > 0) {
-            const fineFormatted = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(lateFine);
-            details += ` 💰 Phạt: ${fineFormatted}`;
-        }
-
-        showResult(true, message, details);
+        if (lateFine > 0) details += ` 💰 Phạt: ${formatCurrency(lateFine)}`;
+        showResult(true, '✅ Điểm danh thành công!', details);
     } catch (e) {
-        console.error('Attendance error:', e);
         showResult(false, 'Có lỗi xảy ra khi điểm danh');
     } finally {
         isCheckingIn.value = false;
@@ -366,41 +347,181 @@ const closeResult = () => {
 </script>
 
 <style scoped>
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-.stat-card { display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid var(--border-primary); }
-.stat-card.stat-primary { background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), transparent); }
-.stat-card.stat-success { background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), transparent); }
-.stat-card.stat-warning { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), transparent); }
-.stat-card.stat-info { background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), transparent); }
+.stats-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+    gap: var(--spacing-4); 
+    margin-bottom: var(--spacing-6); 
+}
 
-.stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--bg-secondary); border: 1px solid var(--border-primary); color: var(--primary-400); }
-.stat-icon svg { width: 24px; height: 24px; }
-.stat-value { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); }
-.stat-label { font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.dashboard-grid { 
+    display: grid; 
+    grid-template-columns: 2fr 1fr; 
+    gap: var(--spacing-6); 
+}
 
-.dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
-@media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1024px) { 
+    .dashboard-grid { grid-template-columns: 1fr; } 
+}
 
-.recent-matches-list { display: flex; flex-direction: column; gap: 1rem; }
-.match-item { background: var(--bg-tertiary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s; }
-.match-item:hover { transform: translateY(-2px); border-color: var(--primary-500); }
-.match-date { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem; }
-.match-opponent { font-weight: 700; color: var(--text-primary); font-size: 1.1rem; display: flex; align-items: center; }
-.match-stats { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; }
+.recent-matches-list { 
+    display: flex; 
+    flex-direction: column; 
+    gap: var(--spacing-3); 
+}
 
-.match-actions { text-align: right; display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-end; }
-.match-attendance { font-weight: 700; font-size: 0.9rem; background: var(--bg-secondary); padding: 0.25rem 0.75rem; border-radius: 99px; }
-.attendance-present { color: var(--success-400); }
-.attendance-absent { color: var(--danger-400); }
+.match-item { 
+    background: var(--bg-tertiary); 
+    border: 1px solid var(--border-color); 
+    border-radius: var(--radius-md); 
+    padding: var(--spacing-4); 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    transition: all var(--transition-base); 
+}
 
-.awards-compact { display: flex; flex-direction: column; gap: 1rem; }
-.award-compact-item { background: var(--bg-tertiary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); padding: 1rem; display: flex; align-items: center; gap: 1rem; }
-.award-icon { font-size: 1.5rem; width: 40px; height: 40px; background: var(--bg-secondary); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-.award-title { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; }
-.award-winner { font-weight: 700; color: var(--primary-400); }
+.match-item:hover { 
+    border-color: var(--primary-400); 
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
 
-.attendance-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1.5rem; }
-.attendance-modal-content { background: var(--bg-secondary); padding: 3rem; border-radius: var(--radius-2xl); text-align: center; max-width: 400px; width: 100%; display: flex; flex-direction: column; gap: 1.5rem; border: 1px solid var(--border-primary); }
-.attendance-modal-content.success { border-top: 4px solid var(--success-500); }
-.attendance-modal-content.error { border-top: 4px solid var(--danger-500); }
+.match-date { 
+    font-size: 11px; 
+    color: var(--text-muted); 
+    margin-bottom: 2px; 
+}
+
+.match-opponent { 
+    font-weight: 700; 
+    color: var(--text-primary); 
+    font-size: 15px; 
+    display: flex; 
+    align-items: center; 
+}
+
+.match-stats { 
+    font-size: 12px; 
+    color: var(--text-secondary); 
+    margin-top: 2px; 
+}
+
+.match-actions { 
+    text-align: right; 
+    display: flex; 
+    flex-direction: column; 
+    gap: var(--spacing-2); 
+    align-items: flex-end; 
+}
+
+.match-attendance { 
+    font-weight: 700; 
+    font-size: 12px; 
+    background: var(--bg-secondary); 
+    padding: 2px 10px; 
+    border-radius: var(--radius-full); 
+    border: 1px solid var(--border-color);
+}
+
+.attendance-present { color: var(--success); }
+.attendance-absent { color: var(--danger); }
+
+.awards-compact { 
+    display: flex; 
+    flex-direction: column; 
+    gap: var(--spacing-3); 
+}
+
+.award-compact-item { 
+    background: var(--bg-tertiary); 
+    border: 1px solid var(--border-color); 
+    border-radius: var(--radius-md); 
+    padding: 12px; 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+}
+
+.award-icon { 
+    font-size: 18px; 
+    width: 36px; 
+    height: 36px; 
+    background: var(--bg-secondary); 
+    border-radius: var(--radius-sm); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    border: 1px solid var(--border-color);
+}
+
+.award-title { 
+    font-size: 10px; 
+    color: var(--text-muted); 
+    text-transform: uppercase; 
+    font-weight: 700;
+}
+
+.award-winner { 
+    font-weight: 700; 
+    color: var(--primary-600); 
+    font-size: 14px;
+}
+
+.attendance-modal { 
+    position: fixed; 
+    inset: 0; 
+    background: rgba(0,0,0,0.4); 
+    backdrop-filter: blur(2px); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    z-index: 1000; 
+    padding: var(--spacing-4); 
+}
+
+.attendance-modal-content { 
+    background: var(--bg-secondary); 
+    padding: 32px; 
+    border-radius: var(--radius-lg); 
+    text-align: center; 
+    max-width: 360px; 
+    width: 100%; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 16px; 
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-lg);
+}
+
+.attendance-modal-content.success { border-top: 4px solid var(--success); }
+.attendance-modal-content.error { border-top: 4px solid var(--danger); }
+
+/* Mobile Dash Optimizations */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-3);
+    }
+}
+
+.mobile-match-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.mobile-match-item .match-actions {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+}
+
+.attendance-separator {
+    margin: 0 4px;
+    color: var(--text-muted);
+}
 </style>

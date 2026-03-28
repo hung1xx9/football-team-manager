@@ -1,0 +1,25 @@
+:root {
+    /* --- WEB COLOR PALETTE (Blue) --- */
+    --primary-50: #eff6ff;
+    --primary-100: #dbeafe;
+    --primary-200: #bfdbfe;
+    --primary-300: #93c5fd;
+    --primary-400: #60a5fa;
+    --primary-500: #3b82f6;
+    --primary-600: #2563eb; /* Main Primary Web */
+    --primary-700: #1d4ed8;
+    --primary-800: #1e40af;
+    --primary-900: #1e3a8a;
+    --primary-950: #172554;
+
+    /* --- WEB TYPOGRAPHY --- */
+    --font-size-body: 13px;
+    --line-height-body: 16px;
+
+    /* --- WEB RADII --- */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+
+    /* --- WEB SIZES --- */
+    --height-md: 40px;
+}

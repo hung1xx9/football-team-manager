@@ -23,27 +23,27 @@
         </div>
 
         <!-- Overview Tab -->
-        <div v-if="activeTab === 'overview'" class="tab-content">
+        <div v-if="activeTab === 'overview'" class="tab-content animate-fade">
             <div class="stats-grid">
-                <div class="stat-card stat-success">
+                <div class="stat-card stat-success animate-spring animate-stagger-1">
                     <div class="stat-content">
                         <div class="stat-label">Tổng Thu</div>
                         <div class="stat-value">{{ formatCurrency(stats.totalIncome) }}</div>
                     </div>
                 </div>
-                <div class="stat-card stat-danger">
+                <div class="stat-card stat-danger animate-spring animate-stagger-2">
                     <div class="stat-content">
                         <div class="stat-label">Tổng Chi</div>
                         <div class="stat-value">{{ formatCurrency(stats.totalExpense) }}</div>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card animate-spring animate-stagger-3">
                     <div class="stat-content">
                         <div class="stat-label">Tổng Dư Nợ (Phải Thu)</div>
                         <div class="stat-value text-danger">{{ formatCurrency(stats.totalUnpaidReceivables) }}</div>
                     </div>
                 </div>
-                <div class="stat-card stat-info">
+                <div class="stat-card stat-info animate-spring animate-stagger-4">
                     <div class="stat-content">
                         <div class="stat-label">Số Dư</div>
                         <div class="stat-value">{{ formatCurrency(stats.balance) }}</div>
@@ -51,20 +51,20 @@
                 </div>
             </div>
             <div class="page-actions">
-                <button class="btn btn-hero btn-hero-income" @click="openTransactionModal('income')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                    Thêm Thu
+                <button class="btn btn-hero btn-hero-income" @click="openTransactionModal('income')" style="flex: 1; max-width: 300px;">
+                    <div class="btn-hero-icon">💰</div>
+                    <span class="btn-hero-text">Ghi Thu</span>
                 </button>
-                <button class="btn btn-hero btn-hero-expense" @click="openTransactionModal('expense')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                    Thêm Chi
+                <button class="btn btn-hero btn-hero-expense" @click="openTransactionModal('expense')" style="flex: 1; max-width: 300px;">
+                    <div class="btn-hero-icon">💸</div>
+                    <span class="btn-hero-text">Ghi Chi</span>
                 </button>
             </div>
         </div>
 
         <!-- Debts Tab -->
         <div v-if="activeTab === 'debts'" class="tab-content">
-            <div class="card" style="margin-bottom: var(--spacing-xl); overflow: visible;">
+            <div class="card" style="margin-bottom: var(--spacing-6); overflow: visible;">
                 <div class="card-header">
                     <h2>👥 Quỹ Theo Tháng</h2>
                     <div class="card-actions">
@@ -76,128 +76,108 @@
                     <div v-if="monthlyMembers.length === 0" style="padding: var(--spacing-xl); text-align: center; color: var(--text-secondary);">
                         Chưa có thành viên đóng quỹ theo tháng
                     </div>
-                    <div v-else class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Thành Viên</th>
-                                    <th class="text-center">Quỹ Tháng</th>
-                                    <th class="text-center">Tiền Phạt</th>
-                                    <th>Trạng Thái</th>
-                                    <th>Thao Tác</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="member in monthlyMembers" :key="member.id" :class="{ 'active-row': activeDropdownId === member.id }">
-                                    <td class="font-medium">{{ member.name }}</td>
-                                    <td class="text-center">
-                                        <div class="debt-cell">
-                                            <span class="paid" title="Đã đóng">{{ formatCurrency(member.fundPaid) }}</span>
-                                            <span class="separator">/</span>
-                                            <span class="required" title="Phải đóng">{{ formatCurrency(member.fundRequired) }}</span>
-                                            <div v-if="member.fundMissing > 0" class="debt-amount text-warning">
-                                                Thiếu: {{ formatCurrency(member.fundMissing) }}
-                                            </div>
-                                            <div v-if="member.fundRequired > 0" class="calculation-hint" :title="getFundHint(member)">
-                                                <small style="color: var(--text-muted); font-size: 0.75rem;">{{ getTierDetails(member) }}</small>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="debt-cell">
-                                            <span class="paid" title="Đã đóng">{{ formatCurrency(member.finePaid) }}</span>
-                                            <span class="separator">/</span>
-                                            <span class="required" title="Phải đóng">{{ formatCurrency(member.fineRequired) }}</span>
-                                            <div v-if="member.fineMissing > 0" class="debt-amount text-danger">
-                                                Thiếu: {{ formatCurrency(member.fineMissing) }}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="badge" :class="getStatusBadgeClass(member)">
-                                            {{ member.statusText }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div v-if="member.fundMissing > 0 || member.fineMissing > 0" class="action-buttons-group">
-                                            <div class="dropdown-wrapper">
-                                                <button class="btn btn-sm btn-ghost dropdown-toggle" @click.stop="toggleDropdown($event, member.id)" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
-                                                        <circle cx="12" cy="12" r="1"></circle>
-                                                        <circle cx="12" cy="5" r="1"></circle>
-                                                        <circle cx="12" cy="19" r="1"></circle>
-                                                    </svg>
-                                                </button>
-                                                <div v-if="activeDropdownId === member.id" class="dropdown-menu" :class="{ 'open-up': dropdownDirection === 'up' }">
-                                                    <button class="dropdown-item" @click="handleAutoClear(member)">
-                                                        <span class="dropdown-icon">💵</span> Đóng nhanh (Tiền mặt)
-                                                    </button>
-                                                    <button v-if="member.fundMissing > 0" class="dropdown-item" @click="handleManualPayment(member, 'fund')">
-                                                        <span class="dropdown-icon">💰</span> Đóng Quỹ Tháng
-                                                    </button>
-                                                    <button v-if="member.fineMissing > 0" class="dropdown-item" @click="handleManualPayment(member, 'fine')">
-                                                        <span class="dropdown-icon">🚩</span> Đóng Tiền Phạt
-                                                    </button>
+                    <template v-else>
+                        <!-- Desktop Table View -->
+                        <div v-if="!isMobile" class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Thành Viên</th>
+                                        <th class="text-center">Quỹ Tháng</th>
+                                        <th class="text-center">Tiền Phạt</th>
+                                        <th>Trạng Thái</th>
+                                        <th>Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(member, index) in monthlyMembers" :key="member.id" :class="{ 'active-row': activeDropdownId === member.id }" class="list-item-animate" :style="{ animationDelay: (0.1 + index * 0.03) + 's' }">
+                                        <td class="font-medium">{{ member.name }}</td>
+                                        <td class="text-center">
+                                            <div class="debt-cell">
+                                                <span class="paid" title="Đã đóng">{{ formatCurrency(member.fundPaid) }}</span>
+                                                <span class="separator">/</span>
+                                                <span class="required" title="Phải đóng">{{ formatCurrency(member.fundRequired) }}</span>
+                                                <div v-if="member.fundMissing > 0" class="debt-amount text-warning">
+                                                    Thiếu: {{ formatCurrency(member.fundMissing) }}
                                                 </div>
                                             </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="debt-cell">
+                                                <span class="paid" title="Đã đóng">{{ formatCurrency(member.finePaid) }}</span>
+                                                <span class="separator">/</span>
+                                                <span class="required" title="Phải đóng">{{ formatCurrency(member.fineRequired) }}</span>
+                                                <div v-if="member.fineMissing > 0" class="debt-amount text-danger">
+                                                    Thiếu: {{ formatCurrency(member.fineMissing) }}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge" :class="getStatusBadgeClass(member)">
+                                                {{ member.statusText }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div v-if="member.fundMissing > 0 || member.fineMissing > 0" class="action-buttons-group">
+                                                <div class="dropdown-wrapper">
+                                                    <button class="btn btn-sm btn-ghost" @click.stop="toggleDropdown($event, member.id)" style="padding: 0 8px;">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+                                                            <circle cx="12" cy="12" r="1"></circle>
+                                                            <circle cx="12" cy="5" r="1"></circle>
+                                                            <circle cx="12" cy="19" r="1"></circle>
+                                                        </svg>
+                                                    </button>
+                                                    <div v-if="activeDropdownId === member.id" class="dropdown-menu" :class="{ 'open-up': dropdownDirection === 'up' }">
+                                                        <button class="dropdown-item" @click="handleAutoClear(member)">
+                                                            💵 Thu tiền mặt (xóa nợ)
+                                                        </button>
+                                                        <button v-if="member.fundMissing > 0" class="dropdown-item" @click="handleManualPayment(member, 'fund')">
+                                                            💰 Đóng Quỹ Tháng
+                                                        </button>
+                                                        <button v-if="member.fineMissing > 0" class="dropdown-item" @click="handleManualPayment(member, 'fine')">
+                                                            🚩 Đóng Tiền Phạt
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div v-else class="text-success" style="font-weight: 600; font-size: 13px;">✔ Hoàn tất</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Mobile Cards View -->
+                        <div v-else class="mobile-finance-list">
+                            <div v-for="(member, index) in monthlyMembers" :key="member.id" class="finance-card-simple list-item-animate" :style="{ animationDelay: (0.1 + index * 0.04) + 's' }">
+                                <div class="card-header-simple">
+                                    <span class="member-name">{{ member.name }}</span>
+                                    <span class="badge" :class="getStatusBadgeClass(member)">{{ member.statusText }}</span>
+                                </div>
+                                <div class="card-body-simple">
+                                    <div class="finance-row">
+                                        <span class="label">Quỹ Tháng:</span>
+                                        <div class="value-group">
+                                            <span class="paid">{{ formatCurrency(member.fundPaid) }}</span>
+                                            <span class="total">/ {{ formatCurrency(member.fundRequired) }}</span>
                                         </div>
-                                        <div v-else class="text-success">✔ Đã xong</div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                                    </div>
+                                    <div class="finance-row">
+                                        <span class="label">Tiền Phạt:</span>
+                                        <div class="value-group">
+                                            <span class="paid">{{ formatCurrency(member.finePaid) }}</span>
+                                            <span class="total">/ {{ formatCurrency(member.fineRequired) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer-simple" v-if="member.fundMissing > 0 || member.fineMissing > 0">
+                                    <button class="btn btn-sm btn-success" @click="handleAutoClear(member)">Thu Mặt</button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
-
-            <!-- per-match members -->
-             <div v-if="perMatchMembers.length > 0" class="card" style="overflow: visible;">
-                 <div class="card-header">
-                     <h2>⚽ Theo Trận</h2>
-                 </div>
-                 <div class="card-content">
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Thành Viên</th>
-                                    <th class="text-center">Phí Trận Đấu</th>
-                                    <th class="text-center">Lịch Sử</th>
-                                    <th class="text-center">Tiền Phạt</th>
-                                    <th>Hành Động</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="member in perMatchMembers" :key="member.id">
-                                    <td class="font-medium">{{ member.name }}</td>
-                                    <td class="text-center">
-                                        <span class="badge badge-secondary">{{ formatCurrency(member.perMatchFee || 50000) }}/trận</span>
-                                    </td>
-                                    <td class="text-center">
-                                        {{ member.presentMatchesCount }} trận tham gia
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="debt-cell">
-                                            <span class="paid">{{ formatCurrency(member.finePaid) }}</span>
-                                            <span class="separator">/</span>
-                                            <span class="required">{{ formatCurrency(member.fineRequired) }}</span>
-                                            <div v-if="member.fineMissing > 0" class="debt-amount text-danger">
-                                                Thiếu: {{ formatCurrency(member.fineMissing) }}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="action-buttons-group">
-                                            <span v-if="member.fineMissing <= 0" class="badge badge-success">Sạch nợ</span>
-                                            <button v-if="member.fineMissing > 0" class="btn btn-sm btn-danger" @click="handleManualPayment(member, 'fine')">Đóng Phạt</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                 </div>
-             </div>
         </div>
 
         <!-- Monthly Fund Tab -->
@@ -205,7 +185,7 @@
             <div class="card">
                 <div class="card-header">
                     <h2>Danh Sách Đóng Quỹ Theo Tháng</h2>
-                    <div class="card-actions" style="display:flex;gap:0.75rem;align-items:center;">
+                    <div class="card-actions">
                         <BaseSelect 
                             v-model="selectedYear"
                             :options="yearOptions"
@@ -214,10 +194,28 @@
                     </div>
                 </div>
                 <div class="card-content">
-                    <div class="statistics-summary" style="margin-top: 0; margin-bottom: 2rem;">
-                        <div class="mf-stat-card"><div class="mf-stat-icon">👥</div><div class="mf-stat-info"><div class="stat-label">Thành viên đóng quỹ tháng</div><div class="stat-value">{{ monthlyMembersForFund.length }}</div></div></div>
-                        <div class="mf-stat-card success"><div class="mf-stat-icon">✅</div><div class="mf-stat-info"><div class="stat-label">Đã thu năm {{ selectedYear }}</div><div class="stat-value">{{ formatCurrency(actualYearlyTotal) }}</div></div></div>
-                        <div class="mf-stat-card warning"><div class="mf-stat-icon">⏳</div><div class="mf-stat-info"><div class="stat-label">Còn thiếu (đến tháng {{ currentMonth }})</div><div class="stat-value">{{ formatCurrency(mfTotalMissing) }}</div></div></div>
+                    <div class="statistics-summary">
+                        <div class="mf-stat-card">
+                            <div class="mf-stat-icon">👥</div>
+                            <div class="mf-stat-info">
+                                <div class="stat-label">Thành viên đóng quỹ tháng</div>
+                                <div class="stat-value">{{ monthlyMembersForFund.length }}</div>
+                            </div>
+                        </div>
+                        <div class="mf-stat-card success">
+                            <div class="mf-stat-icon">✅</div>
+                            <div class="mf-stat-info">
+                                <div class="stat-label">Đã thu năm {{ selectedYear }}</div>
+                                <div class="stat-value">{{ formatCurrency(actualYearlyTotal) }}</div>
+                            </div>
+                        </div>
+                        <div class="mf-stat-card warning">
+                            <div class="mf-stat-icon">⏳</div>
+                            <div class="mf-stat-info">
+                                <div class="stat-label">Còn thiếu (đến T{{ currentMonth }})</div>
+                                <div class="stat-value">{{ formatCurrency(mfTotalMissing) }}</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="table-wrapper">
                         <table class="monthly-fund-table">
@@ -233,39 +231,36 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-if="monthlyMembersForFund.length === 0">
-                                    <td colspan="15" style="padding:2rem;text-align:center;color:var(--text-secondary);">Chưa có thành viên đóng quỹ theo tháng</td>
-                                </tr>
                                 <tr v-for="(member, index) in sortedMonthlyMembersForFund" :key="member.id">
                                     <td class="mf-sticky-col text-center">{{ index + 1 }}</td>
                                     <td class="mf-sticky-col mf-name-col">
                                         <div class="member-info">
                                             {{ member.name }}
-                                            <span v-if="member.contributionTierId" class="tier-badge-small" :style="getMFTierStyle(member.contributionTierId)">{{ getMFTierIcon(member.contributionTierId) }} {{ getMFTierName(member.contributionTierId) }}</span>
+                                            <span v-if="member.contributionTierId" class="tier-badge-small" :style="getMFTierStyle(member.contributionTierId)">{{ getMFTierName(member.contributionTierId) }}</span>
                                         </div>
                                     </td>
                                     <td class="text-right" style="font-weight:600;">{{ formatCurrency(getMonthlyFee(member)) }}</td>
                                     <td v-for="m in 12" :key="m" class="month-cell" :class="{ 'future-month': isFutureMonth(m) }">
                                         <label class="checkbox-wrapper" :class="{ disabled: isFutureMonth(m) }">
                                             <input type="checkbox" :checked="isMFPaid(member.id, m)" @change="toggleMFPayment(member.id, m, $event)" :disabled="isFutureMonth(m)">
-                                            <span class="checkmark" :class="getMFCheckmarkClass(member.id, m)"></span>
+                                            <span class="checkmark"></span>
                                         </label>
                                     </td>
                                 </tr>
                             </tbody>
                             <tfoot>
                                 <tr class="summary-row">
-                                    <td colspan="3" class="mf-sticky-col" style="text-align:right;font-weight:700;padding-right:1.5rem;">Số người đã đóng</td>
-                                    <td v-for="m in 12" :key="m" class="text-center" :class="{ 'future-month': isFutureMonth(m) }" style="font-weight:700;color:var(--primary-400);">
-                                        <span v-if="isFutureMonth(m)" class="text-muted">-</span>
+                                    <td colspan="3" class="mf-sticky-col" style="text-align:right;">Số người đã đóng</td>
+                                    <td v-for="m in 12" :key="m" class="text-center" :class="{ 'future-month': isFutureMonth(m) }">
+                                        <span v-if="isFutureMonth(m)">-</span>
                                         <span v-else>{{ getMFPaidCount(m) }}/{{ monthlyMembersForFund.length }}</span>
                                     </td>
                                 </tr>
                                 <tr class="amount-summary-row">
-                                    <td colspan="3" class="mf-sticky-col" style="text-align:right;font-weight:700;padding-right:1.5rem;">Tổng thu theo tháng</td>
-                                    <td v-for="m in 12" :key="m" class="text-center" :class="{ 'future-month': isFutureMonth(m) }" style="font-size:0.75rem;font-weight:700;color:var(--success-400);">
+                                    <td colspan="3" class="mf-sticky-col" style="text-align:right;">Tổng thu tháng</td>
+                                    <td v-for="m in 12" :key="m" class="text-center" :class="{ 'future-month': isFutureMonth(m) }">
                                         <span v-if="!isFutureMonth(m) && getMFPaidAmount(m) > 0">{{ formatCurrency(getMFPaidAmount(m)) }}</span>
-                                        <span v-else class="text-muted">-</span>
+                                        <span v-else>-</span>
                                     </td>
                                 </tr>
                             </tfoot>
@@ -277,49 +272,53 @@
 
         <!-- Per Match Tab -->
         <div v-if="activeTab === 'per-match'" class="tab-content">
-            <template v-if="pmPerMatchMembers.length === 0">
-                <div style="padding:3rem;text-align:center;color:var(--text-secondary);">
-                    <div style="font-size:2rem;margin-bottom:1rem;">⚽</div>
-                    <h3>Chưa có thành viên đá theo trận</h3>
-                    <p>Vào <strong>Thành Viên</strong> → Thêm/Sửa thành viên → Chọn loại <strong>"Đá theo trận"</strong></p>
-                </div>
-            </template>
-            <template v-else>
-                <div class="card">
-                    <div class="card-header">
-                        <h2>📋 Tổng Hợp Tất Cả Trận</h2>
-                        <div class="card-actions">
-                            <span class="badge badge-success">Tổng thu: {{ formatCurrency(pmGrandTotalCollected) }}</span>
-                        </div>
-                    </div>
-                    <div class="card-content">
-                        <div v-if="pmAllStats.length === 0" style="padding:3rem;text-align:center;color:var(--text-secondary);">
-                            <p>Chưa có trận đấu nào</p>
-                        </div>
-                        <div v-else class="table-container">
-                            <table class="data-table">
-                                <thead><tr><th>Ngày</th><th>Địa Điểm</th><th class="text-center">Theo trận / Có mặt</th><th class="text-center">Phải thu</th><th class="text-center">Đã thu</th><th class="text-center">Trạng thái</th></tr></thead>
-                                <tbody>
-                                    <tr v-for="stat in pmAllStats" :key="stat.id" @click="pmOpenDetail(stat.id)" style="cursor:pointer;" :class="{ 'selected-row': pmSelectedMatchId === stat.id }">
-                                        <td>{{ pmFormatDate(stat.date) }}</td>
-                                        <td>{{ stat.location || 'Sân đấu' }}</td>
-                                        <td class="text-center">{{ stat.totalPerMatchPlayers }} / {{ stat.attendedPerMatchPlayers }}</td>
-                                        <td class="text-center"><strong style="color:var(--success-500)">{{ formatCurrency(stat.totalRevenue) }}</strong></td>
-                                        <td class="text-center"><strong style="color:var(--primary-500)">{{ formatCurrency(stat.totalCollected) }}</strong></td>
-                                        <td class="text-center">
-                                            <span v-if="stat.attendedPerMatchPlayers === 0" class="badge badge-secondary">Không ai tham gia</span>
-                                            <span v-else-if="stat.totalCollected >= stat.totalRevenue && stat.totalRevenue > 0" class="badge badge-success">✔ Đủ</span>
-                                            <span v-else-if="stat.totalCollected > 0" class="badge badge-warning">⏳ Chưa đủ</span>
-                                            <span v-else class="badge badge-danger">✗ Chưa thu</span>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                                <tfoot><tr style="font-weight:700;"><td colspan="3" style="text-align:right;">Tổng Tất Cả:</td><td class="text-center" style="color:var(--success-500);font-size:1.1rem;">{{ formatCurrency(pmGrandTotalRevenue) }}</td><td class="text-center" style="color:var(--primary-500);font-size:1.1rem;">{{ formatCurrency(pmGrandTotalCollected) }}</td><td colspan="1"></td></tr></tfoot>
-                            </table>
-                        </div>
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 Tổng Hợp Tất Cả Trận</h2>
+                    <div class="card-actions">
+                        <span class="badge badge-success">Tổng thu: {{ formatCurrency(pmGrandTotalCollected) }}</span>
                     </div>
                 </div>
-            </template>
+                <div class="card-content">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Ngày</th>
+                                    <th>Địa Điểm</th>
+                                    <th class="text-center">Số người</th>
+                                    <th class="text-center">Phải thu</th>
+                                    <th class="text-center">Đã thu</th>
+                                    <th class="text-center">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="stat in pmDisplayedStats" :key="stat.id" @click="pmOpenDetail(stat.id)" style="cursor:pointer;" :class="{ 'selected-row': pmSelectedMatchId === stat.id }">
+                                    <td>{{ pmFormatDate(stat.date) }}</td>
+                                    <td>{{ stat.location || 'Sân đấu' }}</td>
+                                    <td class="text-center">{{ stat.attendedPerMatchPlayers }} người</td>
+                                    <td class="text-center"><strong class="text-success">{{ formatCurrency(stat.totalRevenue) }}</strong></td>
+                                    <td class="text-center"><strong class="text-primary">{{ formatCurrency(stat.totalCollected) }}</strong></td>
+                                    <td class="text-center">
+                                        <span v-if="stat.totalCollected >= stat.totalRevenue && stat.totalRevenue > 0" class="badge badge-success">✔ Đủ</span>
+                                        <span v-else-if="stat.totalCollected > 0" class="badge badge-warning">⏳ Thiếu</span>
+                                        <span v-else class="badge badge-danger">✗ Chưa thu</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div v-if="pmHasMore" style="text-align: center; margin-top: 16px; margin-bottom: 16px; color: var(--text-muted); font-size: 14px; font-weight: 500;">
+                            <div class="spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 8px; vertical-align: middle;"></div>
+                            Đang tải thêm trận đấu...
+                        </div>
+                        <div v-else-if="pmDisplayedStats.length > 0" style="text-align: center; margin-top: 16px; margin-bottom: 16px; color: var(--text-muted); font-size: 13px;">
+                            Đã hiển thị tất cả các trận
+                        </div>
+                        <div ref="pmBottomSentinel" style="height: 1px;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Pending Transactions Tab -->
@@ -327,9 +326,6 @@
             <div class="card">
                 <div class="card-header">
                     <h2>Duyệt Giao Dịch</h2>
-                    <div class="card-actions">
-                        <span class="badge badge-info">{{ pendingTransactions.length }} yêu cầu</span>
-                    </div>
                 </div>
                 <div class="card-content">
                     <div v-if="pendingTransactions.length === 0" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
@@ -342,28 +338,23 @@
                                     <th>Thời Gian</th>
                                     <th>Thành Viên</th>
                                     <th>Nội Dung</th>
-                                    <th>Số Tiền</th>
-                                    <th>Minh Chứng</th>
+                                    <th class="text-right">Số Tiền</th>
                                     <th>Thao Tác</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="tx in pendingTransactions" :key="tx.id">
                                     <td>{{ formatFullDateTime(tx.date) }}</td>
-                                    <td><strong>{{ getMemberName(tx.memberId) }}</strong></td>
+                                    <td class="font-medium">{{ getMemberName(tx.memberId) }}</td>
                                     <td>
                                         <span class="badge" :class="getCategoryClass(tx)">{{ tx.category === 'fund' ? 'Quỹ' : 'Phạt' }}</span>
                                         {{ tx.description }}
                                     </td>
-                                    <td class="font-bold text-success">{{ formatCurrency(tx.amount) }}</td>
-                                    <td>
-                                        <a v-if="tx.evidence" :href="tx.evidence" target="_blank" class="link">Xem ảnh</a>
-                                        <span v-else>Không có</span>
-                                    </td>
+                                    <td class="text-right font-bold text-success">{{ formatCurrency(tx.amount) }}</td>
                                     <td>
                                         <div class="action-buttons-group">
                                             <button class="btn btn-sm btn-success" @click="handleApprove(tx)">Duyệt</button>
-                                            <button class="btn btn-sm btn-danger" @click="handleReject(tx)">Từ chối</button>
+                                            <button class="btn btn-sm btn-danger" @click="handleReject(tx)">Hủy</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -386,12 +377,12 @@
                                     <th>Loại</th>
                                     <th>Thành Viên</th>
                                     <th>Mô Tả</th>
-                                    <th>Số Tiền</th>
+                                    <th class="text-right">Số Tiền</th>
                                     <th>Thao Tác</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="tx in sortedTransactions" :key="tx.id">
+                                <tr v-for="(tx, index) in txDisplayedStats" :key="tx.id" class="list-item-animate" :style="{ animationDelay: (0.1 + index * 0.03) + 's' }">
                                     <td>{{ formatDate(tx.date) }}</td>
                                     <td>
                                         <span class="badge" :class="getCategoryClass(tx)">
@@ -400,15 +391,24 @@
                                     </td>
                                     <td>{{ getMemberName(tx.memberId) || '—' }}</td>
                                     <td>{{ tx.description }}</td>
-                                    <td :class="tx.type === 'income' ? 'text-success' : 'text-danger'">
+                                    <td class="text-right font-bold" :class="tx.type === 'income' ? 'text-success' : 'text-danger'">
                                         {{ tx.type === 'income' ? '+' : '-' }}{{ formatCurrency(tx.amount) }}
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-danger" @click="handleDeleteTransaction(tx.id)">Xóa</button>
+                                        <button class="btn btn-sm btn-ghost text-danger" @click="handleDeleteTransaction(tx.id)">Xóa</button>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
+                        
+                        <div v-if="txHasMore" style="text-align: center; margin-top: 16px; margin-bottom: 16px; color: var(--text-muted); font-size: 14px; font-weight: 500;">
+                            <div class="spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 8px; vertical-align: middle;"></div>
+                            Đang tải thêm giao dịch...
+                        </div>
+                        <div v-else-if="txDisplayedStats.length > 0" style="text-align: center; margin-top: 16px; margin-bottom: 16px; color: var(--text-muted); font-size: 13px;">
+                            Đã hiển thị tất cả các giao dịch
+                        </div>
+                        <div ref="txBottomSentinel" style="height: 1px;"></div>
                     </div>
                 </div>
             </div>
@@ -444,17 +444,16 @@
                     </div>
                     <div class="form-group">
                         <label>Số Tiền (VNĐ)</label>
-                        <input type="number" v-model.number="form.amount" placeholder="Ví dụ: 500000" style="font-size: 1.1rem; font-weight: bold; color: var(--primary-500);">
+                        <input type="number" v-model.number="form.amount" placeholder="Ví dụ: 500000" style="font-size: 1.1rem; font-weight: bold; color: var(--primary-600);">
                     </div>
                     <div class="form-group">
                         <label>Ghi Chú Chi Tiết</label>
                         <input type="text" v-model="form.description" placeholder="Nhập ghi chú chi tiết...">
                     </div>
-                    
-                    <div class="form-actions">
-                        <button class="btn btn-secondary" @click="closeModal">Hủy Bỏ</button>
-                        <button class="btn btn-primary" @click="handleSaveTransaction">Lưu Giao Dịch</button>
-                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @click="closeModal">Hủy Bỏ</button>
+                    <button class="btn btn-primary" @click="handleSaveTransaction">Lưu Giao Dịch</button>
                 </div>
             </div>
         </div>
@@ -463,31 +462,31 @@
         <div v-if="showPMDetailModal" class="modal" style="display: flex;">
             <div class="modal-content" style="max-width: 900px;">
                 <div class="modal-header">
-                    <h2>⚽ Chi Tiết Thu Tiền Trận - {{ pmFormatDate(pmDetailMatch?.date) }}</h2>
+                    <h2>⚽ Chi Tiết Thu Tiền - {{ pmFormatDate(pmDetailMatch?.date) }}</h2>
                     <button class="modal-close" @click="showPMDetailModal = false">×</button>
                 </div>
                 <div class="modal-body">
-                    <div v-if="pmDetailMatch" class="stats-grid" style="margin-top: var(--spacing-xl);margin-bottom: var(--spacing-xl);">
+                    <div v-if="pmDetailMatch" class="stats-grid" style="margin-bottom: 2rem;">
                         <div class="stat-card stat-info"><div class="stat-content"><div class="stat-value">{{ formatCurrency(pmDetailMatchRevenue.totalRevenue) }}</div><div class="stat-label">Tổng phải thu</div></div></div>
-                        <div class="stat-card"><div class="stat-content"><div class="stat-value">{{ formatCurrency(pmDetailMatchRevenue.totalCollected) }}</div><div class="stat-label">Đã thu được</div></div></div>
+                        <div class="stat-card"><div class="stat-content"><div class="stat-value">{{ formatCurrency(pmDetailMatchRevenue.totalCollected) }}</div><div class="stat-label">Đã thu</div></div></div>
                     </div>
-                    <div class="table-container" style="max-height: 400px; border: 1px solid var(--border-primary);">
+                    <div class="table-container" style="max-height: 400px; border: 1px solid var(--border-color);">
                         <table class="data-table">
-                            <thead><tr><th>Thành Viên</th><th class="text-center">Giá/Trận</th><th class="text-center">Điểm danh</th><th class="text-center">Đã thu tiền</th><th class="text-center">Thao tác</th></tr></thead>
+                            <thead><tr><th>Thành Viên</th><th class="text-center">Giá/Trận</th><th class="text-center">Điểm danh</th><th class="text-center">Đã thu</th><th class="text-center">Hành động</th></tr></thead>
                             <tbody>
                                 <tr v-for="player in pmDetailMatchRevenue.players" :key="player.id" :class="{ 'row-absent': !player.attended, 'row-paid': player.attended && player.isPaid }">
-                                    <td><strong>{{ player.name }}</strong></td>
+                                    <td class="font-medium">{{ player.name }}</td>
                                     <td class="text-center">{{ formatCurrency(player.perMatchFee) }}</td>
                                     <td class="text-center"><span v-if="player.attended" class="badge badge-success">✅ Có mặt</span><span v-else class="badge badge-secondary">❌ Vắng</span></td>
-                                    <td class="text-center"><template v-if="player.attended"><span v-if="player.isPaid" class="badge badge-success">✔ Đã thu</span><span v-else class="badge badge-warning">⏳ Chưa thu</span></template><span v-else class="badge badge-secondary">N/A</span></td>
-                                    <td class="text-center"><template v-if="player.attended"><button v-if="!player.isPaid" class="btn btn-sm btn-success" @click="pmCollectFeeModal(player)">💵 Thu tiền</button><button v-else class="btn btn-sm btn-secondary" @click="pmUndoCollectFeeModal(player)">Hoàn tác</button></template><span v-else class="text-muted">—</span></td>
+                                    <td class="text-center"><template v-if="player.attended"><span v-if="player.isPaid" class="badge badge-success">✔ Đã thu</span><span v-else class="badge badge-warning">⏳ Chờ</span></template><span v-else class="text-muted">—</span></td>
+                                    <td class="text-center"><template v-if="player.attended"><button v-if="!player.isPaid" class="btn btn-sm btn-success" @click="pmCollectFeeModal(player)">💵 Thu</button><button v-else class="btn btn-sm btn-ghost" @click="pmUndoCollectFeeModal(player)">Hoàn</button></template><span v-else class="text-muted">—</span></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-                    <div class="form-actions" style="margin-top: 2rem;">
-                        <button class="btn btn-primary" @click="showPMDetailModal = false">Đóng</button>
-                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" @click="showPMDetailModal = false">Đóng</button>
                 </div>
             </div>
         </div>
@@ -495,9 +494,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, watch, nextTick, onUnmounted } from 'vue';
 import { useAppState } from '../composables/useAppState';
-import { usePenalties } from '../composables/usePenalties';
 import { useFinancialCalculations } from '../composables/useFinancialCalculations';
 import { useAuth } from '../composables/useAuth';
 import BaseSelect from '../components/BaseSelect.vue';
@@ -506,18 +504,15 @@ const {
     transactions, stats, members, getMemberName, 
     addTransaction, deleteTransaction, 
     pendingTransactions, approvePendingTransaction, rejectPendingTransaction,
-    contributionTiers, matches, sortedMatches, getContributionTier,
+    contributionTiers, matches, getContributionTier,
     receivables
 } = useAppState();
 
 const { getStatusText } = useFinancialCalculations();
-const { permissions } = useAuth();
+const { isAdmin, isAccountant } = useAuth();
 
 const props = defineProps({
-    initialTab: {
-        type: String,
-        default: 'overview'
-    }
+    initialTab: { type: String, default: 'overview' }
 });
 
 const activeTab = ref(props.initialTab);
@@ -527,15 +522,7 @@ const pmDetailMatchId = ref(null);
 const activeDropdownId = ref(null);
 const dropdownDirection = ref('down');
 
-const form = reactive({
-    id: null,
-    date: '',
-    type: 'income',
-    category: '',
-    description: '',
-    amount: 0,
-    memberId: null
-});
+const form = reactive({ id: null, date: '', type: 'income', category: '', description: '', amount: 0, memberId: null });
 
 const incomeCategories = [
     { value: 'fund', label: 'Đóng Quỹ Tháng' },
@@ -554,457 +541,316 @@ const expenseCategories = [
 ];
 
 const currentCategories = computed(() => form.type === 'income' ? incomeCategories : expenseCategories);
-
-const memberOptions = computed(() => [
-    { label: '-- Không bắt buộc --', value: null },
-    ...members.value.map(m => ({ label: m.name, value: m.id }))
-]);
+const memberOptions = computed(() => [{ label: '-- Không bắt buộc --', value: null }, ...members.value.map(m => ({ label: m.name, value: m.id }))]);
 
 const currentMonth = new Date().getMonth() + 1;
 const currentYear = new Date().getFullYear();
 
 const getMemberReceivableStatus = (memberId) => {
-    const memberReceivables = receivables.value.filter(r => r.memberId === memberId);
-    
-    // Split into categories
-    const fundReceivables = memberReceivables.filter(r => r.type === 'fund' || r.type === 'legacy_debt' && r.description.includes('Quỹ'));
-    const fineReceivables = memberReceivables.filter(r => r.type === 'fine' || r.type === 'legacy_debt' && r.description.includes('Phạt'));
-    const otherReceivables = memberReceivables.filter(r => r.type === 'legacy_debt' && !r.description.includes('Quỹ') && !r.description.includes('Phạt'));
+    const list = receivables.value.filter(r => r.memberId === memberId);
+    const fundR = list.filter(r => r.type === 'fund' || r.type === 'legacy_debt' && r.description.includes('Quỹ'));
+    const fineR = list.filter(r => r.type === 'fine' || r.type === 'legacy_debt' && r.description.includes('Phạt'));
+    const otherR = list.filter(r => r.type === 'legacy_debt' && !r.description.includes('Quỹ') && !r.description.includes('Phạt'));
 
-    const fundRequired = fundReceivables.reduce((s, r) => s + r.amount, 0);
-    const fundPaid = fundReceivables.filter(r => r.status === 'paid').reduce((s, r) => s + r.amount, 0);
-    const fundMissing = fundRequired - fundPaid;
+    const fundRequired = fundR.reduce((s, r) => s + r.amount, 0);
+    const fundPaid = fundR.filter(r => r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+    const fineRequired = fineR.reduce((s, r) => s + r.amount, 0);
+    const finePaid = fineR.filter(r => r.status === 'paid').reduce((s, r) => s + r.amount, 0);
 
-    const fineRequired = fineReceivables.reduce((s, r) => s + r.amount, 0);
-    const finePaid = fineReceivables.filter(r => r.status === 'paid').reduce((s, r) => s + r.amount, 0);
-    const fineMissing = fineRequired - finePaid;
+    const totalDebt = (fundRequired - fundPaid) + (fineRequired - finePaid) + otherR.filter(r => r.status === 'unpaid').reduce((s, r) => s + r.amount, 0);
 
-    const totalDebt = fundMissing + fineMissing + otherReceivables.filter(r => r.status === 'unpaid').reduce((s, r) => s + r.amount, 0);
-
-    return {
-        fundRequired, fundPaid, fundMissing,
-        fineRequired, finePaid, fineMissing,
-        totalDebt,
-        isPaidUp: totalDebt <= 0
-    };
+    return { fundRequired, fundPaid, fundMissing: fundRequired - fundPaid, fineRequired, finePaid, fineMissing: fineRequired - finePaid, totalDebt };
 };
 
-const monthlyMembers = computed(() => {
-    return members.value
-        .filter(m => m.paymentType !== 'per-match')
-        .map(m => {
-            const status = getMemberReceivableStatus(m.id);
-            return { ...m, ...status, statusText: getStatusText(status) };
-        })
-        .sort((a, b) => b.totalDebt - a.totalDebt);
-});
+const monthlyMembers = computed(() => members.value.filter(m => m.paymentType !== 'per-match').map(m => {
+    const status = getMemberReceivableStatus(m.id);
+    return { ...m, ...status, statusText: getStatusText(status) };
+}).sort((a, b) => b.totalDebt - a.totalDebt));
 
-const perMatchMembers = computed(() => {
-    return members.value
-        .filter(m => m.paymentType === 'per-match')
-        .map(m => {
-            const status = getMemberReceivableStatus(m.id);
-            return { ...m, ...status, statusText: getStatusText(status) };
-        })
-        .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
-});
-
-const allSortedMembers = computed(() => [...monthlyMembers.value, ...perMatchMembers.value]);
+const perMatchMembers = computed(() => members.value.filter(m => m.paymentType === 'per-match').map(m => {
+    const status = getMemberReceivableStatus(m.id);
+    return { ...m, ...status, statusText: getStatusText(status) };
+}).sort((a, b) => a.name.localeCompare(b.name, 'vi')));
 
 const totalFundDebt = computed(() => monthlyMembers.value.reduce((sum, m) => sum + m.fundMissing, 0));
-const totalFineDebt = computed(() => allSortedMembers.value.reduce((sum, m) => sum + m.fineMissing, 0));
-
+const totalFineDebt = computed(() => [...monthlyMembers.value, ...perMatchMembers.value].reduce((sum, m) => sum + m.fineMissing, 0));
 const sortedTransactions = computed(() => [...transactions.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
-
 const pendingCount = computed(() => pendingTransactions.value.filter(t => t.status === 'pending').length);
 
 const openTransactionModal = (type) => {
-    form.id = null;
-    form.type = type;
-    form.date = new Date().toISOString().split('T')[0];
-    form.amount = 0;
-    form.category = currentCategories.value[0].value;
-    form.memberId = null;
-    form.description = '';
-    showModal.value = true;
+    form.type = type; form.date = new Date().toISOString().split('T')[0]; form.amount = 0; form.category = currentCategories.value[0].value; form.memberId = null; form.description = ''; showModal.value = true;
 };
-
 const closeModal = () => { showModal.value = false; };
-
-const handleSaveTransaction = async () => {
-    if (!form.description) {
-        const cat = currentCategories.value.find(c => c.value === form.category);
-        form.description = cat ? cat.label : form.category;
-    }
-    await addTransaction({ ...form });
-    closeModal();
-};
-
-const handleDeleteTransaction = (id) => {
-    if (confirm('Bạn có chắc muốn xóa giao dịch này?')) deleteTransaction(id);
-};
+const handleSaveTransaction = async () => { if (!form.description) form.description = currentCategories.value.find(c => c.value === form.category)?.label || form.category; await addTransaction({ ...form }); closeModal(); };
+const handleDeleteTransaction = (id) => { if (confirm('Xóa giao dịch này?')) deleteTransaction(id); };
 
 const handleAutoClear = async (member) => {
     if (member.totalDebt <= 0) return;
-    if (!confirm(`Xác nhận thu TIỀN MẶT và xóa nợ cho ${member.name}?\nTổng số tiền: ${formatCurrency(member.totalDebt)}`)) return;
-    
-    const today = new Date().toISOString().split('T')[0];
-    await addTransaction({ 
-        type: 'income', 
-        category: 'other', 
-        amount: member.totalDebt, 
-        description: `Thu tiền mặt xóa nợ - ${member.name}`, 
-        date: today, 
-        memberId: member.id 
-    });
+    if (!confirm(`Xác nhận thu TIỀN MẶT và xóa nợ cho ${member.name}?\nSố tiền: ${formatCurrency(member.totalDebt)}`)) return;
+    await addTransaction({ type: 'income', category: 'other', amount: member.totalDebt, description: `Thu tiền mặt xóa nợ - ${member.name}`, date: new Date().toISOString().split('T')[0], memberId: member.id });
     closeDropdown();
 };
 
-const toggleDropdown = (event, id) => {
-    if (activeDropdownId.value === id) {
-        activeDropdownId.value = null;
-    } else {
-        activeDropdownId.value = id;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - rect.bottom;
-        dropdownDirection.value = (spaceBelow < 220 && rect.top > 220) ? 'up' : 'down';
-    }
-};
-
+const toggleDropdown = (event, id) => { activeDropdownId.value = (activeDropdownId.value === id) ? null : id; if (activeDropdownId.value) { const spaceBelow = window.innerHeight - event.currentTarget.getBoundingClientRect().bottom; dropdownDirection.value = (spaceBelow < 200) ? 'up' : 'down'; } };
 const closeDropdown = () => { activeDropdownId.value = null; };
 
-if (typeof window !== 'undefined') {
-    window.addEventListener('click', (e) => {
-        if (!e.target.closest('.dropdown-wrapper')) closeDropdown();
-    });
-}
-
 const handleManualPayment = (member, category) => {
-    form.id = null;
-    form.type = 'income';
-    form.date = new Date().toISOString().split('T')[0];
-    form.category = category;
-    form.memberId = member.id;
-    form.amount = category === 'fund' ? member.fundMissing : member.fineMissing;
-    form.description = `Đóng ${category === 'fund' ? 'quỹ' : 'phạt'} - ${member.name}`;
-    showModal.value = true;
-    closeDropdown();
+    form.type = 'income'; form.date = new Date().toISOString().split('T')[0]; form.category = category; form.memberId = member.id;
+    form.amount = category === 'fund' ? member.fundMissing : member.fineMissing; form.description = `Đóng ${category === 'fund' ? 'quỹ' : 'phạt'} - ${member.name}`;
+    showModal.value = true; closeDropdown();
 };
 
-const handleApprove = (tx) => {
-    const amount = prompt(`Xác nhận số tiền thực nhận từ ${getMemberName(tx.memberId)}:`, tx.amount);
-    if (amount === null) return;
-    const finalAmount = parseInt(String(amount).replace(/[^0-9]/g, ''), 10);
-    if (isNaN(finalAmount) || finalAmount <= 0) { alert('Số tiền không hợp lệ!'); return; }
-    approvePendingTransaction(tx.id, finalAmount);
-};
+const handleApprove = (tx) => { const amount = prompt(`Xác nhận số tiền thực nhận:`, tx.amount); if (amount) approvePendingTransaction(tx.id, parseInt(amount.replace(/[^0-9]/g, ''))); };
+const handleReject = (tx) => { const reason = prompt('Lý do từ chối:'); if (reason !== null) rejectPendingTransaction(tx.id, reason); };
 
-const handleReject = (tx) => {
-    const reason = prompt('Lý do từ chối:');
-    if (reason !== null) rejectPendingTransaction(tx.id, reason);
-};
+import { useBreakpoints } from '../composables/useBreakpoints';
+const { isMobile } = useBreakpoints();
 
-const formatFullDateTime = (ts) => ts ? new Date(ts).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const formatFullDateTime = (ts) => ts ? new Date(ts).toLocaleString('vi-VN') : '';
 const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('vi-VN') : '';
 
-const getStatusBadgeClass = (m) => {
-    if (m.fundMissing <= 0 && m.fineMissing <= 0) return 'badge-success';
-    if (m.fundMissing > 0 && m.fineMissing <= 0) return 'badge-warning';
-    return 'badge-danger';
-};
+const getStatusBadgeClass = (m) => (m.fundMissing <= 0 && m.fineMissing <= 0) ? 'badge-success' : (m.fundMissing > 0 && m.fineMissing <= 0 ? 'badge-warning' : 'badge-danger');
+const getCategoryLabel = (tx) => [...incomeCategories, ...expenseCategories].find(c => c.value === tx.category)?.label || tx.category;
+const getCategoryClass = (tx) => tx.type === 'expense' ? 'badge-danger' : (tx.category === 'fund' ? 'badge-info' : (tx.category === 'fine' ? 'badge-warning' : 'badge-success'));
 
-const getTierDetails = (m) => {
-    const tier = contributionTiers.value.find(t => t.id === m.contributionTierId);
-    if (!tier) return '';
-    return `${formatCurrency(tier.monthlyFee)}/tháng × ${new Date().getMonth() + 1} tháng`;
-};
-
-const getFundHint = (m) => {
-    const tier = contributionTiers.value.find(t => t.id === m.contributionTierId);
-    if (!tier) return '';
-    const months = new Date().getMonth() + 1;
-    return `Quỹ tích lũy đến hiện tại:\n${formatCurrency(tier.monthlyFee)} × ${months} tháng = ${formatCurrency(m.fundRequired)}\nĐã đóng: ${formatCurrency(m.fundPaid)}\nCòn thiếu: ${formatCurrency(m.fundMissing)}`;
-};
-
-const getCategoryLabel = (tx) => {
-    const cat = [...incomeCategories, ...expenseCategories].find(c => c.value === tx.category);
-    return cat ? cat.label : tx.category;
-};
-
-const getCategoryClass = (tx) => {
-    if (tx.type === 'expense') return 'badge-danger';
-    if (tx.category === 'fund') return 'badge-info';
-    if (tx.category === 'fine') return 'badge-warning';
-    return 'badge-success';
-};
-
-// ==================== MONTHLY FUND TAB LOGIC ====================
+// Monthly Fund Logic
 const selectedYear = ref(currentYear);
-const availableYears = computed(() => [currentYear, currentYear - 1, currentYear - 2]);
-const yearOptions = computed(() => availableYears.value.map(y => ({ label: `Năm ${y}`, value: y })));
+const yearOptions = computed(() => [currentYear, currentYear - 1].map(y => ({ label: `Năm ${y}`, value: y })));
 const monthlyMembersForFund = computed(() => members.value.filter(m => m.paymentType !== 'per-match'));
-const perMatchMembersForFund = computed(() => members.value.filter(m => m.paymentType === 'per-match'));
 const sortedMonthlyMembersForFund = computed(() => [...monthlyMembersForFund.value].sort((a, b) => a.name.localeCompare(b.name, 'vi')));
-
-const isFutureMonth = (m) => {
-    if (selectedYear.value < currentYear) return false;
-    if (selectedYear.value > currentYear) return true;
-    return m > currentMonth;
-};
-
-const getMonthlyFee = (member) => {
-    if (member.contributionTierId) {
-        const tier = getContributionTier(member.contributionTierId);
-        if (tier) return tier.monthlyFee;
-    }
-    return contributionTiers.value[0]?.monthlyFee || 0;
-};
+const isFutureMonth = (m) => selectedYear.value > currentYear || (selectedYear.value === currentYear && m > currentMonth);
+const getMonthlyFee = (member) => member.contributionTierId ? (getContributionTier(member.contributionTierId)?.monthlyFee || 0) : (contributionTiers.value[0]?.monthlyFee || 0);
 
 const mfProcessedPayments = computed(() => {
     const map = {};
-    transactions.value.forEach(tx => {
-        if (tx.type === 'income' && tx.category === 'monthly_fund' && tx.monthlyFundMeta) {
-            const { year, month } = tx.monthlyFundMeta;
-            const key = `${tx.memberId}-${year}-${month}`;
-            if (!map[key]) map[key] = tx.id;
-        }
-    });
+    transactions.value.forEach(tx => { if (tx.type === 'income' && tx.category === 'monthly_fund' && tx.monthlyFundMeta) map[`${tx.memberId}-${tx.monthlyFundMeta.year}-${tx.monthlyFundMeta.month}`] = tx.id; });
     return map;
 });
 
 const isMFPaid = (memberId, month) => mfProcessedPayments.value[`${memberId}-${selectedYear.value}-${month}`] !== undefined;
-const getMFCheckmarkClass = (memberId, month) => {
-    if (isMFPaid(memberId, month)) return 'paid';
-    if (isFutureMonth(month)) return 'future';
-    return '';
-};
 const getMFPaidCount = (month) => monthlyMembersForFund.value.filter(m => isMFPaid(m.id, month)).length;
 const getMFPaidAmount = (month) => transactions.value.filter(t => t.type === 'income' && t.category === 'monthly_fund' && t.monthlyFundMeta?.year === selectedYear.value && t.monthlyFundMeta?.month === month).reduce((sum, t) => sum + t.amount, 0);
-
-const expectedMonthlyTotal = computed(() => monthlyMembersForFund.value.reduce((sum, m) => sum + getMonthlyFee(m), 0));
-const expectedYearlyTotal = computed(() => expectedMonthlyTotal.value * 12);
 const actualYearlyTotal = computed(() => transactions.value.filter(t => t.type === 'income' && t.category === 'monthly_fund' && t.monthlyFundMeta?.year === selectedYear.value).reduce((sum, t) => sum + t.amount, 0));
 const mfTotalMissing = computed(() => {
-    const endMonth = selectedYear.value < currentYear ? 12 : currentMonth;
-    const expectedSoFar = monthlyMembersForFund.value.reduce((sum, m) => sum + (getMonthlyFee(m) * endMonth), 0);
-    return Math.max(0, expectedSoFar - actualYearlyTotal.value);
+    const end = selectedYear.value < currentYear ? 12 : currentMonth;
+    const expected = monthlyMembersForFund.value.reduce((sum, m) => sum + (getMonthlyFee(m) * end), 0);
+    return Math.max(0, expected - actualYearlyTotal.value);
 });
 
 const toggleMFPayment = async (memberId, month, event) => {
-    const checked = event.target.checked;
-    const key = `${memberId}-${selectedYear.value}-${month}`;
-    const member = members.value.find(m => m.id === memberId);
+    const checked = event.target.checked; const key = `${memberId}-${selectedYear.value}-${month}`; const member = members.value.find(m => m.id === memberId);
     if (!member) return;
     if (checked) {
-        if (mfProcessedPayments.value[key]) { event.target.checked = false; return; }
-        const fee = getMonthlyFee(member);
-        if (fee <= 0) { alert(`Thành viên ${member.name} chưa được gán mức đóng quỹ!`); event.target.checked = false; return; }
-        const input = prompt(`Nhập số tiền đóng quỹ cho tháng ${month}/${selectedYear.value} của ${member.name}:`, fee);
-        if (input === null) { event.target.checked = false; return; }
-        const amount = parseInt(input.replace(/[^0-9]/g, ''), 10);
-        if (isNaN(amount) || amount <= 0) { alert('Số tiền không hợp lệ!'); event.target.checked = false; return; }
-        await addTransaction({ type: 'income', category: 'monthly_fund', amount, description: `Đóng quỹ tháng ${month}/${selectedYear.value} - ${member.name}`, date: new Date(selectedYear.value, month - 1, 1).toISOString(), memberId, monthlyFundMeta: { year: selectedYear.value, month } });
+        const fee = getMonthlyFee(member); const input = prompt(`Số tiền đóng quỹ T${month}/${selectedYear.value} của ${member.name}:`, fee);
+        if (input) await addTransaction({ type: 'income', category: 'monthly_fund', amount: parseInt(input.replace(/[^0-9]/g, '')), description: `Đóng quỹ T${month}/${selectedYear.value} - ${member.name}`, date: new Date(selectedYear.value, month - 1, 1).toISOString(), memberId, monthlyFundMeta: { year: selectedYear.value, month } }); else event.target.checked = false;
     } else {
-        const txId = mfProcessedPayments.value[key];
-        if (txId) {
-            if (confirm(`Bạn có chắc muốn hủy ghi nhận đóng quỹ tháng ${month}/${selectedYear.value} của ${member.name}?`)) { await deleteTransaction(txId); } else { event.target.checked = true; }
-        }
+        const txId = mfProcessedPayments.value[key]; if (txId && confirm('Hủy ghi nhận đóng quỹ này?')) await deleteTransaction(txId); else event.target.checked = true;
     }
 };
 
 const getMFTierName = (id) => getContributionTier(id)?.name || '';
-const getMFTierIcon = (id) => getContributionTier(id)?.icon || '';
-const getMFTierStyle = (id) => {
-    const tier = getContributionTier(id);
-    return tier ? { backgroundColor: tier.color + '20', color: tier.color, border: `1px solid ${tier.color}` } : {};
-};
+const getMFTierStyle = (id) => { const t = getContributionTier(id); return t ? { backgroundColor: t.color + '15', color: t.color, border: `1px solid ${t.color}` } : {}; };
 
-// ==================== PER-MATCH TAB LOGIC ====================
+// Per Match Logic
 const pmSelectedMatchId = ref(null);
 const pmPerMatchMembers = computed(() => members.value.filter(m => m.paymentType === 'per-match'));
-
-const pmIsAttended = (match, memberId) => {
-    const att = match.attendance?.[memberId];
-    return att && (att.status === 'present' || att.status === 'late');
-};
-
-const pmCollectedMap = computed(() => {
-    const map = {};
-    transactions.value.forEach(t => {
-        if (t.type === 'income' && t.category === 'per_match_fund' && t.perMatchFundMeta) {
-            map[`${t.memberId}-${t.perMatchFundMeta.matchId}`] = t.id;
-        }
-    });
-    return map;
-});
-
-const pmIsPaid = (memberId, matchId) => pmCollectedMap.value[`${memberId}-${matchId}`] !== undefined;
-
-const pmMatchRevenue = computed(() => {
-    return { totalPerMatchPlayers: 0, attendedPerMatchPlayers: 0, totalRevenue: 0, totalCollected: 0, players: [] };
-});
+const pmIsPaid = (memberId, matchId) => transactions.value.some(t => t.type === 'income' && t.category === 'per_match_fund' && t.memberId === memberId && t.perMatchFundMeta?.matchId === matchId);
+const pmFormatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', month: '2-digit', day: '2-digit' }) : '—';
+const pmOpenDetail = (id) => { pmDetailMatchId.value = id; showPMDetailModal.value = true; };
+const pmDetailMatch = computed(() => matches.value.find(m => m.id === pmDetailMatchId.value));
 
 const pmAllStats = computed(() => matches.value.map(match => {
-    const players = pmPerMatchMembers.value.map(m => ({ id: m.id, perMatchFee: m.perMatchFee || 50000, attended: pmIsAttended(match, m.id), paid: pmIsPaid(m.id, match.id) }));
+    const players = pmPerMatchMembers.value.map(m => ({ id: m.id, fee: m.perMatchFee || 50000, attended: match.attendance?.[m.id]?.status === 'present', paid: pmIsPaid(m.id, match.id) }));
     const attended = players.filter(p => p.attended);
-    return { id: match.id, date: match.date, location: match.location, totalPerMatchPlayers: players.length, attendedPerMatchPlayers: attended.length, totalRevenue: attended.reduce((a, p) => a + p.perMatchFee, 0), totalCollected: attended.filter(p => p.paid).reduce((a, p) => a + p.perMatchFee, 0) };
+    return { id: match.id, date: match.date, location: match.location, attendedPerMatchPlayers: attended.length, totalRevenue: attended.reduce((a, p) => a + p.fee, 0), totalCollected: attended.filter(p => p.paid).reduce((a, p) => a + p.fee, 0) };
 }).sort((a, b) => new Date(b.date) - new Date(a.date)));
 
-const pmGrandTotalRevenue = computed(() => pmAllStats.value.reduce((a, s) => a + s.totalRevenue, 0));
+const pmDisplayCount = ref(10);
+const pmDisplayedStats = computed(() => pmAllStats.value.slice(0, pmDisplayCount.value));
+const pmHasMore = computed(() => pmDisplayCount.value < pmAllStats.value.length);
+const pmLoadMore = () => { pmDisplayCount.value += 10; };
+const pmBottomSentinel = ref(null);
+let pmObserver = null;
+
+const txDisplayCount = ref(15);
+const txDisplayedStats = computed(() => sortedTransactions.value.slice(0, txDisplayCount.value));
+const txHasMore = computed(() => txDisplayCount.value < sortedTransactions.value.length);
+const txLoadMore = () => { txDisplayCount.value += 15; };
+const txBottomSentinel = ref(null);
+let txObserver = null;
+
+watch(() => activeTab.value, async (newTab) => {
+    // Setup for per-match tab
+    if (newTab === 'per-match') {
+        await nextTick();
+        if (pmBottomSentinel.value) {
+            if (!pmObserver) {
+                pmObserver = new IntersectionObserver((entries) => {
+                    if (entries[0].isIntersecting && pmHasMore.value) {
+                        pmLoadMore();
+                    }
+                }, { rootMargin: '200px' });
+            }
+            pmObserver.observe(pmBottomSentinel.value);
+        }
+    } else {
+        if (pmObserver) {
+            pmObserver.disconnect();
+            pmObserver = null;
+        }
+    }
+    
+    // Setup for transactions tab
+    if (newTab === 'transactions') {
+        await nextTick();
+        if (txBottomSentinel.value) {
+            if (!txObserver) {
+                txObserver = new IntersectionObserver((entries) => {
+                    if (entries[0].isIntersecting && txHasMore.value) {
+                        txLoadMore();
+                    }
+                }, { rootMargin: '200px' });
+            }
+            txObserver.observe(txBottomSentinel.value);
+        }
+    } else {
+        if (txObserver) {
+            txObserver.disconnect();
+            txObserver = null;
+        }
+    }
+}, { immediate: true });
+
+onUnmounted(() => {
+    if (pmObserver) {
+        pmObserver.disconnect();
+        pmObserver = null;
+    }
+    if (txObserver) {
+        txObserver.disconnect();
+        txObserver = null;
+    }
+});
+
 const pmGrandTotalCollected = computed(() => pmAllStats.value.reduce((a, s) => a + s.totalCollected, 0));
-const pmOpenDetail = (id) => { pmDetailMatchId.value = id; showPMDetailModal.value = true; };
-const pmDetailMatch = computed(() => pmDetailMatchId.value ? matches.value.find(m => m.id === pmDetailMatchId.value) : null);
 const pmDetailMatchRevenue = computed(() => {
-    const match = pmDetailMatch.value;
-    if (!match) return { totalPerMatchPlayers: 0, attendedPerMatchPlayers: 0, totalRevenue: 0, totalCollected: 0, players: [] };
-    const players = pmPerMatchMembers.value.map(m => ({ id: m.id, name: m.name, perMatchFee: m.perMatchFee || 50000, attended: pmIsAttended(match, m.id), isPaid: pmIsPaid(m.id, match.id) }));
+    const m = pmDetailMatch.value; if (!m) return { players: [] };
+    const players = pmPerMatchMembers.value.map(mem => ({ id: mem.id, name: mem.name, perMatchFee: mem.perMatchFee || 50000, attended: m.attendance?.[mem.id]?.status === 'present', isPaid: pmIsPaid(mem.id, m.id) }));
     const attended = players.filter(p => p.attended);
-    return { totalPerMatchPlayers: players.length, attendedPerMatchPlayers: attended.length, totalRevenue: attended.reduce((a, p) => a + p.perMatchFee, 0), totalCollected: attended.filter(p => p.isPaid).reduce((a, p) => a + p.perMatchFee, 0), players };
+    return { totalRevenue: attended.reduce((a, p) => a + p.perMatchFee, 0), totalCollected: attended.filter(p => p.isPaid).reduce((a, p) => a + p.perMatchFee, 0), players };
 });
 
 const pmCollectFeeModal = async (player) => {
-    const match = pmDetailMatch.value;
-    if (!match) return;
-    if (confirm(`Thu tiền trận của ${player.name}?\nSố tiền: ${formatCurrency(player.perMatchFee)}`)) {
-        await addTransaction({ type: 'income', category: 'per_match_fund', amount: player.perMatchFee, description: `Thu tiền trận ${pmFormatDate(match.date)} - ${player.name}`, date: match.date || new Date().toISOString(), memberId: player.id, perMatchFundMeta: { matchId: match.id, matchDate: match.date } });
+    if (confirm(`Thu tiền trận của ${player.name}?`)) {
+        await addTransaction({ type: 'income', category: 'per_match_fund', amount: player.perMatchFee, description: `Thu tiền trận ${pmFormatDate(pmDetailMatch.value.date)} - ${player.name}`, date: pmDetailMatch.value.date, memberId: player.id, perMatchFundMeta: { matchId: pmDetailMatch.value.id } });
     }
 };
 
 const pmUndoCollectFeeModal = async (player) => {
-    const match = pmDetailMatch.value;
-    if (!match) return;
-    const tId = pmCollectedMap.value[`${player.id}-${match.id}`];
-    if (tId && confirm(`Hoàn tác thu tiền của ${player.name}?`)) { await deleteTransaction(tId); }
+    const tx = transactions.value.find(t => t.category === 'per_match_fund' && t.memberId === player.id && t.perMatchFundMeta?.matchId === pmDetailMatch.value.id);
+    if (tx && confirm('Hoàn tác thu tiền?')) await deleteTransaction(tx.id);
 };
-
-const pmFormatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' }) : '—';
 </script>
 
 <style scoped>
-.tabs { display: flex; gap: 1rem; border-bottom: 2px solid var(--border-primary); margin-bottom: 2rem; padding: 0.5rem; background: rgba(0,0,0,0.1); border-radius: var(--radius-lg); overflow-x: auto; }
-.tab-btn { padding: 0.75rem 1.5rem; background: none; border: none; font-weight: 600; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-md); white-space: nowrap; position: relative; }
-.tab-btn.active { color: var(--primary-400); background: rgba(59, 130, 246, 0.1); }
-.tab-badge { position: absolute; top: -5px; right: -5px; background: var(--danger-500); color: white; width: 18px; height: 18px; font-size: 0.65rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px var(--danger-500); }
-
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-.stat-card { padding: 1.5rem; border-radius: var(--radius-xl); background: var(--bg-secondary); border: 1px solid var(--border-primary); }
-.stat-label { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.5rem; }
-.stat-value { font-size: 1.5rem; font-weight: 700; }
-
-.page-actions { display: flex; gap: 1rem; margin-bottom: 2.5rem; }
-
-.btn-hero {
-    padding: 0.85rem 1.75rem;
-    font-size: 1rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    border-radius: var(--radius-lg);
-    transition: all var(--transition-normal);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    box-shadow: var(--shadow-md);
+.tabs { 
+    display: flex; 
+    gap: 4px; 
+    border-bottom: 1px solid var(--border-color); 
+    margin-bottom: 24px; 
+    padding: 2px; 
+    background: var(--bg-tertiary); 
+    border-radius: var(--radius-md); 
+    overflow-x: auto; 
 }
 
-.btn-hero svg {
-    width: 20px;
-    height: 20px;
-    opacity: 0.9;
+.tab-btn { 
+    padding: 14px 20px; 
+    background: none; 
+    border: none; 
+    font-weight: 500; 
+    color: var(--text-secondary); 
+    cursor: pointer; 
+    border-radius: var(--radius-sm); 
+    white-space: nowrap; 
+    position: relative; 
+    font-size: 14px;
+    transition: all 0.2s;
 }
 
-.btn-hero-income {
-    background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%);
-    box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+.tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+.tab-btn.active { color: var(--primary-600); background: var(--bg-secondary); box-shadow: var(--shadow-sm); font-weight: 700; }
+
+.tab-badge { 
+    position: absolute; top: 2px; right: 2px; background: var(--danger); color: white; min-width: 16px; height: 16px; 
+    font-size: 10px; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 0 4px;
 }
 
-.btn-hero-expense {
-    background: linear-gradient(135deg, var(--danger-500) 0%, var(--danger-600) 100%);
-    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
-}
+.summary-badge { padding: 4px 12px; border-radius: var(--radius-full); font-weight: 700; font-size: 11px; }
+.summary-badge.warning { background: rgba(245, 158, 11, 0.1); color: #f08c00; border: 1px solid rgba(245, 158, 11, 0.3); }
+.summary-badge.danger { background: rgba(239, 68, 68, 0.1); color: #f03e3e; border: 1px solid rgba(239, 68, 68, 0.3); }
 
-.btn-hero:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
-    filter: brightness(1.1);
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-.btn-hero:active {
-    transform: translateY(-1px) scale(0.98);
-}
-
-.summary-badge { padding: 0.5rem 1rem; border-radius: var(--radius-full); font-weight: 600; font-size: 0.85rem; }
-.summary-badge.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b; }
-.summary-badge.danger { background: rgba(239, 68, 68, 0.1); color: var(--danger-500); border: 1px solid var(--danger-500); }
-
-.debt-cell { display: flex; flex-direction: column; gap: 0.25rem; }
-.paid { color: var(--success-500); font-weight: 600; }
+.debt-cell { display: flex; flex-direction: column; gap: 2px; }
+.paid { color: var(--success); font-weight: 700; }
 .required { color: var(--text-muted); }
-.separator { margin: 0 0.25rem; color: var(--border-primary); }
-.debt-amount { font-size: 0.8rem; font-weight: 700; margin-top: 0.25rem; }
+.separator { margin: 0 4px; color: var(--border-color); }
+.debt-amount { font-size: 11px; font-weight: 700; }
 
-.action-buttons-group { display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; }
+.action-buttons-group { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
 
-.matrix-table { border-collapse: separate; border-spacing: 2px; }
-.matrix-table .sticky-col { position: sticky; left: 0; background: var(--bg-secondary); z-index: 1; border-right: 1px solid var(--border-primary); }
-.matrix-table th.text-center { width: 45px; min-width: 45px; }
-.matrix-table td.text-center { cursor: help; transition: transform 0.1s; font-weight: 700; height: 45px; }
-.status-paid { background: rgba(34, 197, 94, 0.2); color: var(--success-400); }
-.status-partial { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-.status-unpaid { background: rgba(239, 68, 68, 0.2); color: var(--danger-400); }
-.status-future { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); }
-.status-na { background: rgba(0, 0, 0, 0.2); color: var(--text-muted); font-style: italic; }
-
-.link { color: var(--primary-400); text-decoration: none; font-weight: 600; }
-.link:hover { text-decoration: underline; }
-
-/* MONTHLY FUND STYLES */
-.year-selector { height: 42px; padding-left: 1rem !important; padding-right: 2.75rem !important; font-weight: 600; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-primary); color: var(--text-primary); }
-.info-notice { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-lg); padding: 1rem; display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
-.notice-icon { font-size: 1.25rem; }
-.table-wrapper { overflow: auto; margin-bottom: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-primary); max-height: 600px; }
+/* MONTHLY FUND TABLE */
+.table-wrapper { overflow: auto; margin-bottom: 24px; border-radius: var(--radius-md); border: 1px solid var(--border-color); max-height: 600px; }
 .monthly-fund-table { width: 100%; border-collapse: collapse; background: var(--bg-secondary); }
-.monthly-fund-table th, .monthly-fund-table td { padding: 0.75rem 1rem; border: 1px solid var(--border-primary); text-align: center; }
-.monthly-fund-table thead th { position: sticky; top: -1px; z-index: 100; background: #111a2e; border-bottom: 2px solid rgba(255,255,255,0.2); font-weight: 950; height: 45px; text-transform: uppercase; color: #fff; vertical-align: middle; box-shadow: 0 1px 0 #111a2e; font-size: 0.85rem; }
-.monthly-fund-table thead tr:nth-child(2) th { top: 44px; z-index: 100; height: 38px; background: #1e293b; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); box-shadow: 0 1px 0 #1e293b; font-size: 0.75rem; padding: 0.25rem 0.5rem; }
-.monthly-fund-table tfoot td { position: sticky; z-index: 100; background: #111a2e; border-top: 1px solid rgba(255,255,255,0.1); font-weight: 850; height: 42px; vertical-align: middle; box-shadow: 0 1px 0 #111a2e, 0 -2px 0 #111a2e; font-size: 0.8rem; }
-.amount-summary-row td { bottom: -1px; border-top: 2px solid rgba(255,255,255,0.2) !important; }
-.summary-row td { bottom: 41px; }
-.mf-sticky-col { position: sticky; left: 0; background: #111a2e; z-index: 90; font-weight: 850; border-right: 2px solid var(--border-primary) !important; color: #fff; }
-.monthly-fund-table thead th.mf-sticky-col { z-index: 120; }
-.monthly-fund-table tfoot td.mf-sticky-col { z-index: 120; }
-.mf-name-col { min-width: 250px; text-align: left !important; left: 60px; }
-.mf-sticky-col:first-child { width: 60px; border-left: none; }
-.months-header { background: rgba(59, 130, 246, 0.15); font-weight: 900; color: #fff; }
-.month-col { width: 45px; min-width: 45px; font-size: 0.85rem; }
-.current-month { background: rgba(59, 130, 246, 0.25); border: 2px solid var(--primary-500) !important; }
-.member-info { display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-.tier-badge-small { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; white-space: nowrap; font-weight: 700; }
-.month-cell { position: relative; padding: 0 !important; background: rgba(15, 23, 42, 0.3); }
-.future-month { background: rgba(255, 255, 255, 0.02); }
-.checkbox-wrapper { display: flex; align-items: center; justify-content: center; width: 100%; height: 45px; cursor: pointer; transition: background 0.2s; }
-.checkbox-wrapper:hover:not(.disabled) { background: rgba(255, 255, 255, 0.05); }
+.monthly-fund-table th, .monthly-fund-table td { padding: 8px 12px; border: 1px solid var(--border-color); text-align: center; font-size: 12px; }
+
+.monthly-fund-table thead th { 
+    position: sticky; top: -1px; z-index: 100; background: var(--bg-tertiary); font-weight: 700; color: var(--text-primary); text-transform: uppercase; font-size: 11px;
+}
+.monthly-fund-table thead tr:nth-child(2) th { top: 31px; background: var(--bg-tertiary); height: 32px; font-size: 10px; }
+.monthly-fund-table tfoot td { position: sticky; bottom: -1px; z-index: 100; background: var(--bg-tertiary); font-weight: 700; color: var(--text-primary); }
+
+.mf-sticky-col { position: sticky; left: 0; background: var(--bg-secondary); z-index: 90; font-weight: 700; border-right: 2px solid var(--border-color) !important; }
+.monthly-fund-table thead th.mf-sticky-col, .monthly-fund-table tfoot td.mf-sticky-col { background: var(--bg-tertiary); z-index: 120; }
+.mf-name-col { min-width: 250px; text-align: left !important; left: 40px; }
+.monthly-fund-table thead th.mf-name-col { left: 40px; }
+
+.current-month { background: rgba(37, 99, 235, 0.15) !important; border: 2px solid var(--primary-500) !important; color: var(--primary-400) !important; }
+.tier-badge-small { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: 8px; }
+
+.month-cell { position: relative; padding: 0 !important; }
+.future-month { background: var(--bg-tertiary); opacity: 0.6; }
+
+.checkbox-wrapper { display: flex; align-items: center; justify-content: center; width: 100%; height: 40px; cursor: pointer; }
+.checkbox-wrapper:hover:not(.disabled) { background: var(--bg-hover); }
 .checkbox-wrapper input { display: none; }
-.checkmark { width: 22px; height: 22px; border: 2px solid var(--border-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-.checkmark::after { content: '✔'; display: none; color: white; font-weight: 700; font-size: 14px; }
-.checkbox-wrapper input:checked + .checkmark { background: var(--success-500); border-color: var(--success-500); box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
+.checkmark { width: 18px; height: 18px; border: 1px solid var(--border-color); border-radius: 4px; display: flex; align-items: center; justify-content: center; background: var(--bg-secondary); }
+.checkmark::after { content: '✔'; display: none; color: white; font-weight: 700; font-size: 12px; }
+.checkbox-wrapper input:checked + .checkmark { background: var(--success); border-color: var(--success); }
 .checkbox-wrapper input:checked + .checkmark::after { display: block; }
-.checkbox-wrapper.disabled { cursor: not-allowed; opacity: 0.5; }
-.summary-row, .amount-summary-row { background: #111a2e; }
-.summary-row td, .amount-summary-row td { color: var(--text-primary); }
-.statistics-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem; }
-.mf-stat-card { background: var(--bg-tertiary); padding: 1rem; border-radius: var(--radius-lg); border: 1px solid var(--border-primary); display: flex; align-items: center; gap: 1rem; }
-.mf-stat-icon { font-size: 1.5rem; }
-.mf-stat-info { display: flex; flex-direction: column; }
-.mf-stat-card.success { border-color: var(--success-500); background: rgba(34, 197, 94, 0.05); }
-.mf-stat-card.warning { border-color: var(--warning-500); background: rgba(245, 158, 11, 0.05); }
+
+.statistics-summary { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+    gap: var(--spacing-6); 
+    margin-bottom: var(--spacing-6); 
+}
+
+.mf-stat-card { 
+    background: var(--bg-secondary); 
+    padding: var(--container-padding); 
+    border-radius: var(--radius-md); 
+    border: 1px solid var(--border-color); 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+}
+.mf-stat-icon { font-size: 20px; }
+.mf-stat-card.success { border-color: var(--success); background: rgba(16, 185, 129, 0.1); }
+.mf-stat-card.warning { border-color: var(--warning); background: rgba(245, 158, 11, 0.1); }
 
 /* PER MATCH STYLES */
-.row-absent { opacity: 0.6; background: rgba(0,0,0,0.05); }
-.row-paid { background: rgba(34, 197, 94, 0.05); }
-.selected-row { background: rgba(59, 130, 246, 0.1) !important; border-left: 4px solid var(--primary-500); }
+.row-absent { opacity: 0.6; }
+.row-paid { background: rgba(16, 185, 129, 0.08); }
+.selected-row { background: rgba(37, 99, 235, 0.1) !important; border-left: 4px solid var(--primary-400); }
 </style>

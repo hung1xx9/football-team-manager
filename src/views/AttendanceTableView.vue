@@ -1,11 +1,74 @@
 <template>
     <div class="view-container">
-        <div v-if="editingCell" class="edit-backdrop" @click="cancelEdit"></div>
+        <!-- Spotlight Highlight & Popover UI -->
+        <Transition name="fade">
+            <div v-if="editingCell" class="spotlight-overlay" @click="cancelEdit">
+                <!-- Crosshair for Row and Column -->
+                <div class="row-spotlight" :style="rowSpotlightStyle"></div>
+                <div class="col-spotlight" :style="colSpotlightStyle"></div>
+
+                <!-- Selected Cell content cloned into a spotlight -->
+                <div class="cell-spotlight" :style="spotlightStyle" :class="editingCellStatusClass">
+                    <div class="status-inner">
+                        <div class="status-indicator"></div>
+                        <span class="status-label-text">{{ editingCellStatusLabel }}</span>
+                        <span v-if="editStatus === 'late'" class="late-minutes-text">
+                            ({{ editLateMinutes }}')
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Popover positioned near the spotlight -->
+                <Transition name="popover-zoom" appear>
+                    <div class="edit-popover" :style="popoverStyle" @click.stop>
+                        <div class="popover-header">
+                            <div class="popover-title">Ghi chú điểm danh</div>
+                            <div class="popover-subtitle">{{ editingMember?.name }} • {{ editingMatchDate }}</div>
+                        </div>
+                        <div class="popover-body">
+                            <div class="status-options">
+                                <button type="button" class="opt-btn opt-present" :class="{ active: editStatus === 'present' }" @click.stop="editStatus = 'present'">Có mặt</button>
+                                <button type="button" class="opt-btn opt-late" :class="{ active: editStatus === 'late' }" @click.stop="editStatus = 'late'">Muộn</button>
+                                <button type="button" class="opt-btn opt-absent" :class="{ active: editStatus === 'absent' }" @click.stop="editStatus = 'absent'">Vắng</button>
+                            </div>
+
+                            <div v-if="editStatus === 'absent'" class="extra-field">
+                                <label class="custom-switch" :class="{ checked: editIsCP }" @click.stop="editIsCP = !editIsCP">
+                                    <div class="switch-track"><div class="switch-thumb"></div></div>
+                                    <span class="switch-label">Vắng có phép (CP)</span>
+                                </label>
+                            </div>
+
+                            <div v-if="editStatus === 'late'" class="extra-field">
+                                <div class="minutes-box">
+                                    <label>Số phút đến muộn:</label>
+                                    <div class="stepper-row">
+                                        <button type="button" class="stepper-btn" @click.stop="editLateMinutes = Math.max(0, editLateMinutes - 5)">-5</button>
+                                        <button type="button" class="stepper-btn" @click.stop="editLateMinutes = Math.max(0, editLateMinutes - 1)">-</button>
+                                        <div class="stepper-display">
+                                            <input type="number" v-model="editLateMinutes" class="stepper-input" min="0" v-focus @keyup.enter="handleGlobalSave" @click.stop>
+                                            <span class="stepper-unit">phút</span>
+                                        </div>
+                                        <button type="button" class="stepper-btn" @click.stop="editLateMinutes += 1">+</button>
+                                        <button type="button" class="stepper-btn" @click.stop="editLateMinutes += 5">+5</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="popover-footer">
+                            <button type="button" class="pop-btn-secondary" @click.stop="cancelEdit">Hủy</button>
+                            <button type="button" class="pop-btn-primary" @click.stop="handleGlobalSave">Lưu thay đổi</button>
+                        </div>
+                    </div>
+                </Transition>
+            </div>
+        </Transition>
+
         <div class="page-content">
             <div class="table-controls">
                 <div class="month-selector">
-                    <button class="btn btn-sm btn-secondary" @click="prevMonth">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="btn btn-sm btn-ghost" @click="prevMonth">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
                             <polyline points="15 18 9 12 15 6"></polyline>
                         </svg>
                     </button>
@@ -13,8 +76,8 @@
                         <h2>{{ displayMonth }}</h2>
                         <p>{{ displayYear }}</p>
                     </div>
-                    <button class="btn btn-sm btn-secondary" @click="nextMonth">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="btn btn-sm btn-ghost" @click="nextMonth">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
                             <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
                     </button>
@@ -27,7 +90,7 @@
                 </div>
                 <div v-if="monthMatches.length > 0 && canEdit" class="table-actions">
                     <button class="btn btn-primary" @click="showFinalizeModal = true">
-                        🏁 Chốt trận & Tính phạt
+                        🏁 Chốt & Tính phạt
                     </button>
                 </div>
             </div>
@@ -37,14 +100,14 @@
                     <thead>
                         <tr>
                             <th rowspan="2" class="sticky-col header-cell stt-header">STT</th>
-                            <th rowspan="2" class="sticky-col-name header-cell name-header">Tên thành viên</th>
+                            <th rowspan="2" class="sticky-col-name header-cell name-header">HỌ VÀ TÊN</th>
                             <th class="header-cell month-header" :colspan="Math.max(monthMatches.length, 5)">
-                                {{ displayMonth }}
+                                {{ displayMonth }} {{ displayYear }}
                             </th>
                         </tr>
                         <tr>
                             <th v-for="match in monthMatches" :key="match.id" class="date-header" :class="{ 'is-finalized': match.finalized }">
-                                Trận<br>{{ formatDateShort(match.date) }}
+                                {{ formatDateShort(match.date) }}
                                 <span v-if="match.finalized" class="finalized-badge" title="Đã chốt nợ">✔️</span>
                             </th>
                             <th v-for="i in Math.max(0, 5 - monthMatches.length)" :key="`empty-${i}`" class="date-header">
@@ -59,7 +122,7 @@
                             <td v-for="match in monthMatches" :key="match.id" 
                                 class="status-cell" 
                                 :class="[getStatusClass(member.id, match), { 'is-editable': canEdit, 'active-editing': isEditing(member.id, match.id) }]"
-                                @click="startEdit(member.id, match)"
+                                @click="startEdit(member.id, match, $event)"
                             >
                                 <div class="status-inner">
                                     <div class="status-indicator"></div>
@@ -67,37 +130,6 @@
                                     <span v-if="getInternalStatus(member.id, match) === 'late'" class="late-minutes-text">
                                         ({{ getLateMinutes(member.id, match) }}')
                                     </span>
-                                </div>
-
-                                <!-- Edit Popover -->
-                                <div v-if="isEditing(member.id, match.id)" class="edit-popover" @click.stop>
-                                    <div class="popover-header">
-                                        <div class="popover-title">Cập nhật điểm danh</div>
-                                        <div class="popover-subtitle">{{ member.name }} - Trận {{ formatDateShort(match.date) }}</div>
-                                    </div>
-                                    <div class="popover-body">
-                                        <div class="status-toggle">
-                                            <button type="button" class="status-btn btn-present" :class="{ active: editStatus === 'present' }" @click.stop="editStatus = 'present'">Có mặt</button>
-                                            <button type="button" class="status-btn btn-late" :class="{ active: editStatus === 'late' }" @click.stop="editStatus = 'late'">Muộn</button>
-                                            <button type="button" class="status-btn btn-absent" :class="{ active: editStatus === 'absent' }" @click.stop="editStatus = 'absent'">Vắng</button>
-                                        </div>
-
-                                        <div v-if="editStatus === 'absent'" class="cp-checkbox-container" @click.stop>
-                                            <label class="checkbox-label">
-                                                <input type="checkbox" v-model="editIsCP">
-                                                <span>Có phép (CP)</span>
-                                            </label>
-                                        </div>
-
-                                        <div v-if="editStatus === 'late'" class="late-input-container">
-                                            <label>Số phút muộn:</label>
-                                            <input type="number" v-model="editLateMinutes" class="compact-input" min="1" v-focus @keyup.enter="saveEdit(member.id, match)" @click.stop>
-                                        </div>
-                                    </div>
-                                    <div class="popover-footer">
-                                        <button type="button" class="btn btn-sm btn-secondary" @click.stop="cancelEdit">Hủy</button>
-                                        <button type="button" class="btn btn-sm btn-primary" @click.stop="saveEdit(member.id, match)">Lưu</button>
-                                    </div>
                                 </div>
                             </td>
                             <!-- Fill empty cells if few matches in month -->
@@ -159,13 +191,13 @@
                     </div>
 
                     <div class="alert alert-info" style="margin-top: 1rem;">
-                        💡 Khi "Chốt", hệ thống sẽ tự động tạo hóa đơn nợ cho các thành viên trên. Sau khi chốt, bạn vẫn có thể sửa điểm danh nhưng nợ sẽ không tự động thay đổi.
+                        💡 Khi "Chốt", hệ thống sẽ tự động tạo hóa đơn nợ cho các thành viên trên.
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" @click="showFinalizeModal = false">Hủy</button>
                     <button class="btn btn-primary" :disabled="!selectedMatchToFinalize || selectedMatchToFinalize.finalized" @click="handleFinalize">
-                        🚀 Xác nhận Chốt & Ghi Nợ
+                        Chốt & Tính phạt
                     </button>
                 </div>
             </div>
@@ -175,16 +207,17 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useBreakpoints } from '../composables/useBreakpoints';
 import { useAppState } from '../composables/useAppState';
 import { useAuth } from '../composables/useAuth';
 import { usePenalties } from '../composables/usePenalties';
 import BaseSelect from '../components/BaseSelect.vue';
 
+const { isMobile } = useBreakpoints();
 const { members, matches, hasApprovedLeave, saveMatch, finalizeMatch, getMemberName } = useAppState();
 const { isAdmin, isAccountant } = useAuth();
 const { getLatePenalty, absentPenalty } = usePenalties();
 
-// Focus directive
 const vFocus = {
     mounted: (el) => el.focus()
 };
@@ -195,6 +228,42 @@ const editingCell = ref(null);
 const editStatus = ref("");
 const editIsCP = ref(false);
 const editLateMinutes = ref(0);
+const popoverStyle = ref({});
+const spotlightStyle = ref({});
+const rowSpotlightStyle = ref({});
+const colSpotlightStyle = ref({});
+
+const editingMember = computed(() => {
+    if (!editingCell.value) return null;
+    return members.value.find(m => m.id === editingCell.value.memberId);
+});
+
+const editingCellStatusClass = computed(() => {
+    if (!editingCell.value) return '';
+    const isLate = editStatus.value === 'late';
+    const isCP = editStatus.value === 'absent' && editIsCP.value;
+    const s = isCP ? 'absent-cp' : (isLate ? 'late' : editStatus.value);
+    return `status-${s}`;
+});
+
+const editingCellStatusLabel = computed(() => {
+    if (!editStatus.value) return '';
+    if (editStatus.value === 'late') return 'muộn';
+    if (editStatus.value === 'absent') {
+        return editIsCP.value ? 'vắng (CP)' : 'vắng';
+    }
+    return 'có mặt';
+});
+
+const editingMatchDate = computed(() => {
+    if (!editingCell.value) return '';
+    return formatDateShort(editingCell.value.match.date);
+});
+
+const handleGlobalSave = () => {
+    if (!editingCell.value) return;
+    saveEdit(editingCell.value.memberId, editingCell.value.match);
+};
 
 const showFinalizeModal = ref(false);
 const selectedMatchToFinalize = ref(null);
@@ -207,14 +276,10 @@ const matchOptions = computed(() => monthMatches.value.map(match => ({
 
 const previewPenalties = computed(() => {
     if (!selectedMatchToFinalize.value) return [];
-    
     const penalties = [];
     const match = selectedMatchToFinalize.value;
-    
-    // Check members for each match
     members.value.forEach(member => {
         const att = match.attendance?.find(a => a.memberId === member.id);
-        
         if (att) {
             if (att.status === 'present' && att.isLate) {
                 penalties.push({
@@ -231,19 +296,15 @@ const previewPenalties = computed(() => {
                     description: `Vắng không phép (Trận ${formatDateShort(match.date)})`
                 });
             }
-        } else {
-             // No attendance record = Absent (unexcused if no leave approved)
-             if (!hasApprovedLeave(member.id, match.date)) {
-                 penalties.push({
-                     memberId: member.id,
-                     amount: absentPenalty.value,
-                     type: 'fine',
-                     description: `Vắng không phép (Trận ${formatDateShort(match.date)})`
-                 });
-             }
+        } else if (!hasApprovedLeave(member.id, match.date)) {
+            penalties.push({
+                memberId: member.id,
+                amount: absentPenalty.value,
+                type: 'fine',
+                description: `Vắng không phép (Trận ${formatDateShort(match.date)})`
+            });
         }
     });
-    
     return penalties;
 });
 
@@ -272,7 +333,8 @@ const currentMonthStr = ref((() => {
 
 const displayMonth = computed(() => {
     const [_, m] = currentMonthStr.value.split("-");
-    return `Tháng ${parseInt(m)}`;
+    const months = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+    return months[parseInt(m) - 1];
 });
 
 const displayYear = computed(() => {
@@ -304,10 +366,51 @@ const nextMonth = () => {
 
 const isEditing = (mId, matchId) => editingCell.value && editingCell.value.memberId === mId && editingCell.value.matchId === matchId;
 
-const startEdit = (mId, match) => {
+const startEdit = (mId, match, event) => {
     if (!canEdit.value) return;
     const att = match.attendance?.find(a => a.memberId === mId);
-    editingCell.value = { memberId: mId, matchId: match.id };
+    
+    // Spotlight & Popover Positioning
+    const cell = event ? event.currentTarget : null;
+    if (cell) {
+        const rect = cell.getBoundingClientRect();
+        
+        // Calculate crosshair boundaries based on table wrapper
+        const wrapper = document.querySelector('.table-wrapper');
+        const wrapRect = wrapper ? wrapper.getBoundingClientRect() : { left: 0, width: window.innerWidth, top: 0, height: window.innerHeight };
+
+        // Horizontal Crosshair
+        rowSpotlightStyle.value = {
+            top: rect.top + 'px',
+            height: rect.height + 'px',
+            left: wrapRect.left + 'px',
+            width: wrapRect.width + 'px'
+        };
+        // Vertical Crosshair
+        colSpotlightStyle.value = {
+            left: rect.left + 'px',
+            width: rect.width + 'px',
+            top: (wrapRect.top + 80) + 'px', // Adjusted for header
+            height: (wrapRect.height - 80) + 'px'
+        };
+
+        spotlightStyle.value = {
+            top: rect.top + 'px',
+            left: rect.left + 'px',
+            width: rect.width + 'px',
+            height: rect.height + 'px'
+        };
+
+        const popoverHeight = 250;
+        const showBelow = (window.innerHeight - rect.bottom) > (popoverHeight + 20);
+
+        popoverStyle.value = {
+            top: showBelow ? (rect.bottom + 12) + 'px' : (rect.top - popoverHeight - 12) + 'px',
+            left: Math.max(10, Math.min(window.innerWidth - 310, rect.left + rect.width / 2 - 150)) + 'px'
+        };
+    }
+
+    editingCell.value = { memberId: mId, matchId: match.id, match: match };
     
     if (att) {
         if (att.status === "present") {
@@ -339,10 +442,8 @@ const saveEdit = async (mId, match) => {
         const isCP = editStatus.value === "absent" && editIsCP.value;
         const status = isCP ? "absent-cp" : (isLate ? "present" : editStatus.value);
         const lateMinutes = isLate ? parseInt(editLateMinutes.value) || 0 : 0;
-        
-        const attendance = [...(match.attendance || [])];
-        const idx = attendance.findIndex(a => a.memberId === mId);
-        
+        const attendance = Array.isArray(match.attendance) ? [...match.attendance] : (match.attendance ? Object.values(match.attendance) : []);
+        const idx = attendance.findIndex(a => String(a.memberId) === String(mId));
         const newRecord = {
             memberId: mId,
             status,
@@ -352,13 +453,8 @@ const saveEdit = async (mId, match) => {
             timestamp: new Date().toISOString(),
             attendanceMethod: "table-edit"
         };
-        
-        if (idx !== -1) {
-            attendance[idx] = newRecord;
-        } else {
-            attendance.push(newRecord);
-        }
-        
+        if (idx !== -1) attendance[idx] = newRecord;
+        else attendance.push(newRecord);
         const updatedMatch = { ...match, attendance };
         editingCell.value = null;
         await saveMatch(updatedMatch);
@@ -369,17 +465,15 @@ const saveEdit = async (mId, match) => {
 };
 
 const getLateMinutes = (mId, match) => {
-    return match.attendance?.find(a => a.memberId === mId)?.lateMinutes || 0;
-};
+  const attList = Array.isArray(match.attendance) ? match.attendance : (match.attendance ? Object.values(match.attendance) : []);
+  return attList.find(a => String(a.memberId) === String(mId))?.lateMinutes || 0;
+}
 
 const getInternalStatus = (mId, match) => {
-    const att = match.attendance?.find(a => a.memberId === mId);
-    if (att && att.status === "present") {
-        return att.isLate ? "late" : "present";
-    }
-    if (hasApprovedLeave(mId, match.date)) {
-        return "absent-cp";
-    }
+    const attList = Array.isArray(match.attendance) ? match.attendance : (match.attendance ? Object.values(match.attendance) : []);
+    const att = attList.find(a => String(a.memberId) === String(mId));
+    if (att && att.status === "present") return att.isLate ? "late" : "present";
+    if (hasApprovedLeave(mId, match.date)) return "absent-cp";
     return att?.status || "absent";
 };
 
@@ -403,125 +497,119 @@ const formatDateShort = (date) => new Date(date).toLocaleDateString("vi-VN", {
 </script>
 
 <style scoped>
-.table-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-.month-selector { display: flex; align-items: center; gap: 2rem; background: var(--bg-secondary); padding: 1rem 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-primary); box-shadow: var(--shadow-md); }
-.current-month { text-align: center; min-width: 140px; }
-.current-month h2 { font-size: 1.4rem; margin: 0; color: #fff; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-.current-month p { font-size: 0.85rem; color: var(--primary-400); margin: 0; font-weight: 700; }
-.month-selector button { width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; }
-.month-selector button svg { width: 24px; height: 24px; }
+.table-controls { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 24px; 
+    flex-wrap: wrap;
+    gap: 16px;
+}
 
-.legend { display: flex; gap: 1.5rem; background: rgba(0,0,0,0.2); padding: 0.75rem 1.5rem; border-radius: var(--radius-full); border: 1px solid var(--border-primary); }
-.legend-item { display: flex; align-items: center; gap: 0.6rem; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
-.legend-color { width: 10px; height: 10px; border-radius: 50%; }
+.month-selector { 
+    display: flex; 
+    align-items: center; 
+    gap: 24px; 
+    background: var(--bg-secondary); 
+    padding: 8px 16px; 
+    border-radius: var(--radius-md); 
+    border: 1px solid var(--border-color); 
+    box-shadow: var(--shadow-sm); 
+}
+
+.current-month { text-align: center; min-width: 120px; }
+.current-month h2 { 
+    font-size: 16px; 
+    margin: 0; 
+    color: var(--text-primary); 
+    font-weight: 700; 
+}
+.current-month p { 
+    font-size: 12px; 
+    color: var(--text-secondary); 
+    margin: 0; 
+    font-weight: 500; 
+}
+
+.legend { 
+    display: flex; 
+    align-items: center;
+    gap: 20px; 
+    background: var(--bg-secondary); 
+    padding: 10px 24px; 
+    border-radius: var(--radius-full); 
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.legend-item { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    font-size: 11px; 
+    font-weight: 800; 
+    color: var(--text-secondary); 
+    text-transform: uppercase; 
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.legend-color { 
+    width: 8px; 
+    height: 8px; 
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+}
+
+.legend-color.status-present { background: var(--success); box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
+.legend-color.status-late { background: #d6336c; box-shadow: 0 0 8px rgba(214, 51, 108, 0.4); }
+.legend-color.status-absent-cp { background: #f08c00; box-shadow: 0 0 8px rgba(240, 140, 0, 0.4); }
+.legend-color.status-absent { background: var(--danger); box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
 
 .table-wrapper { 
     overflow: auto; 
-    background: #0f172a; 
-    border-radius: var(--radius-xl); 
-    border: 1px solid var(--border-primary); 
-    max-height: 75vh;
-    box-shadow: var(--shadow-2xl);
+    background: var(--bg-secondary); 
+    border-radius: var(--radius-md); 
+    border: 1px solid var(--border-color); 
+    max-height: 70vh;
+    box-shadow: var(--shadow-sm);
     position: relative;
 }
 
-.attendance-table { 
-    width: 100%; 
-    border-collapse: separate; 
-    border-spacing: 0;
-}
+.attendance-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.sticky-col { position: sticky; left: 0; z-index: 10; width: 40px; min-width: 40px; text-align: center; border-right: 1px solid var(--border-color); }
+.sticky-col-name { position: sticky; left: 40px; z-index: 10; width: 180px; min-width: 150px; text-align: left; padding: 0 12px; border-right: 2px solid var(--border-color); }
 
-.sticky-col { 
-    position: sticky; 
-    left: 0; 
-    z-index: 10; 
-    width: 50px; 
-    min-width: 50px;
-    text-align: center; 
-    border-right: 1px solid rgba(255,255,255,0.05);
-}
+th.sticky-col, th.sticky-col-name { z-index: 110; background: var(--bg-tertiary); }
+td.sticky-col, td.sticky-col-name { background: var(--bg-secondary); }
 
-.sticky-col-name { 
-    position: sticky; 
-    left: 50px; 
-    z-index: 10; 
-    width: 180px; 
-    min-width: 180px;
-    text-align: left; 
-    padding: 0 1rem; 
-    border-right: 1px solid rgba(255,255,255,0.05);
-}
+.stt-cell { font-family: inherit; font-weight: 400; color: var(--text-secondary); font-size: 12px; }
+.name-cell { font-weight: 600; color: var(--text-primary); font-size: 13px; }
 
-th.sticky-col, th.sticky-col-name {
-    z-index: 110; /* Higher than other headers */
-    background: #1e293b;
-}
-
-td.sticky-col, td.sticky-col-name {
-    background: #0f172a;
-}
-
-.stt-cell { font-family: monospace; font-weight: 600; color: var(--text-secondary); }
-.name-cell { font-weight: 700; color: #fff; }
-
-/* Headers */
 .header-cell { 
-    background: #1e293b; 
-    padding: 0.6rem 1rem; 
-    font-size: 0.8rem; 
-    color: #fff; 
-    border-bottom: 1px solid rgba(255,255,255,0.1); 
-    font-weight: 900; 
+    background: var(--bg-tertiary); 
+    padding: 8px 12px; 
+    font-size: 11px; 
+    color: var(--text-primary); 
+    border-bottom: 1px solid var(--border-color); 
+    font-weight: 700; 
     position: sticky; 
     top: 0; 
     z-index: 100; 
-    height: 48px; 
+    height: 40px; 
     vertical-align: middle; 
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    box-shadow: 0 1px 0 rgba(255,255,255,0.1);
 }
 
-.month-header {
-    background: #111a2e;
-    color: var(--primary-400);
-    font-size: 1rem;
-    letter-spacing: 0.2em;
-}
-
+.month-header { background: var(--bg-tertiary); color: var(--primary-700); font-weight: 700; }
 .date-header { 
-    width: 110px; 
-    text-align: center; 
-    background: #0f172a; 
-    font-size: 0.65rem; 
-    color: var(--text-secondary); 
-    padding: 0.5rem; 
-    height: 42px; 
-    border-bottom: 2px solid var(--border-primary); 
-    border-right: 1px solid rgba(255,255,255,0.05); 
-    font-weight: 800; 
-    text-transform: uppercase; 
-    letter-spacing: 0.05em; 
-    position: sticky; 
-    top: 48px; 
-    z-index: 100; 
-    vertical-align: middle; 
-    box-shadow: 0 1px 0 var(--border-primary);
+    width: 100px; text-align: center; background: var(--bg-tertiary); font-size: 10px; color: var(--text-secondary); 
+    padding: 4px; height: 36px; border-bottom: 1px solid var(--border-color); border-right: 1px solid var(--border-color); 
+    font-weight: 600; position: sticky; top: 40px; z-index: 100;
 }
 
-.status-cell {
-    height: 65px; 
-    position: relative; 
-    padding: 6px; 
-    cursor: pointer;
-    background: rgba(15, 23, 42, 0.2);
-    transition: all 0.2s;
-}
-
-.status-cell:hover {
-    background: rgba(255,255,255,0.05);
-}
-
+.status-cell { height: 50px; position: relative; padding: 4px; cursor: pointer; transition: all 0.2s; }
+.status-cell:hover { background: var(--bg-hover); }
 .status-inner { 
     display: flex; 
     flex-direction: column; 
@@ -529,107 +617,135 @@ td.sticky-col, td.sticky-col-name {
     justify-content: center; 
     width: 100%; 
     height: 100%; 
-    border-radius: 10px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 6px; 
     border: 1px solid transparent;
 }
+.status-label-text { font-size: 10px; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+.status-indicator { width: 6px; height: 6px; border-radius: 50%; margin-bottom: 2px; }
 
-.status-label-text {
-    font-size: 0.65rem;
-    font-weight: 850;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 2px;
+.status-present .status-inner { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+.status-present .status-indicator { background: var(--success); }
+.status-late .status-inner { background: rgba(214, 51, 108, 0.1); color: #d6336c; }
+.status-late .status-indicator { background: #d6336c; }
+.status-absent .status-inner { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+.status-absent .status-indicator { background: var(--danger); opacity: 0.6; }
+.status-absent-cp .status-inner { background: rgba(240, 140, 0, 0.1); color: #f08c00; }
+.status-absent-cp .status-indicator { background: #f08c00; }
+
+/* Spotlight UI Styles */
+.spotlight-overlay {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.2); z-index: 2000;
 }
 
-.status-indicator {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    margin-bottom: 4px;
+.row-spotlight, .col-spotlight {
+    position: fixed;
+    background: var(--primary-50);
+    opacity: 0.07;
+    pointer-events: none;
+    z-index: 2000;
 }
 
-/* Status variants with glass effect */
-.status-present .status-inner { 
-    background: rgba(34, 197, 94, 0.1); 
-    border-color: rgba(34, 197, 94, 0.2); 
-    color: #4ade80; 
-}
-.status-present .status-indicator { background: #4ade80; box-shadow: 0 0 10px #4ade80; }
-.status-present:hover .status-inner { background: rgba(34, 197, 94, 0.2); transform: scale(0.96); }
-
-.status-late .status-inner { 
-    background: rgba(236, 72, 153, 0.1); 
-    border-color: rgba(236, 72, 153, 0.2); 
-    color: #f472b6; 
-}
-.status-late .status-indicator { background: #f472b6; box-shadow: 0 0 10px #f472b6; }
-.status-late:hover .status-inner { background: rgba(236, 72, 153, 0.2); transform: scale(0.96); }
-
-.status-absent .status-inner { 
-    background: rgba(239, 68, 68, 0.08); 
-    border-color: rgba(239, 68, 68, 0.15); 
-    color: #f87171; 
-}
-.status-absent .status-indicator { background: #f87171; opacity: 0.6; }
-.status-absent:hover .status-inner { background: rgba(239, 68, 68, 0.15); }
-
-.status-absent-cp .status-inner { 
-    background: rgba(245, 158, 11, 0.1); 
-    border-color: rgba(245, 158, 11, 0.2); 
-    color: #fbbf24; 
-}
-.status-absent-cp .status-indicator { background: #fbbf24; box-shadow: 0 0 10px #fbbf24; }
-.status-absent-cp:hover .status-inner { background: rgba(245, 158, 11, 0.2); transform: scale(0.96); }
-
-/* Legend colors */
-.legend-item .status-present { background-color: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
-.legend-item .status-late { background-color: #ec4899; box-shadow: 0 0 8px rgba(236, 72, 153, 0.5); }
-.legend-item .status-absent-cp { background-color: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.5); }
-.legend-item .status-absent { background-color: #ef4444; opacity: 0.7; }
-
-.late-minutes-text { font-size: 0.65rem; font-weight: 800; margin-bottom: 2px; }
-
-/* Edit Popover Enhancements */
-.edit-popover { 
-    position: absolute; 
-    top: 50%;
-    left: 50%; 
-    transform: translate(-50%, -50%); 
-    z-index: 1002; 
-    background: #1e293b; 
-    border: 1px solid var(--primary-500/30); 
-    border-radius: var(--radius-xl); 
-    box-shadow: 0 0 0 100vmax rgba(0,0,0,0.5), var(--shadow-2xl);
-    padding: 1.5rem; 
-    width: 320px;
-    backdrop-filter: blur(25px);
+.cell-spotlight {
+    position: fixed; border-radius: 8px; border: 2px solid var(--primary-600);
+    box-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
+    pointer-events: none; z-index: 2001; background: var(--bg-secondary); 
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px;
 }
 
-.edit-backdrop { position: fixed; inset: 0; z-index: 1001; background: rgba(0, 0, 0, 0.2); }
-
-.status-btn.active.btn-present { background: #22c55e; box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); }
-.status-btn.active.btn-late { background: #ec4899; box-shadow: 0 0 15px rgba(236, 72, 153, 0.4); }
-.status-btn.active.btn-absent { background: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
-
-.no-match { opacity: 0.2; font-weight: 300; }
-
-@media (max-width: 768px) {
-    .table-controls { flex-direction: column; gap: 1rem; align-items: stretch; }
-    .legend { overflow-x: auto; padding: 0.5rem 1rem; }
-    .sticky-col-name { width: 140px; }
+.edit-popover {
+    position: fixed; 
+    width: 320px; 
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color); 
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); 
+    z-index: 2002; 
+    padding: 20px;
+    animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.finalized-badge { margin-left: 4px; color: var(--success-500); font-size: 0.7rem; }
-.date-header.is-finalized { border-top: 2px solid var(--success-500); }
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.9) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
 
-.modal { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
-.modal-content { background: #111a2e; border: 1px solid var(--border-primary); border-radius: var(--radius-xl); color: #fff; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
-.modal-header { padding: 1.5rem; border-bottom: 1px solid var(--border-primary); display: flex; justify-content: space-between; align-items: center; }
-.modal-body { padding: 1.5rem; }
-.modal-footer { padding: 1.5rem; border-top: 1px solid var(--border-primary); display: flex; justify-content: flex-end; gap: 1rem; }
-.close-btn { background: none; border: none; font-size: 2rem; color: var(--text-muted); cursor: pointer; }
+.popover-header { margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
+.popover-title { font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0; }
+.popover-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-weight: 500;}
 
-.penalty-preview { margin-top: 1.5rem; background: rgba(255,255,255,0.03); border-radius: var(--radius-lg); padding: 1rem; }
-.penalty-preview h3 { font-size: 1rem; margin-bottom: 1rem; color: var(--warning-400); }
+.status-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.opt-btn {
+    border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary); height: 40px;
+    border-radius: var(--radius-md); font-size: 12px; font-weight: 700; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+}
+.opt-btn:hover:not(.active) { background: var(--bg-hover); border-color: var(--border-hover); }
+
+.opt-btn.active.opt-present { background: var(--success); color: #fff; border-color: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+.opt-btn.active.opt-late { background: var(--primary-600); color: #fff; border-color: var(--primary-600); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
+.opt-btn.active.opt-absent { background: var(--danger); color: #fff; border-color: var(--danger); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
+
+.extra-field { margin-top: 12px; }
+
+.minutes-box { background: var(--primary-50); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--primary-100); }
+.minutes-box label { display: block; font-size: 11px; color: var(--primary-700); text-transform: uppercase; margin-bottom: 10px; font-weight: 800; letter-spacing: 0.05em; }
+
+.stepper-row { 
+    display: flex; 
+    align-items: stretch; 
+    background: var(--bg-secondary); 
+    border: 1px solid var(--border-color);
+    border-radius: 8px; 
+    overflow: hidden;
+    height: 44px;
+    box-shadow: var(--shadow-sm);
+}
+
+.stepper-btn {
+    width: 44px; border: none; background: var(--bg-tertiary); color: var(--text-primary); font-weight: 800; cursor: pointer; transition: all 0.2s; font-size: 14px;
+}
+.stepper-btn:hover { background: var(--bg-hover); color: var(--primary-600); }
+.stepper-btn:active { background: var(--gray-200); }
+
+.stepper-display {
+    flex: 1; display: flex; align-items: center; gap: 4px; justify-content: center; background: var(--bg-secondary); padding: 0 12px; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color);
+}
+
+.stepper-input {
+    width: 32px; background: transparent; border: none; color: var(--text-primary); text-align: center; font-size: 18px; font-weight: 800; outline: none; padding: 0;
+}
+.stepper-input::-webkit-inner-spin-button { appearance: none; }
+
+.stepper-unit { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+
+.popover-footer { display: flex; gap: 10px; margin-top: 20px; }
+.popover-footer button { flex: 1; height: var(--height-md); border-radius: var(--radius-md); border: none; font-weight: 700; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+.pop-btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+.pop-btn-secondary:hover { background: var(--bg-active); }
+.pop-btn-primary { background: var(--primary-600); color: #fff; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
+.pop-btn-primary:hover { background: var(--primary-700); transform: translateY(-1px); }
+
+/* Custom Switch for Light Theme */
+.custom-switch { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 0; }
+.switch-track { width: 36px; height: 18px; background: var(--gray-300); border-radius: 12px; position: relative; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.switch-thumb { width: 14px; height: 14px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.custom-switch.checked .switch-track { background: var(--primary-600); }
+.custom-switch.checked .switch-thumb { transform: translateX(18px); }
+.switch-label { font-size: 13px; color: var(--text-primary); font-weight: 600; }
+
+.modal { 
+    position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); 
+}
+.modal-content { 
+    background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); color: var(--text-primary); width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); 
+}
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.modal-body { padding: 20px; }
+.modal-footer { padding: 16px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; }
+
+/* Transitions */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+.popover-zoom-enter-active { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.popover-zoom-enter-from { opacity: 0; transform: scale(0.9) translateY(10px); }
 </style>

@@ -5,14 +5,18 @@
                 <h2>Xin Nghỉ/ Muộn</h2>
             </div>
             <div class="card-content">
-                <div class="page-actions">
-                    <button class="btn btn-primary" @click="openModal">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; margin-right: 8px;">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        Gửi Đơn Xin Nghỉ/ Muộn
-                    </button>
+                <div class="page-header-fancy">
+                    <div class="header-action-btns">
+                        <button class="btn btn-hero btn-hero-primary" @click="openModal">
+                            <div class="btn-hero-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                            </div>
+                            <span class="btn-hero-text">Gửi Đơn Xin Nghỉ/ Muộn</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div v-if="myRequests.length > 0">
@@ -101,12 +105,17 @@
 
                     <div class="form-group">
                         <label>Chọn Trận Đấu (Tùy chọn)</label>
-                        <select v-model="form.matchId" @change="onMatchChange">
-                            <option :value="null">-- Không chọn trận cụ thể --</option>
-                            <option v-for="match in upcomingMatches" :key="match.id" :value="match.id">
-                                {{ formatDate(match.date) }} - {{ match.startTime }} - {{ match.location }}
-                            </option>
-                        </select>
+                        <BaseSelect 
+                            v-model="form.matchId"
+                            :options="[
+                                { value: null, label: '-- Không chọn trận cụ thể --' },
+                                ...upcomingMatches.map(match => ({
+                                    value: match.id,
+                                    label: `${formatDate(match.date)} - ${match.startTime} - ${match.location}`
+                                }))
+                            ]"
+                            @change="onMatchChange"
+                        />
                     </div>
                     
                     <div v-if="!form.matchId" class="form-group">
@@ -119,9 +128,16 @@
                         <textarea v-model="form.reason" rows="4" :placeholder="'Nhập lý do ' + (form.type === 'late' ? 'đi muộn' : 'xin nghỉ')"></textarea>
                     </div>
 
-                    <div class="form-actions">
-                        <button class="btn btn-primary" @click="submitRequest">Gửi Đơn</button>
-                        <button class="btn btn-secondary" @click="closeModal">Hủy</button>
+                    <div class="form-actions" style="display: flex; gap: 1rem; margin-top: 2rem;">
+                        <button class="btn btn-hero btn-hero-primary" @click="submitRequest">
+                            <div class="btn-hero-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="22 2 15 22 11 13 2 9 22 2"></polyline>
+                                </svg>
+                            </div>
+                            <span class="btn-hero-text">Gửi Đơn Ngay</span>
+                        </button>
+                        <button class="btn btn-secondary" @click="closeModal" style="height: 60px; border-radius: 1.25rem; flex: 1;">Hủy</button>
                     </div>
                 </div>
             </div>
@@ -132,6 +148,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useAppState } from '../composables/useAppState';
+import BaseSelect from '../components/BaseSelect.vue';
 import { useAuth } from '../composables/useAuth';
 
 const { matches, members, createLeaveRequest, getMemberLeaveRequests } = useAppState();

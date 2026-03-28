@@ -7,7 +7,7 @@
             <div class="card-content">
                 <!-- Balance Statistics -->
                 <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 2rem;">
-                    <div class="stat-card stat-info">
+                    <div class="stat-card stat-danger">
                         <div class="stat-content">
                             <div class="stat-label">Các Khoản Nợ ({{ unpaidReceivables.length }})</div>
                             <div class="stat-value text-danger">{{ formatCurrency(totalDebt) }}</div>
@@ -23,8 +23,8 @@
 
                 <!-- Detailed Debt Ledger -->
                 <div v-if="unpaidReceivables.length > 0" class="debt-ledger-section" style="margin-bottom: 2.5rem;">
-                    <h3 style="margin-bottom: 1rem; color: var(--warning-400);">📝 Chi Tiết Các Khoản Nợ</h3>
-                    <div class="table-container">
+                    <h3 style="margin-bottom: 1rem; color: var(--danger-600); font-weight: 700;">📝 Chi Tiết Các Khoản Nợ</h3>
+                    <div class="table-container" style="border: 1px solid var(--border-color); border-radius: var(--radius-md);">
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -55,7 +55,7 @@
 
                 <!-- QR Payment Section -->
                 <div v-if="settings.fundQR" class="payment-qr-section">
-                    <h3>📲 Thanh Toán Chuyển Khoản</h3>
+                    <h3 style="font-weight: 700;">📲 Thanh Toán Chuyển Khoản</h3>
                     <div class="qr-display-container">
                         <div class="qr-image" v-html="settings.fundQR"></div>
                         <div class="qr-guide">
@@ -75,32 +75,32 @@
 
                 <!-- Confirmation Form -->
                 <div class="payment-confirmation-section" style="margin-top: 2rem;">
-                    <div class="card" style="border: 2px dashed rgba(59, 130, 246, 0.3); background: rgba(59, 130, 246, 0.02);">
-                        <div class="card-header" style="border-bottom: 1px solid rgba(59, 130, 246, 0.1);">
-                            <h3 style="margin: 0; color: var(--primary-400);">✍️ Xác Nhận Đã Chuyển Khoản</h3>
+                    <div class="card" style="border: 2px dashed var(--primary-200); background: var(--primary-50);">
+                        <div class="card-header" style="border-bottom: 1px solid var(--primary-200);">
+                            <h3 style="margin: 0; color: var(--primary-700); font-weight: 700;">✍️ Xác Nhận Đã Chuyển Khoản</h3>
                         </div>
                         <div class="card-content">
-                            <div class="form-grid-custom" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div class="form-grid-custom" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
                                 <div class="form-group">
-                                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Loại thanh toán</label>
+                                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600;">Loại thanh toán</label>
                                     <BaseSelect 
                                         v-model="form.category"
                                         :options="categoryOptions"
                                     />
                                 </div>
                                 <div class="form-group">
-                                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Số tiền đã chuyển (VNĐ)</label>
-                                    <input type="number" v-model="form.amount" placeholder="Ví dụ: 100000" style="width: 100%; padding: 0.75rem; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-primary); color: var(--text-primary);">
+                                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600;">Số tiền đã chuyển (VNĐ)</label>
+                                    <input type="number" v-model="form.amount" placeholder="Ví dụ: 100000" style="width: 100%; padding: 0.75rem; border-radius: var(--radius-md); background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); font-weight: 700;">
                                 </div>
                                 <div class="form-group" style="grid-column: 1 / -1;">
-                                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Ghi chú (Tùy chọn)</label>
-                                    <input type="text" v-model="form.description" placeholder="Ví dụ: Đóng quỹ tháng 2" style="width: 100%; padding: 0.75rem; border-radius: var(--radius-md); background: var(--bg-tertiary); border: 1px solid var(--border-primary); color: var(--text-primary);">
+                                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600;">Ghi chú (Tùy chọn)</label>
+                                    <input type="text" v-model="form.description" placeholder="Ví dụ: Đóng quỹ tháng 2" style="width: 100%; padding: 0.75rem; border-radius: var(--radius-md); background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary);">
                                 </div>
                             </div>
                             <button @click="submitConfirmation" class="btn btn-primary" style="width: 100%; padding: 1rem; font-weight: 700; text-transform: uppercase;">
                                 🚀 Gửi Yêu Cầu Xác Nhận
                             </button>
-                            <p style="text-align: center; font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.75rem;">
+                            <p style="text-align: center; font-size: 0.8rem; color: var(--text-secondary); margin-top: 1rem; font-weight: 500;">
                                 Sau khi gửi, thủ quỹ sẽ kiểm tra và duyệt giao dịch của bạn.
                             </p>
                         </div>
@@ -109,7 +109,7 @@
 
                 <!-- Pending/Rejected Section -->
                 <div v-if="pendingRequests.length > 0" class="pending-section">
-                    <h3 style="margin: 2.5rem 0 1rem; color: var(--warning-400); display: flex; align-items: center; gap: 0.5rem;">
+                    <h3 style="margin: 2.5rem 0 1rem; color: var(--primary-700); display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
                         <span class="pulse-dot"></span>
                         Yêu Cầu Đang Chờ Duyệt ({{ pendingRequests.length }})
                     </h3>
@@ -130,7 +130,7 @@
                                 <div v-if="req.status === 'rejected'" class="rejection-reason">
                                     <strong>Lý do:</strong> {{ req.rejectionReason }}
                                 </div>
-                                <button v-if="req.status === 'rejected'" class="btn btn-sm btn-danger" @click="deletePending(req.id)">Xóa</button>
+                                <button v-if="req.status === 'rejected'" class="btn btn-sm btn-ghost text-danger" @click="deletePending(req.id)">Xóa</button>
                             </div>
                         </div>
                     </div>
@@ -138,13 +138,13 @@
 
                 <!-- History Section -->
                 <div v-if="paymentHistory.length > 0" class="my-payments-history">
-                    <h3 style="margin: 2rem 0 1rem;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 24px; height: 24px; display: inline-block; vertical-align: middle; margin-right: 8px;">
+                    <h3 style="margin: 2rem 0 1rem; font-weight: 700;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-right: 8px;">
                             <polyline points="20 6 9 17 4 12"></polyline>
                         </svg>
                         Lịch Sử Đã Được Duyệt
                     </h3>
-                    <div class="table-container">
+                    <div class="table-container" style="border: 1px solid var(--border-color); border-radius: var(--radius-md);">
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -162,17 +162,12 @@
                                             {{ tx.category === 'fund' ? 'Quỹ' : 'Phạt' }}
                                         </span>
                                     </td>
-                                    <td style="font-weight: 600;">{{ formatCurrency(tx.amount) }}</td>
+                                    <td style="font-weight: 700; color: var(--success);">{{ formatCurrency(tx.amount) }}</td>
                                     <td>{{ tx.description || '-' }}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-                </div>
-                <div v-else-if="pendingRequests.length === 0" class="empty-state">
-                    <div class="empty-icon">💳</div>
-                    <h3>Chưa có giao dịch thanh toán</h3>
-                    <p>Liên hệ thủ quỹ để đóng quỹ hoặc tiền phạt bằng tiền mặt</p>
                 </div>
             </div>
         </div>
@@ -260,13 +255,17 @@ const deletePending = async (id) => {
 </script>
 
 <style scoped>
-.payment-qr-section { display: flex; flex-direction: column; gap: 1.5rem; background: var(--bg-tertiary); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-primary); margin-top: 2rem; }
+.payment-qr-section { 
+    display: flex; flex-direction: column; gap: 1.5rem; background: var(--bg-tertiary); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-color); margin-top: 2rem; 
+}
 .qr-display-container { display: flex; gap: 2rem; align-items: center; }
-.qr-image { width: 220px; height: 220px; background: white; padding: 1rem; border-radius: var(--radius-lg); display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+.qr-image { 
+    width: 200px; height: 200px; background: white; padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color);
+}
 .qr-image :deep(img), .qr-image :deep(svg) { max-width: 100%; max-height: 100%; object-fit: contain; }
 .qr-guide { flex: 1; display: flex; flex-direction: column; gap: 1rem; }
 .qr-guide ul { list-style: none; padding: 0; }
-.qr-guide li { margin-bottom: 0.5rem; color: var(--text-secondary); }
+.qr-guide li { margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.95rem; }
 .btn-momo-full { background: #ae2070; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: var(--radius-md); font-weight: 700; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; transition: all 0.2s; }
 .btn-momo-full img { width: 24px; height: 24px; border-radius: 4px; }
 
@@ -276,25 +275,25 @@ const deletePending = async (id) => {
 }
 
 .pending-transactions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
-.pending-card { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; position: relative; }
-.pending-card.pending { border-left: 4px solid var(--warning-500); }
-.pending-card.rejected { border-left: 4px solid var(--danger-500); }
+.pending-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; position: relative; box-shadow: var(--shadow-sm); }
+.pending-card.pending { border-left: 4px solid var(--warning); }
+.pending-card.rejected { border-left: 4px solid var(--danger); }
 .pending-header { display: flex; justify-content: space-between; align-items: center; }
-.pending-type { font-weight: 700; color: var(--primary-400); }
-.pending-amount { font-weight: 700; font-size: 1.1rem; }
-.pending-desc { font-size: 0.9rem; color: var(--text-primary); }
-.pending-date { font-size: 0.75rem; color: var(--text-muted); }
-.status-badge { font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 4px; display: inline-block; }
-.status-badge.pending { background: rgba(245, 158, 11, 0.1); color: var(--warning-400); }
-.status-badge.rejected { background: rgba(239, 68, 68, 0.1); color: var(--danger-400); }
-.rejection-reason { font-size: 0.8rem; color: var(--danger-400); padding: 0.5rem; background: rgba(239, 68, 68, 0.05); border-radius: 4px; border: 1px dashed var(--danger-500); }
-.btn-clear { align-self: flex-end; font-size: 0.75rem; color: var(--text-muted); background: transparent; border: 1px solid var(--border-primary); padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; }
+.pending-type { font-weight: 700; color: var(--primary-700); font-size: 0.9rem; text-transform: uppercase; }
+.pending-amount { font-weight: 700; font-size: 1.2rem; color: var(--text-primary); }
+.pending-desc { font-size: 0.9rem; color: var(--text-secondary); }
+.pending-date { font-size: 0.8rem; color: var(--text-muted); }
 
-.pulse-dot { width: 8px; height: 8px; background: var(--warning-500); border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+.status-badge { font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-full); display: inline-block; }
+.status-badge.pending { background: rgba(245, 158, 11, 0.1); color: #f08c00; }
+.status-badge.rejected { background: rgba(239, 68, 68, 0.1); color: #f03e3e; }
+.rejection-reason { font-size: 0.8rem; color: var(--danger); padding: 0.75rem; background: rgba(239, 68, 68, 0.1); border-radius: 4px; border: 1px dashed var(--danger); }
+
+.pulse-dot { width: 8px; height: 8px; background: var(--warning); border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
 @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
 
-.type-tag { font-size: 0.7rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-right: 6px; border: 1px solid currentColor; }
-.type-tag.fine { color: var(--danger-400); background: rgba(239, 68, 68, 0.1); }
-.type-tag.fund { color: var(--primary-400); background: rgba(59, 130, 246, 0.1); }
-.type-tag.pitch_fee { color: var(--success-400); background: rgba(16, 185, 129, 0.1); }
+.type-tag { font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; margin-right: 8px; border: 1px solid currentColor; }
+.type-tag.fine { color: #f03e3e; background: rgba(239, 68, 68, 0.1); }
+.type-tag.fund { color: var(--primary-700); background: rgba(59, 130, 246, 0.1); }
+.type-tag.pitch_fee { color: #2b8a3e; background: rgba(16, 185, 129, 0.1); }
 </style>

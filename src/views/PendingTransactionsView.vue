@@ -1,8 +1,18 @@
 <template>
     <div class="view-container">
-        <div class="view-header">
-            <h1>Phê Duyệt Giao Dịch</h1>
-            <p class="subtitle">Quản lý các giao dịch MoMo chờ phê duyệt từ thành viên</p>
+        <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1>Phê Duyệt Giao Dịch</h1>
+                <p class="subtitle">Quản lý các giao dịch MoMo chờ phê duyệt từ thành viên</p>
+            </div>
+            <button 
+                v-if="currentTab === 'pending' && filteredTransactions.length > 0" 
+                class="btn btn-hero btn-hero-success" 
+                @click="approveAllTransactions"
+                style="padding: 0.75rem 1.5rem; border-radius: var(--radius-lg);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px;margin-right:8px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Duyệt Tất Cả ({{ filteredTransactions.length }})
+            </button>
         </div>
 
         <!-- Statistics Cards -->
@@ -252,12 +262,33 @@ const getMemberInitials = (memberId) => {
 const approveTransaction = async (id) => {
     if (!confirm('Bạn có chắc chắn muốn phê duyệt giao dịch này?')) return;
     
-    const success = approvePendingTransaction(id);
+    const success = await approvePendingTransaction(id);
     if (success) {
-        alert('✅ Đã phê duyệt giao dịch thành công!');
+        // success handeled by snackbar/alert in App.vue via useAppState
     } else {
         alert('❌ Có lỗi xảy ra khi phê duyệt giao dịch');
     }
+};
+
+const approveAllTransactions = async () => {
+    const count = filteredTransactions.value.length;
+    const total = formatCurrency(pendingAmount.value);
+    
+    if (!confirm(`Bạn có chắc chắn muốn phê duyệt toàn bộ ${count} giao dịch?\nTổng số tiền: ${total}`)) return;
+    
+    let successCount = 0;
+    const ids = filteredTransactions.value.map(t => t.id);
+    
+    for (const id of ids) {
+        try {
+            const success = await approvePendingTransaction(id);
+            if (success) successCount++;
+        } catch (e) {
+            console.error(`Lỗi khi duyệt GD ${id}:`, e);
+        }
+    }
+    
+    alert(`✅ Đã phê duyệt thành công ${successCount}/${count} giao dịch!`);
 };
 
 const showRejectModal = (transaction) => {

@@ -1,6 +1,6 @@
 <template>
-    <div class="page-content">
-        <div class="card">
+    <div class="page-content animate-fade">
+        <div class="card animate-spring">
             <div class="card-header">
                 <h2>Điểm Danh QR Code</h2>
             </div>
@@ -267,11 +267,14 @@ const paintBoundingBox = (detectedCodes, ctx) => {
 }
 
 .scan-prompt {
-    padding: var(--spacing-2xl);
+    padding: 3rem 0;
 }
 
 .scanner-active {
     position: relative;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
 }
 
 .scanner-overlay {
@@ -288,54 +291,58 @@ const paintBoundingBox = (detectedCodes, ctx) => {
 }
 
 .scanner-frame {
-    width: 250px;
-    height: 250px;
-    border: 3px solid var(--primary-400);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    width: 240px;
+    height: 240px;
+    border: 3px solid var(--primary-500);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
 }
 
 .scanner-hint {
-    margin-top: var(--spacing-lg);
+    margin-top: 1.5rem;
     color: white;
-    font-weight: 600;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-}
-
-.scan-locked {
-    text-align: center;
-    padding: var(--spacing-2xl);
-}
-
-.scan-locked h3 {
-    color: var(--warning-500);
-    margin-bottom: var(--spacing-md);
+    font-weight: 700;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    font-size: 15px;
 }
 
 .scan-result {
     text-align: center;
-    padding: var(--spacing-xl);
+    padding: 2rem;
     border-radius: var(--radius-lg);
-    margin-top: var(--spacing-xl);
+    margin-top: 2rem;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .scan-result.success {
-    background: rgba(34, 197, 94, 0.1);
-    border: 2px solid var(--success-500);
-    color: var(--success-500);
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid var(--success);
+    color: var(--success);
 }
 
 .scan-result.error {
     background: rgba(239, 68, 68, 0.1);
-    border: 2px solid var(--danger-500);
-    color: var(--danger-500);
+    border: 1px solid var(--danger);
+    color: var(--danger);
 }
 
 .scan-result svg {
-    margin: 0 auto var(--spacing-md);
+    margin: 0 auto 1.25rem;
 }
 
 .scan-result h3 {
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+    font-size: 1.25rem;
+}
+
+.scan-result p {
+    font-size: 1rem;
+    font-weight: 500;
 }
 </style>

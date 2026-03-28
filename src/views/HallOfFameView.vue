@@ -3,9 +3,14 @@
         <div class="hall-of-fame-header">
             <h1>🏆 Bảng Vàng</h1>
             <p class="subtitle">Vinh danh các thành viên có đóng góp xuất sắc cho đội</p>
-            <button v-if="permissions.canManageMembers" class="btn btn-primary" @click="openModal" style="margin-top: 1rem;">
-                ✏️ Cập Nhật Bảng Vàng
-            </button>
+            <div class="page-header-fancy" style="justify-content: center; margin-top: 1.5rem;">
+                <div class="header-action-btns">
+                    <button v-if="permissions.canManageMembers" class="btn btn-hero btn-hero-primary" @click="openModal">
+                        <div class="btn-hero-icon">✏️</div>
+                        <span class="btn-hero-text">Cập Nhật Bảng Vàng</span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="awards-section">
@@ -231,7 +236,7 @@ const getInitials = (name) => {
 
 <style scoped>
 .hall-of-fame-header { text-align: center; margin-bottom: 3rem; }
-.hall-of-fame-header h1 { font-size: 2.5rem; background: linear-gradient(to right, #fbbf24, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }
+.hall-of-fame-header h1 { font-size: 2.5rem; background: linear-gradient(to right, #fbbf24, #f59e0b); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }
 .subtitle { color: var(--text-secondary); font-size: 1.1rem; }
 
 .awards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
@@ -251,4 +256,22 @@ const getInitials = (name) => {
 .form-group { margin-bottom: 1.5rem; }
 .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
 .form-group input { width: 100%; padding: 0.75rem 1rem; background: var(--bg-tertiary); border: 1px solid var(--border-primary); border-radius: var(--radius-md); color: var(--text-primary); margin-top: 0.5rem; }
+
+@media (max-width: 600px) {
+    .hall-of-fame-header h1 { font-size: 1.75rem; }
+    .subtitle { font-size: 0.9rem; }
+    .award-card { padding: 1.5rem 1rem; }
+    .award-icon { font-size: 2.25rem; }
+    .awards-grid { grid-template-columns: 1fr; }
+    
+    .winner {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .winner-info {
+        text-align: center;
+    }
+}
 </style>

@@ -1,47 +1,57 @@
 <template>
-    <div class="app-container">
+    <div class="app-container" :class="{ 'simulate-mobile-view': isMobileView && !isMobileDevice, 'mobile-menu-active': mobileMenuOpen }">
         <!-- Sidebar Overlay for Mobile -->
         <div class="sidebar-overlay" :class="{ show: mobileMenuOpen }" @click="toggleMobileMenu"></div>
 
-        <!-- Sidebar Navigation -->
+        <!-- Sidebar for Desktop/Tablet -->
         <Sidebar v-if="currentRole" :class="{ open: mobileMenuOpen }" />
 
-        <!-- Mobile Menu Toggle -->
-        <button v-if="currentRole" class="mobile-menu-toggle" @click="toggleMobileMenu">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
+        <!-- Floating Mobile Menu Button -->
+        <button v-if="currentRole && (isMobileDevice || isMobileView)" class="btn-mobile-fab" @click="toggleMobileMenu" :class="{ open: mobileMenuOpen }" title="Menu">
+            <div class="fab-icon-wrapper">
+                <svg v-if="!mobileMenuOpen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </div>
         </button>
 
+
         <!-- Main Content -->
-        <main class="main-content" v-if="currentRole">
+        <main class="main-content" v-if="currentRole" :class="{ 'menu-open': mobileMenuOpen }">
             <header class="top-bar">
                 <h1 class="page-title">{{ $route.name }}</h1>
                 <div class="top-bar-actions">
                     <div class="sync-controls" v-if="isAdmin">
-                        <div class="sync-status" :class="{ 'has-update': hasNewUpdate }">
-                            <svg class="sync-icon" :class="{ spinning: syncStatus === 'syncing', pulse: hasNewUpdate }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <template v-if="hasNewUpdate">
-                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                                </template>
-                                <template v-else-if="syncStatus === 'syncing'">
-                                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                                </template>
-                                <template v-else-if="syncStatus === 'success'">
-                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                                </template>
-                                <template v-else-if="syncStatus === 'error'">
-                                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                                </template>
-                                <template v-else>
-                                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-                                </template>
-                            </svg>
-                            <span :class="{'text-success': syncStatus === 'success', 'text-warning': hasNewUpdate}">{{ syncStatusText }}</span>
+                        <div class="sync-status" :class="[syncStatus, { 'has-update': hasNewUpdate }]">
+                            <div class="status-dot-wrapper">
+                                <div class="status-dot"></div>
+                                <svg class="sync-icon" :class="{ spinning: syncStatus === 'syncing', pulse: hasNewUpdate }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <template v-if="hasNewUpdate">
+                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                    </template>
+                                    <template v-else-if="syncStatus === 'syncing'">
+                                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                                    </template>
+                                    <template v-else-if="syncStatus === 'success'">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                    </template>
+                                    <template v-else-if="syncStatus === 'error'">
+                                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                                    </template>
+                                    <template v-else>
+                                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                                    </template>
+                                </svg>
+                            </div>
+                            <span class="status-text">{{ syncStatusText }}</span>
                         </div>
                         <template v-if="isSignedIn">
                             <button class="btn btn-sm btn-primary" @click="uploadToFirebase" title="Đồng bộ dữ liệu lên Firebase">
@@ -62,6 +72,35 @@
                             </button>
                         </template>
                     </div>
+                    <button class="btn-theme-toggle mobile-view-toggle" v-if="!isMobileDevice" @click="toggleMobileView" :title="isMobileView ? 'Tắt chế độ Mobile' : 'Bật chế độ Mobile'">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" v-if="isMobileView">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" v-else>
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                    </button>
+                    <button class="btn-theme-toggle" @click="toggleTheme" :title="currentTheme === 'light' ? 'Chuyển sang Giao diện tối' : 'Chuyển sang Giao diện sáng'">
+
+                        <svg v-if="currentTheme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                    </button>
+
                     <button class="btn btn-sm btn-exit" @click="handleLogout">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1-2-2h4"></path>
@@ -73,7 +112,11 @@
                 </div>
             </header>
 
-            <router-view />
+            <router-view v-slot="{ Component }">
+                <transition name="page" mode="out-in">
+                    <component :is="Component" />
+                </transition>
+            </router-view>
         </main>
 
         <div class="modal login-modal" v-if="!currentRole" style="display: flex;">
@@ -90,22 +133,26 @@
                     <!-- Admin/Accountant Login Form -->
                     <div v-if="selectingAdmin || selectingAccountant" style="text-align: left;">
                         <div class="form-group">
-                            <label>Tên Đăng Nhập</label>
-                            <input 
-                                type="text" 
-                                v-model="adminForm.username" 
-                                placeholder="admin"
-                                @keyup.enter="confirmAdminLogin"
-                                style="width: 100%;">
+                            <label class="form-label">Tên Đăng Nhập</label>
+                            <div class="search-input-fancy-wrapper">
+                                <input 
+                                    type="text" 
+                                    v-model="adminForm.username" 
+                                    placeholder="manager"
+                                    @keyup.enter="confirmAdminLogin"
+                                    class="input-fancy-borderless">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Mật Khẩu</label>
-                            <input 
-                                type="password" 
-                                v-model="adminForm.password" 
-                                placeholder="••••••••"
-                                @keyup.enter="confirmAdminLogin"
-                                style="width: 100%;">
+                        <div class="form-group" style="margin-top: -1rem;">
+                            <label class="form-label">Mật Khẩu</label>
+                            <div class="search-input-fancy-wrapper">
+                                <input 
+                                    type="password" 
+                                    v-model="adminForm.password" 
+                                    placeholder="••••••••"
+                                    @keyup.enter="confirmAdminLogin"
+                                    class="input-fancy-borderless">
+                            </div>
                         </div>
                         <div v-if="adminLoginError" style="color: var(--danger-500); font-size: 0.875rem; margin-bottom: 1rem;">
                             {{ adminLoginError }}
@@ -124,22 +171,24 @@
                     <div v-else-if="selectingGuest" style="text-align: left;">
                         <div class="form-group" style="margin-top: 1rem;">
                             <label class="form-label">TÌM KIẾM THÀNH VIÊN</label>
-                            <div class="search-input-fancy-wrapper">
-                                <svg class="search-icon-fancy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="11" cy="11" r="8"></circle>
-                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                                </svg>
+                            <div class="search-input-fancy-wrapper" :class="{ 'is-focused': isSearchFocused }">
+                                <div class="search-icon-container">
+                                    <svg class="search-icon-fancy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    </svg>
+                                </div>
                                 <input 
                                     type="text" 
                                     v-model="memberSearch" 
                                     placeholder="Nhập tên để tìm kiếm..."
-                                    @focus="onSearchFocus"
-                                    @blur="onSearchBlur"
+                                    @focus="onSearchWrapperFocus"
+                                    @blur="onSearchWrapperBlur"
                                     @keydown="handleComboboxKeydown"
-                                    class="input-fancy"
+                                    class="input-fancy-borderless"
                                     ref="memberSearchInput">
                                 <button v-if="memberSearch" class="input-clear-btn" @click="clearMemberSelection" type="button">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                         <line x1="18" y1="6" x2="6" y2="18"></line>
                                         <line x1="6" y1="6" x2="18" y2="18"></line>
                                     </svg>
@@ -158,15 +207,15 @@
                                             highlight: index === activeIndex
                                         }"
                                         @mousedown.prevent="selectMember(member)">
-                                        <div class="member-item-icon">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                                <circle cx="12" cy="7" r="4"></circle>
-                                            </svg>
+                                        <div class="member-item-avatar" :style="{ background: `linear-gradient(135deg, ${getInitialsColor(member.name)}, ${getInitialsColor(member.name)}dd)` }">
+                                            {{ getInitials(member.name) }}
                                         </div>
-                                        <span class="member-name">{{ member.name }}</span>
+                                        <div class="member-item-info">
+                                            <span class="member-name">{{ member.name }}</span>
+                                            <span class="member-role">Thành viên chính thức</span>
+                                        </div>
                                         <div v-if="selectedMemberId === member.id" class="selected-check">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                                                 <polyline points="20 6 9 17 4 12"></polyline>
                                             </svg>
                                         </div>
@@ -178,11 +227,11 @@
                             </div>
                         </div>
                         
-                        <div class="form-actions" style="flex-direction: column; gap: 1rem; margin-top: 1rem;">
-                            <button class="btn btn-primary" style="width: 100%;" @click="confirmGuestLogin" :disabled="!selectedMemberId">
-                                Xác Nhận
+                        <div class="login-actions">
+                            <button class="btn btn-primary btn-hero-confirm" @click="confirmGuestLogin" :disabled="!selectedMemberId">
+                                Xác Nhận Truy Cập
                             </button>
-                            <button class="btn btn-secondary" style="width: 100%;" @click="cancelGuestSelection">
+                            <button class="btn btn-secondary btn-hero-back" @click="cancelGuestSelection">
                                 Quay Lại
                             </button>
                         </div>
@@ -251,7 +300,32 @@
 
         <!-- Notification -->
         <div class="notification" :class="['notification-' + notification.type, { show: notification.show }]">
-            <div class="notification-content"><span>{{ notification.message }}</span></div>
+            <div class="notification-status-stripe"></div>
+            <div class="notification-icon-container">
+                <svg v-if="notification.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <svg v-else-if="notification.type === 'error'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                <svg v-else-if="notification.type === 'warning'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+            </div>
+            <div class="notification-content">
+                <div class="notification-label">{{ notification.type === 'success' ? 'Thành công' : (notification.type === 'error' ? 'Lỗi' : 'Thông báo') }}</div>
+                <div class="notification-message">{{ notification.message }}</div>
+            </div>
+            <button class="notification-close" @click="notification.show = false">×</button>
         </div>
     </div>
 </template>
@@ -260,13 +334,17 @@
 import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import Sidebar from './components/Sidebar.vue';
+import BottomNav from './components/BottomNav.vue';
 import { useAppState } from './composables/useAppState';
 import { useFirebase } from './composables/useFirebase';
 import { useAuth } from './composables/useAuth';
+import { useBreakpoints } from './composables/useBreakpoints';
 import bcrypt from 'bcryptjs';
 
+const { isMobile: isMobileDevice } = useBreakpoints();
 const router = useRouter();
-const { loadData, members, matches, transactions, pendingTransactions, contributionTiers, settings, updateFromFirebase } = useAppState();
+const { loadData, members, matches, transactions, pendingTransactions, contributionTiers, settings, updateFromFirebase, isMobileView, toggleMobileView } = useAppState();
+
 const { initFirebase, signIn: firebaseSignIn, signOut: firebaseSignOut, uploadData, downloadData, syncStatus, isSignedIn, isConfigured, hasNewUpdate, setupRealtimeListener, stopRealtimeListener } = useFirebase();
 const { currentRole, isAdmin, setRole, logout, permissions } = useAuth();
 
@@ -286,6 +364,103 @@ const adminForm = reactive({
     password: ''
 });
 const adminLoginError = ref('');
+
+// Theme Management
+const currentTheme = ref('light');
+
+const applyTheme = (theme) => {
+    console.log('🎨 Applying Theme:', theme);
+    const html = document.documentElement;
+    html.setAttribute('data-theme', theme);
+    // Explicitly update color scheme for system integration
+    html.style.colorScheme = theme;
+};
+
+const initTheme = () => {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme) {
+        currentTheme.value = savedTheme;
+    } else if (prefersDark) {
+        currentTheme.value = 'dark';
+    } else {
+        currentTheme.value = 'light';
+    }
+};
+
+// Call init early
+initTheme();
+
+// Use watcher for reliable theme application and persistence
+watch(currentTheme, (newTheme) => {
+    applyTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+}, { immediate: true });
+
+
+const toggleTheme = (event) => {
+    const isAppearanceTransition = document.startViewTransition &&
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (!isAppearanceTransition) {
+        currentTheme.value = currentTheme.value === 'light' ? 'dark' : 'light';
+        return;
+    }
+
+    const x = event.clientX;
+    const y = event.clientY;
+    const endRadius = Math.hypot(
+        Math.max(x, innerWidth - x),
+        Math.max(y, innerHeight - y)
+    );
+
+    const transition = document.startViewTransition(async () => {
+        currentTheme.value = currentTheme.value === 'light' ? 'dark' : 'light';
+    });
+
+    transition.ready.then(() => {
+        const clipPath = [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${endRadius}px at ${x}px ${y}px)`,
+        ];
+        document.documentElement.animate(
+            {
+                clipPath: clipPath,
+            },
+            {
+                duration: 500,
+                easing: 'ease-in-out',
+                pseudoElement: '::view-transition-new(root)',
+            }
+        );
+    });
+};
+
+onMounted(() => {
+    // Other initialization if needed
+    
+    // Apply platform style guide
+    if (isMobileDevice.value || isMobileView.value) {
+        document.documentElement.setAttribute('data-app-platform', 'mobile');
+    }
+});
+
+
+// Watch for screen size changes or simulation to switch style guides
+watch([isMobileDevice, isMobileView], ([newDevice, newSim]) => {
+    if (newDevice || newSim) {
+        document.documentElement.setAttribute('data-app-platform', 'mobile');
+    } else {
+        document.documentElement.removeAttribute('data-app-platform');
+    }
+});
+
+// Close mobile menu on route change
+watch(() => router.currentRoute.value.path, () => {
+    mobileMenuOpen.value = false;
+});
+
 
 const syncStatusText = computed(() => {
     if (hasNewUpdate.value) return 'Cập nhật mới!';
@@ -496,15 +671,18 @@ const clearMemberSelection = () => {
     if (memberSearchInput.value) memberSearchInput.value.focus();
 };
 
-const onSearchFocus = () => {
+const isSearchFocused = ref(false);
+
+const onSearchWrapperFocus = () => {
+    isSearchFocused.value = true;
     if (selectedMemberId.value && memberSearchInput.value) {
         memberSearchInput.value.select();
     }
 };
 
-const onSearchBlur = () => {
-    // Keep list visible - no need to hide
+const onSearchWrapperBlur = () => {
     setTimeout(() => {
+        isSearchFocused.value = false;
         activeIndex.value = -1;
         const member = members.value.find(m => m.id === selectedMemberId.value);
         if (member) {
@@ -732,82 +910,185 @@ const downloadFromFirebase = async () => {
 </script>
 
 <style scoped>
-/* Realtime Update Animations */
+/* Firebase Sync Styles - Premium Pill Design */
+.sync-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sync-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full);
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.status-dot-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    left: -2px;
+    top: -2px;
+    border: 1.5px solid var(--bg-secondary);
+    z-index: 2;
+}
+
+.sync-status.success .status-dot { background: var(--success); }
+.sync-status.syncing .status-dot { background: var(--primary-500); }
+.sync-status.error .status-dot { background: var(--danger); }
+.sync-status.has-update .status-dot { background: var(--warning); }
+
+.sync-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--text-secondary);
+    z-index: 1;
+}
+
+.sync-icon.spinning {
+    animation: spin 2s linear infinite;
+}
+
 .sync-icon.pulse {
     animation: pulse 1.5s ease-in-out infinite;
 }
 
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 0.7;
-        transform: scale(1.1);
-    }
+.status-text {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.sync-status.success {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+.sync-status.success .status-text {
+    color: var(--success-700);
 }
 
 .sync-status.has-update {
-    background: rgba(34, 197, 94, 0.1);
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    border-radius: var(--radius-md);
-    padding: 0.5rem 1rem;
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
 }
 
-.sync-status.has-update .sync-icon {
-    color: var(--success-500);
+.sync-status.has-update .status-text {
+    color: var(--warning-700);
 }
 
-.sync-status.has-update span {
-    color: var(--success-500);
-    font-weight: 600;
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
-/* Updated Login Modal Styles */
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+.btn-theme-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: 12px;
+}
+
+.btn-theme-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--primary-500);
+    border-color: var(--primary-500);
+}
+
+.btn-theme-toggle svg {
+    width: 18px;
+    height: 18px;
+}
+
 .btn-exit {
     background: rgba(239, 68, 68, 0.1);
-    color: var(--danger-400);
-    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
     margin-left: 10px;
+    height: 32px !important;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 700;
 }
 
 .btn-exit:hover {
-    background: var(--danger-500);
-    color: white;
-    border-color: var(--danger-500);
-    box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+    background: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+    transform: translateY(-1px);
 }
 
+.btn-exit svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Modern Login Selection Styles - MDS Standard */
 .login-modal {
-    background: radial-gradient(circle at center, rgba(15, 23, 42, 0.95) 0%, rgba(2, 6, 23, 1) 100%);
-    backdrop-filter: blur(12px);
-    z-index: 9999;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
 }
 
 .login-modal-content {
-    max-width: 440px !important;
-    background: var(--glass-bg) !important;
-    backdrop-filter: blur(20px) !important;
-    border: 1px solid var(--glass-border) !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    max-width: 480px !important;
+    background: var(--bg-elevated) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: var(--shadow-lg);
+    border-radius: 20px !important;
+    overflow: hidden;
 }
 
 .login-modal-header {
     flex-direction: column;
-    padding: 3rem 2rem 2rem !important;
+    padding: 2.5rem 2rem 1.25rem !important;
+    text-align: center;
     border-bottom: none !important;
 }
 
 .logo-wrapper {
-    width: 100px;
-    height: 100px;
-    margin-bottom: 1.5rem;
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 1.25rem;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    box-shadow: 0 8px 16px -4px rgba(0,0,0,0.08);
     display: flex;
     align-items: center;
     justify-content: center;
-    filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.4));
-    animation: float 6s ease-in-out infinite;
+    flex-shrink: 0;
 }
 
 .team-logo-img {
@@ -816,50 +1097,214 @@ const downloadFromFirebase = async () => {
     object-fit: contain;
 }
 
-@keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-}
-
 .login-modal-header h2 {
-    font-size: 2.25rem;
-    font-weight: 800;
-    letter-spacing: -0.025em;
-    margin-bottom: 0.5rem;
-    color: #ffffff;
-    text-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    font-size: 20px;
+    letter-spacing: -0.01em;
+    font-weight: 700;
+    margin-bottom: 2px;
+    color: var(--text-primary);
 }
 
-.subtitle {
+.form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
     color: var(--text-muted);
-    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    margin-left: 4px;
 }
+
+.search-input-fancy-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--bg-tertiary);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-md);
+    height: 52px;
+    width: 100%;
+    margin: 0 0 1.5rem;
+    padding: 0 20px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.search-input-fancy-wrapper.is-focused {
+    border-color: var(--primary-500);
+}
+
+.search-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    margin-right: 16px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.search-icon-fancy {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+
+.input-fancy-borderless {
+    flex: 1;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: var(--text-primary) !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    height: 100%;
+    min-width: 0;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.input-fancy-borderless::placeholder {
+    color: var(--text-muted) !important;
+    font-weight: 500 !important;
+    opacity: 0.7;
+}
+
+.input-fancy-borderless:focus {
+    outline: none !important;
+}
+
+.input-clear-btn {
+    background: var(--bg-tertiary);
+    border: none;
+    color: var(--text-muted);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: 8px;
+}
+
+.member-list-fancy-container {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 400px;
+    margin: 1.5rem auto 0;
+}
+
+.fancy-item {
+    padding: 10px !important;
+    border-radius: 10px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+}
+
+.fancy-item:hover {
+    background: var(--bg-hover) !important;
+    border-color: var(--border-color);
+}
+
+.member-item-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    margin-right: 14px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+}
+
+.member-item-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.member-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.member-role {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.fancy-item.selected {
+    background: rgba(59, 130, 246, 0.1) !important;
+    border-color: var(--primary-500);
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+}
+
+.fancy-item.selected .member-name { color: var(--primary-500); }
+.fancy-item.selected .member-role { color: var(--primary-400); }
+
+.selected-check {
+    width: 22px;
+    height: 22px;
+    background: #3b82f6;
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+}
+
+.selected-check svg { width: 100%; height: 100%; }
 
 /* Role Cards Grid */
 .role-cards-grid {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 12px;
+    padding: 0 2rem 2.5rem;
 }
 
 .role-card {
     display: flex;
     align-items: center;
-    padding: 1.25rem;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 1.25rem;
+    padding: 18px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
 }
 
 .role-card:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: var(--primary-500);
+    background: var(--bg-hover);
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-md);
 }
 
 .role-card-icon {
@@ -869,13 +1314,13 @@ const downloadFromFirebase = async () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 1.25rem;
+    margin-right: 16px;
     flex-shrink: 0;
 }
 
-.role-admin { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
-.role-accountant { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
-.role-guest { background: rgba(168, 85, 247, 0.1); color: #c084fc; }
+.role-admin { background: rgba(59, 130, 246, 0.15); color: var(--primary-500); }
+.role-accountant { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+.role-guest { background: rgba(139, 92, 246, 0.15); color: var(--info); }
 
 .role-card-icon svg {
     width: 24px;
@@ -888,22 +1333,24 @@ const downloadFromFirebase = async () => {
 }
 
 .role-card-content h3 {
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-    color: white;
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 2px;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
 }
 
 .role-card-content p {
-    font-size: 0.8125rem;
-    color: var(--text-muted);
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 
 .role-card-arrow {
     opacity: 0;
     transform: translateX(-10px);
-    transition: all 0.3s ease;
-    color: var(--text-muted);
+    transition: all 0.2s;
+    color: #3b82f6;
 }
 
 .role-card:hover .role-card-arrow {
@@ -911,133 +1358,156 @@ const downloadFromFirebase = async () => {
     transform: translateX(0);
 }
 
-/* Fancy Search Input */
-.search-input-fancy-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.search-icon-fancy {
-    position: absolute;
-    left: 1rem;
-    width: 18px;
-    height: 18px;
-    color: var(--text-muted);
-    pointer-events: none;
-}
-
-.input-fancy {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.2) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 1rem !important;
-    padding: 0.875rem 1rem 0.875rem 2.75rem !important;
-    color: white !important;
-    font-size: 0.9375rem !important;
-    transition: all 0.3s ease !important;
-}
-
-.input-fancy:focus {
-    border-color: var(--primary-500) !important;
-    background: rgba(0, 0, 0, 0.3) !important;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15) !important;
-}
-
-.input-clear-btn {
-    position: absolute;
-    right: 0.75rem;
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: var(--text-muted);
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.input-clear-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-}
-
-/* Fancy Member List - Persistent */
-.member-list-fancy-container {
-    margin-top: 1rem;
-    max-height: 300px;
-    overflow-y: auto;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 1.25rem;
-    padding: 0.5rem;
+.login-actions {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 12px;
+    margin: 2.5rem auto 0;
+    padding: 0;
+    max-width: 400px;
 }
 
-.fancy-item {
-    display: flex;
-    align-items: center;
-    padding: 0.875rem 1rem !important;
-    border-radius: 0.875rem !important;
-    cursor: pointer;
-    transition: all 0.2s ease;
+.btn-hero-confirm {
+    height: 48px;
+    border-radius: 12px;
+    font-weight: 700;
+    background: var(--primary-500);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
-.fancy-item.highlight {
-    background: rgba(255, 255, 255, 0.05) !important;
+.btn-hero-back {
+    height: 48px;
+    border-radius: 12px;
+    font-weight: 600;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
 }
 
-.fancy-item.selected {
-    background: var(--bg-active) !important;
-    border: 1px solid rgba(59, 130, 246, 0.3);
+.btn-hero-back:hover {
+    background: var(--bg-active);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
 }
 
 .fancy-empty-inline {
-    padding: 2rem;
+    padding: 40px 20px;
     text-align: center;
     color: var(--text-muted);
-    font-size: 0.875rem;
+    font-family: inherit;
 }
 
-.member-item-icon {
-    width: 24px;
-    height: 24px;
+.fancy-empty-inline p { font-size: 14px; font-weight: 500; }
+
+/* Simulate Mobile View */
+.app-container.simulate-mobile-view {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--bg-tertiary);
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+.simulate-mobile-view .main-content {
+    width: 390px;
+    height: 844px;
+    max-height: 95vh;
+    border-radius: 40px;
+    margin: auto;
+    border: 8px solid #222;
+    box-shadow: 0 0 0 2px #555, var(--shadow-2xl), 0 0 100px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+
+.simulate-mobile-view .top-bar {
+    border-top-left-radius: 32px;
+    border-top-right-radius: 32px;
+}
+
+/* Floating Mobile FAB */
+.btn-mobile-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    border: none;
+    box-shadow: 0 8px 25px rgba(37, 99, 235, 0.45);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 1.25rem;
-    color: var(--text-muted);
+    z-index: 1001;
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    padding: 0;
 }
 
-.member-item-icon svg {
-    width: 20px;
-    height: 20px;
+.btn-mobile-fab:active {
+    transform: scale(0.9);
 }
 
-.member-name {
-    font-weight: 500;
+.btn-mobile-fab.open {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    transform: rotate(180deg);
+}
+
+.fab-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+
+.fab-icon-wrapper svg {
+    width: 28px;
+    height: 28px;
+}
+
+/* Simulation Adjustments */
+.simulate-mobile-view .btn-mobile-fab {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+}
+
+/* Adjust main content padding in mobile to account for FAB area */
+[data-app-platform="mobile"] .main-content {
+    padding-bottom: 90px !important;
+}
+
+/* Hide old bottom nav in simulation */
+.simulate-mobile-view .bottom-nav {
+    display: none !important;
+}
+
+/* Adjust top bar for centered toggle */
+.mobile-view-toggle {
+    background: var(--bg-tertiary);
+}
+
+.mobile-view-toggle.active {
+    background: var(--primary-500);
     color: white;
-    font-size: 1rem;
-    flex: 1;
 }
 
-.selected-check {
-    color: var(--success-500);
-    width: 20px;
+[data-theme='dark'] .simulate-mobile-view .main-content {
+    border-color: #333;
+    box-shadow: 0 0 0 2px #444, var(--shadow-2xl), 0 0 100px rgba(0,0,0,0.5);
 }
 
-.fancy-empty {
-    padding: 2rem !important;
-    text-align: center;
-}
-
-.fancy-empty p {
-    color: var(--text-muted);
-    font-size: 0.875rem;
+@media (max-width: 768px) {
+    .mobile-view-toggle {
+        display: none !important;
+    }
 }
 </style>
+

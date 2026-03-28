@@ -1,6 +1,6 @@
 <template>
-    <div class="page-content">
-        <div class="card">
+    <div class="page-content animate-fade">
+        <div class="card card-static animate-spring">
             <div class="card-header">
                 <h2>📋 Duyệt Điểm Danh</h2>
                 <div class="header-actions">
@@ -9,16 +9,17 @@
             </div>
             <div class="card-content">
                 <div v-if="pendingRequests.length > 0" class="filters">
-                    <select v-model="filterMatchId" class="form-select">
-                        <option value="">Tất cả trận đấu</option>
-                        <option v-for="match in matchesWithRequests" :key="match.id" :value="match.id">
-                            {{ match.opponent }} ({{ formatDate(match.date) }})
-                        </option>
-                    </select>
+                    <BaseSelect 
+                        v-model="filterMatchId"
+                        :options="[{ value: '', label: 'Tất cả trận đấu' }, ...matchesWithRequests.map(m => ({
+                            value: m.id,
+                            label: `${m.opponent} (${formatDate(m.date)})`
+                        }))]"
+                    />
                 </div>
 
                 <div v-if="filteredRequests.length > 0" class="request-list">
-                    <div v-for="req in filteredRequests" :key="req.id" class="request-item">
+                    <div v-for="(req, index) in filteredRequests" :key="req.id" class="request-item list-item-animate" :style="{ animationDelay: (0.1 + index * 0.05) + 's' }">
                         <div class="request-info">
                             <div class="request-meta">
                                 <span class="request-time">{{ formatDateTime(req.submittedAt) }}</span>
@@ -44,6 +45,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useAppState } from '../composables/useAppState';
+import BaseSelect from '../components/BaseSelect.vue';
 import { useAuth } from '../composables/useAuth';
 import { useRouter } from 'vue-router';
 
@@ -146,4 +148,23 @@ const rejectRequest = async (req) => {
 .badge-late { background: rgba(245, 158, 11, 0.1); color: var(--warning-400); font-weight: 600; padding: 0.2rem 0.5rem; }
 
 .request-actions { display: flex; gap: 0.75rem; }
+
+@media (max-width: 600px) {
+    .request-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1.25rem;
+    }
+    
+    .request-actions {
+        width: 100%;
+        gap: 1rem;
+    }
+    
+    .request-actions button {
+        flex: 1;
+        padding: 0.75rem;
+        font-size: 1rem;
+    }
+}
 </style>

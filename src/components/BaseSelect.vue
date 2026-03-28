@@ -178,16 +178,16 @@ onUnmounted(() => {
 
 .base-select-trigger {
   width: 100%;
-  height: 48px;
-  background: var(--bg-tertiary);
-  border: 2px solid var(--border-primary);
-  border-radius: var(--radius-lg);
+  height: var(--height-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--spacing-lg);
+  padding: 0 12px;
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all 0.2s;
   color: var(--text-primary);
   user-select: none;
   font-family: inherit;
@@ -201,8 +201,7 @@ onUnmounted(() => {
 
 .base-select-trigger.open {
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 4px var(--bg-active), var(--shadow-glow);
-  background: var(--bg-elevated);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .base-select-trigger.disabled {
@@ -249,8 +248,7 @@ onUnmounted(() => {
 .check-icon {
   width: 16px;
   height: 16px;
-  color: var(--primary-400);
-  margin-left: var(--spacing-md);
+  color: var(--primary-600);
   flex-shrink: 0;
 }
 

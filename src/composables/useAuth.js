@@ -1,8 +1,46 @@
 import { ref, computed } from 'vue';
 
+// Session duration: 12 hours
+const SESSION_DURATION = 6 * 60 * 60 * 1000;
+
+const checkExpiryAndLogoutIfNeeded = () => {
+    const expiry = localStorage.getItem('session_expiry');
+
+    if (currentRole.value && (!expiry || new Date().getTime() > parseInt(expiry, 10))) {
+        currentRole.value = null;
+        guestMemberId.value = null;
+        localStorage.removeItem('user_role');
+        localStorage.removeItem('guest_member_id');
+        localStorage.removeItem('session_expiry');
+        // Reload to clear any sensitive states in memory
+        setTimeout(() => {
+            window.location.reload();
+        }, 500);
+    }
+};
+
+const getStoredRoleAndCheckExpiry = () => {
+    const role = localStorage.getItem('user_role');
+    const expiry = localStorage.getItem('session_expiry');
+
+    if (role) {
+        if (!expiry || new Date().getTime() > parseInt(expiry, 10)) {
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('guest_member_id');
+            localStorage.removeItem('session_expiry');
+            return null;
+        }
+        return role;
+    }
+    return null;
+};
+
 // Role state
-const currentRole = ref(localStorage.getItem('user_role') || null);
-const guestMemberId = ref(localStorage.getItem('guest_member_id') ? parseInt(localStorage.getItem('guest_member_id')) : null);
+const currentRole = ref(getStoredRoleAndCheckExpiry());
+const guestMemberId = ref(currentRole.value && localStorage.getItem('guest_member_id') ? parseInt(localStorage.getItem('guest_member_id')) : null);
+
+// Định kỳ kiểm tra hết hạn session (mỗi phút)
+setInterval(checkExpiryAndLogoutIfNeeded, 60000);
 
 // Role types
 export const ROLES = {
@@ -116,6 +154,10 @@ const setRole = (role, memberId = null) => {
     currentRole.value = role;
     localStorage.setItem('user_role', role);
 
+    // Set session expiry
+    const expiryTime = new Date().getTime() + SESSION_DURATION;
+    localStorage.setItem('session_expiry', expiryTime.toString());
+
     if (role === ROLES.GUEST && memberId) {
         guestMemberId.value = memberId;
         localStorage.setItem('guest_member_id', memberId);
@@ -130,6 +172,7 @@ const logout = () => {
     guestMemberId.value = null;
     localStorage.removeItem('user_role');
     localStorage.removeItem('guest_member_id');
+    localStorage.removeItem('session_expiry');
 };
 
 const checkPermission = (permission) => {
@@ -144,6 +187,7 @@ export const useAuth = () => {
 
         // Computed
         isAdmin,
+        isAccountant,
         isGuest,
         isAuthenticated,
         permissions,

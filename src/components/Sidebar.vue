@@ -102,16 +102,6 @@
                 <span>Quản Lý Nghỉ/Muộn</span>
             </router-link>
 
-            <!-- Pending Transactions - Admin only -->
-            <router-link v-if="permissions.canViewFinance" to="/pending-transactions" class="nav-item" active-class="active">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 1-2 2v16a2 2 0 0 1 2 2h12a2 2 0 0 1 2-2V8z"></path>
-                    <polyline points="9 11 12 14 22 4"></polyline>
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                </svg>
-                <span>Phê Duyệt GD</span>
-            </router-link>
-
             <!-- Pending Attendances - Admin only -->
             <router-link v-if="permissions.canReviewAttendance" to="/pending-attendances" class="nav-item" active-class="active">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -159,11 +149,8 @@ const { permissions } = useAuth();
 
 <style scoped>
 .sidebar {
-    width: 280px;
-    background: var(--glass-bg);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    border-right: 1px solid var(--glass-border);
+    width: var(--sidebar-width);
+    background: var(--sidebar-bg);
     display: flex;
     flex-direction: column;
     position: fixed;
@@ -171,27 +158,30 @@ const { permissions } = useAuth();
     left: 0;
     top: 0;
     z-index: 100;
-    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-lg);
+    transition: background-color 0.3s ease;
 }
 
 .sidebar-header {
-    padding: 1.25rem;
+    padding: var(--spacing-md);
     display: flex;
     align-items: center;
-    border-bottom: 1px solid var(--border-secondary);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--header-bg);
+    min-height: var(--header-height);
 }
 
 .logo {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: var(--spacing-sm);
 }
 
 .logo-image {
-    width: 42px;
-    height: 42px;
+    width: 32px;
+    height: 32px;
     object-fit: contain;
-    filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.3));
+    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.3));
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -200,59 +190,61 @@ const { permissions } = useAuth();
 }
 
 .logo-text {
-    font-size: 1.2rem;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    color: white;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
 }
 
 .sidebar-nav {
     flex: 1;
-    padding: 1rem;
+    padding: var(--spacing-sm);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 4px;
     overflow-y: auto;
 }
 
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.875rem 1.25rem;
-    border-radius: 1rem;
+    gap: 0.75rem;
+    padding: 0.75rem var(--spacing-md);
+    border-radius: var(--radius-md);
     color: var(--text-secondary);
     text-decoration: none;
     font-weight: 500;
-    font-size: 0.9375rem;
-    transition: all 0.25s ease;
-    border: 1px solid transparent;
+    font-size: 14px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-item:hover {
     background: var(--bg-hover);
-    color: white;
-    transform: translateX(5px);
+    color: var(--text-primary);
+    transform: translateX(3px);
 }
 
-.nav-item.active {
-    background: var(--bg-active);
-    color: white;
-    border-color: rgba(99, 102, 241, 0.3);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2), var(--glass-glow);
+.nav-item:active {
+    transform: scale(0.97);
+}
+
+.nav-item.active,
+.nav-item.router-link-active {
+    background: var(--primary-600);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .nav-icon {
     width: 20px;
     height: 20px;
     stroke-width: 2;
-    transition: transform 0.3s ease;
+    opacity: 0.8;
 }
 
-.nav-item.active .nav-icon {
-    color: var(--primary-400);
-    transform: scale(1.1);
+.nav-item.active .nav-icon,
+.nav-item.router-link-active .nav-icon {
+    opacity: 1;
 }
 
 /* Custom Scrollbar for Sidebar */
@@ -260,6 +252,55 @@ const { permissions } = useAuth();
     width: 4px;
 }
 .sidebar-nav::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg-hover);
+}
+
+/* Open Animation for Mobile Sidebar Items */
+:global(.sidebar.open) .nav-item {
+    animation: sidebarItemIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes sidebarItemIn {
+    0% {
+        opacity: 0;
+        transform: translateX(-30px) scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+
+:global(.sidebar.open) .nav-item:nth-child(1) { animation-delay: 0.1s; }
+:global(.sidebar.open) .nav-item:nth-child(2) { animation-delay: 0.13s; }
+:global(.sidebar.open) .nav-item:nth-child(3) { animation-delay: 0.16s; }
+:global(.sidebar.open) .nav-item:nth-child(4) { animation-delay: 0.19s; }
+:global(.sidebar.open) .nav-item:nth-child(5) { animation-delay: 0.22s; }
+:global(.sidebar.open) .nav-item:nth-child(6) { animation-delay: 0.25s; }
+:global(.sidebar.open) .nav-item:nth-child(7) { animation-delay: 0.28s; }
+:global(.sidebar.open) .nav-item:nth-child(8) { animation-delay: 0.31s; }
+:global(.sidebar.open) .nav-item:nth-child(9) { animation-delay: 0.34s; }
+:global(.sidebar.open) .nav-item:nth-child(10) { animation-delay: 0.37s; }
+:global(.sidebar.open) .nav-item:nth-child(11) { animation-delay: 0.4s; }
+:global(.sidebar.open) .nav-item:nth-child(12) { animation-delay: 0.43s; }
+
+/* Dynamic Logo Animation */
+:global(.sidebar.open) .logo-image {
+    animation: logoPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    animation-delay: 0.1s;
+}
+
+@keyframes logoPop {
+    0% {
+        transform: scale(0) rotate(-180deg);
+        filter: blur(10px) brightness(2);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1) rotate(0);
+        filter: blur(0) brightness(1);
+        opacity: 1;
+    }
 }
 </style>

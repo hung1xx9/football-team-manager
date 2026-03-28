@@ -1,34 +1,36 @@
 <template>
-    <div class="page-content">
-        <div class="page-actions">
-            <button class="btn btn-primary" @click="openAddModal">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Thêm Trận Đấu
-            </button>
+    <div class="page-content animate-fade">
+        <div class="page-header-fancy">
+            <div class="header-action-btns">
+                <button v-if="permissions.canAddMatch" class="btn btn-lg btn-primary" @click="openAddModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 20px; height: 20px;">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Thêm Trận Đấu</span>
+                </button>
+            </div>
         </div>
 
         <div class="matches-list">
-            <div v-for="match in sortedMatches" :key="match.id" class="match-card">
-                <div class="match-card-header">
-                    <div>
+            <div v-for="(match, index) in displayedMatches" :key="match.id" class="match-card list-item-animate" :style="{ animationDelay: (0.1 + index * 0.05) + 's' }">
+                <div class="match-card-header" :class="{ 'mobile-header': isMobile }">
+                    <div class="match-info-main">
                         <div class="match-card-title">{{ getMatchDisplayTitle(match) }}</div>
-                        <div class="match-card-date">
+                        <div class="match-details-row">
                             <span class="badge" :class="getMatchBadgeClass(match.matchType)">
                                 {{ match.matchType === 'friendly' ? 'Đấu tập' : 'Đấu đối' }}
                             </span>
-                            {{ match.opponent || 'Chưa có đối thủ' }}
+                            <span class="opponent-name">{{ match.opponent || 'Chưa có đối thủ' }}</span>
                         </div>
-                        <div class="match-card-date">{{ match.location || 'Chưa có địa điểm' }}</div>
+                        <div class="match-location">📍 {{ match.location || 'Chưa có địa điểm' }}</div>
                     </div>
-                    <div style="text-align: right;">
-                        <div class="match-card-date">{{ formatDate(match.date) }}</div>
-                        <div v-if="match.startTime" class="match-card-date" style="font-size: 0.875rem; color: var(--text-secondary);">
-                            🕐 {{ match.startTime }}
+                    <div class="match-info-stats">
+                        <div class="match-date-time">
+                            <span class="date">{{ formatDate(match.date) }}</span>
+                            <span v-if="match.startTime" class="time">🕐 {{ match.startTime }}</span>
                         </div>
-                        <div style="text-align: right; margin-top: 4px;">
+                        <div class="attendance-summary">
                             <span class="badge badge-success">{{ getAttendanceCount(match, 'present') }} có mặt</span>
                             <span class="badge badge-danger">{{ getAttendanceCount(match, 'absent') }} vắng</span>
                         </div>
@@ -57,7 +59,7 @@
                     </div>
 
                     <div class="match-card-actions">
-                        <button class="btn-action btn-qr" @click="generateAndShowQR(match)">
+                        <button class="btn btn-action btn-qr-action" @click="generateAndShowQR(match)">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                 <path d="M3 9h18"></path><path d="M9 21V9"></path>
@@ -65,14 +67,14 @@
                             Mã QR
                         </button>
 
-                        <button class="btn-action btn-edit" @click="openEditModal(match)">
+                        <button class="btn btn-action btn-edit-action" @click="openEditModal(match)">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                             Sửa
                         </button>
-                        <button class="btn-action btn-delete" @click="handleDeleteMatch(match.id)">
+                        <button class="btn btn-action btn-delete-action" @click="handleDeleteMatch(match.id)">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -83,7 +85,15 @@
                 </div>
             </div>
         </div>
-
+        
+        <div v-if="hasMoreMatches" style="text-align: center; margin-top: 16px; margin-bottom: 24px; color: var(--text-muted); font-size: 14px; font-weight: 500;">
+            <div class="spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 8px; vertical-align: middle;"></div>
+            Đang tải thêm trận đấu...
+        </div>
+        <div v-else-if="sortedMatches.length > 0" style="text-align: center; margin-top: 16px; margin-bottom: 16px; color: var(--text-muted); font-size: 13px;">
+            Đã hiển thị tất cả các trận đấu
+        </div>
+        <div ref="bottomSentinel" style="height: 1px;"></div>
         <!-- Match Form Modal -->
         <div v-if="showMatchModal" class="modal" style="display: flex;">
             <div class="modal-content modal-large">
@@ -94,10 +104,13 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label>Loại Trận Đấu</label>
-                        <select v-model="matchForm.matchType" class="form-control">
-                            <option value="friendly">Đấu tập</option>
-                            <option value="competitive">Đấu đối</option>
-                        </select>
+                        <BaseSelect 
+                            v-model="matchForm.matchType"
+                            :options="[
+                                { value: 'friendly', label: 'Đấu tập' },
+                                { value: 'competitive', label: 'Đấu đối' }
+                            ]"
+                        />
                     </div>
                     <div class="form-group">
                         <label>Ngày</label>
@@ -150,12 +163,53 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { useBreakpoints } from '../composables/useBreakpoints';
 import { useAppState } from '../composables/useAppState';
+import BaseSelect from '../components/BaseSelect.vue';
+import { useAuth } from '../composables/useAuth';
 import { useQRAttendance as useQR } from '../composables/useQRAttendance';
 
-const { sortedMatches, members, getMemberName, saveMatch, deleteMatch } = useAppState();
+const { isMobile } = useBreakpoints();
+
+const { sortedMatches, members, fixedMatches, getMemberName, saveMatch, deleteMatch } = useAppState();
+const { permissions } = useAuth();
 const { generateQR } = useQR();
+
+const displayCount = ref(3);
+
+const displayedMatches = computed(() => {
+    return sortedMatches.value.slice(0, displayCount.value);
+});
+
+const hasMoreMatches = computed(() => {
+    return displayCount.value < sortedMatches.value.length;
+});
+
+const loadMore = () => {
+    displayCount.value += 3;
+};
+
+const bottomSentinel = ref(null);
+
+onMounted(() => {
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMoreMatches.value) {
+            loadMore();
+        }
+    }, { rootMargin: '200px' });
+
+    if (bottomSentinel.value) {
+        observer.observe(bottomSentinel.value);
+    }
+
+    onUnmounted(() => {
+        if (bottomSentinel.value) {
+            observer.unobserve(bottomSentinel.value);
+        }
+        observer.disconnect();
+    });
+});
 
 const showMatchModal = ref(false);
 const matchForm = reactive({
@@ -175,11 +229,44 @@ const matchForQR = ref(null);
 
 const openAddModal = () => {
     matchForm.id = null;
-    matchForm.date = new Date().toISOString().split('T')[0];
-    matchForm.startTime = '';
-    matchForm.matchType = 'friendly';
-    matchForm.opponent = '';
-    matchForm.location = '';
+    
+    // Smart Defaults: Check if there's a suggested next match from fixedMatches
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const currentDay = today.getDay();
+    
+    let suggestedMatch = null;
+    if (fixedMatches.value.length > 0) {
+        // Find the next fixed match day
+        const sortedFixed = [...fixedMatches.value].sort((a, b) => {
+            let diffA = Number(a.dayOfWeek) - currentDay;
+            if (diffA < 0) diffA += 7;
+            let diffB = Number(b.dayOfWeek) - currentDay;
+            if (diffB < 0) diffB += 7;
+            return diffA - diffB;
+        });
+        
+        const nextFixed = sortedFixed[0];
+        let daysUntil = Number(nextFixed.dayOfWeek) - currentDay;
+        if (daysUntil < 0) daysUntil += 7;
+        
+        const nextDate = new Date(today);
+        nextDate.setDate(today.getDate() + daysUntil);
+        
+        suggestedMatch = {
+            date: nextDate.toISOString().split('T')[0],
+            startTime: nextFixed.startTime || '',
+            matchType: nextFixed.matchType || 'friendly',
+            opponent: nextFixed.opponent || '',
+            location: nextFixed.location || ''
+        };
+    }
+
+    matchForm.date = suggestedMatch?.date || new Date().toISOString().split('T')[0];
+    matchForm.startTime = suggestedMatch?.startTime || '';
+    matchForm.matchType = suggestedMatch?.matchType || 'friendly';
+    matchForm.opponent = suggestedMatch?.opponent || '';
+    matchForm.location = suggestedMatch?.location || '';
     showMatchModal.value = true;
 };
 
@@ -270,130 +357,134 @@ const getAttendanceCount = (match, status) => {
 </script>
 
 <style scoped>
-.page-content { padding: var(--spacing-xl); }
-.page-actions { margin-bottom: var(--spacing-xl); }
-.matches-list { display: flex; flex-direction: column; gap: var(--spacing-xl); }
-.match-card { background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: var(--radius-xl); overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; }
-.match-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-xl); }
+.page-content { padding: var(--container-padding); }
+
+.matches-list { display: flex; flex-direction: column; gap: var(--spacing-6); }
+
+.match-card { 
+    background: var(--bg-secondary); 
+    border: 1px solid var(--border-color); 
+    border-radius: var(--radius-lg); 
+    overflow: hidden; 
+    display: flex; 
+    flex-direction: column; 
+    transition: all 0.2s; 
+    box-shadow: var(--shadow-sm);
+}
+
+.match-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--primary-300); }
+
 .match-card-header { 
-    padding: var(--spacing-lg) var(--spacing-xl); 
-    background: rgba(15, 23, 42, 0.6); 
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08); 
+    padding: 16px var(--container-padding); 
+    background: var(--bg-tertiary); 
+    border-bottom: 1px solid var(--border-color); 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
 }
-.match-card-title { font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem; letter-spacing: -0.02em; }
-.match-card-date { font-size: 0.9rem; color: var(--text-muted); font-weight: 500; }
-.match-card-body { padding: var(--spacing-xl); flex: 1; }
+
+.match-card-title { font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+
+.match-card-body { padding: var(--container-padding); flex: 1; }
+
 .attendance-grid { 
     display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
-    gap: 0.85rem; 
-    margin-bottom: var(--spacing-lg); 
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
+    gap: 12px; 
+    margin-bottom: 20px; 
 }
+
 .attendance-item { 
     display: flex; 
     align-items: flex-start; 
-    gap: 0.75rem; 
-    padding: 0.85rem 1rem; 
-    background: rgba(30, 41, 59, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--radius-lg); 
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    gap: 12px; 
+    padding: 12px; 
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md); 
+    transition: all 0.2s;
 }
-.attendance-item.present {
-    border-left: 3px solid var(--success-500);
-    background: linear-gradient(to right, rgba(34, 197, 94, 0.05), rgba(255, 255, 255, 0.02));
-}
-.attendance-item.absent {
-    border-left: 3px solid var(--danger-500);
-    background: linear-gradient(to right, rgba(239, 68, 68, 0.05), rgba(255, 255, 255, 0.02));
-}
+
+.attendance-item.present { border-left: 3px solid var(--success); }
+.attendance-item.absent { border-left: 3px solid var(--danger); }
+
 .attendance-item:hover {
-    background: rgba(51, 65, 85, 0.7);
-    transform: translateY(-4px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--bg-tertiary);
+    border-color: var(--primary-200);
+    box-shadow: var(--shadow-sm);
 }
+
 .attendance-status { 
-    width: 8px; 
-    height: 8px; 
+    width: 6px; 
+    height: 6px; 
     border-radius: 50%; 
-    margin-top: 5px; 
+    margin-top: 6px; 
     flex-shrink: 0; 
 }
-.attendance-status.present { background: var(--success-500); box-shadow: 0 0 10px var(--success-500); }
-.attendance-status.absent { background: var(--danger-500); box-shadow: 0 0 10px var(--danger-500); }
+
+.attendance-status.present { background: var(--success); }
+.attendance-status.absent { background: var(--danger); }
+
 .attendance-name { 
-    font-size: 0.875rem; 
+    font-size: 13px; 
     color: var(--text-primary); 
     font-weight: 700;
     line-height: 1.4;
-    letter-spacing: -0.01em;
 }
+
 .attendance-detail {
-    font-size: 0.75rem;
-    color: var(--text-muted);
+    font-size: 11px;
+    color: var(--text-secondary);
     margin-top: 4px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
     font-weight: 500;
 }
+
 .match-card-actions { 
-    margin-top: 1rem; 
+    margin-top: 8px; 
     display: flex; 
-    gap: 0.75rem; 
+    gap: 8px; 
     justify-content: flex-end; 
     flex-wrap: wrap; 
-    border-top: 1px solid var(--border-primary); 
-    padding-top: 1.25rem; 
+    border-top: 1px solid var(--border-color); 
+    padding-top: 16px; 
 }
-.btn-action {
-    display: inline-flex;
+
+/* Mobile Optimizations */
+.mobile-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+    padding: 16px !important;
+}
+
+.mobile-header .match-info-stats {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+}
+
+.match-details-row {
+    display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.2rem;
-    font-weight: 600;
-    font-size: 0.85rem;
-    border-radius: var(--radius-full);
-    transition: all 0.3s;
+    gap: 8px;
+    margin-bottom: 4px;
 }
-.btn-qr { background: #0891b2; color: white; }
 
-.btn-edit { background: #7c3aed; color: white; }
-.btn-delete { background: #dc2626; color: white; }
-.btn-action:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    filter: brightness(1.1);
-}
-.btn-action svg {
-    width: 16px;
-    height: 16px;
-}
-.match-info-banner { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: var(--spacing-lg); margin-bottom: var(--spacing-xl); border: 1px solid var(--border-primary); }
-.attendance-list-enhanced { max-height: 400px; overflow-y: auto; background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); padding: 0.5rem; }
-.attendance-item-enhanced { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border-primary); transition: all 0.2s; border-radius: var(--radius-md); }
-.attendance-item-enhanced:hover { background: rgba(255, 255, 255, 0.05); }
-.attendance-item-enhanced:last-child { border-bottom: none; }
-.attendance-checkbox-wrapper { display: flex; align-items: center; gap: 1rem; width: 100%; }
-.attendance-checkbox-wrapper input[type="checkbox"] { width: 22px !important; height: 22px !important; flex-shrink: 0; cursor: pointer; accent-color: var(--primary-500); margin: 0; padding: 0; border-radius: 4px; }
-.attendance-label { flex: 1; display: flex; align-items: center; justify-content: space-between; cursor: pointer; margin: 0; min-height: 40px; }
-.member-name { font-weight: 600; font-size: 1rem; display: flex; align-items: center; text-transform: none; color: var(--text-primary); }
-.attendance-info { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; flex-wrap: wrap; justify-content: flex-end; }
-.attendance-time { font-family: monospace; font-size: 0.85rem; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.2rem 0.4rem; border-radius: var(--radius-sm); }
-.attendance-method { padding: 0.2rem 0.6rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-.method-qr { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
-.method-manual { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
-.late-status { font-weight: 600; padding: 0.2rem 0.6rem; border-radius: var(--radius-sm); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
-.late-status.is-late { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-.late-status.on-time { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
+.opponent-name { font-weight: 700; color: var(--text-primary); font-size: 14px; }
+.match-location { font-size: 12px; color: var(--text-secondary); font-weight: 500;}
 
-.attendance-method-badge { margin-left: 4px; padding: 0 4px; border-radius: 4px; font-size: 0.7rem; }
-.attendance-method-badge.method-qr { background: rgba(59, 130, 246, 0.1); }
-.attendance-method-badge.method-manual { background: rgba(52, 211, 153, 0.1); }
+.match-date-time { display: flex; flex-direction: column; gap: 2px; }
+.match-date-time .date { font-weight: 700; color: var(--primary-700); font-size: 14px; }
+.match-date-time .time { font-size: 12px; color: var(--text-secondary); font-weight: 500;}
+
+@media (max-width: 600px) {
+    .attendance-grid { grid-template-columns: 1fr; }
+    .match-card-actions { justify-content: stretch; }
+}
 </style>

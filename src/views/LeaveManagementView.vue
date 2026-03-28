@@ -1,6 +1,6 @@
 <template>
     <div class="page-content">
-        <div class="card">
+        <div class="card card-static animate-fade">
             <div class="card-header">
                 <h2>Quản Lý Nghỉ/Muộn</h2>
             </div>
@@ -8,12 +8,15 @@
                 <div class="filters">
                     <div class="form-group" style="margin: 0;">
                         <label>Lọc theo trạng thái</label>
-                        <select v-model="statusFilter" class="form-control">
-                            <option value="all">Tất cả</option>
-                            <option value="pending">Chờ duyệt</option>
-                            <option value="approved">Đã duyệt</option>
-                            <option value="rejected">Từ chối</option>
-                        </select>
+                        <BaseSelect 
+                            v-model="statusFilter"
+                            :options="[
+                                { value: 'all', label: 'Tất cả' },
+                                { value: 'pending', label: 'Chờ duyệt' },
+                                { value: 'approved', label: 'Đã duyệt' },
+                                { value: 'rejected', label: 'Từ chối' }
+                            ]"
+                        />
                     </div>
                     <div class="form-group" style="margin: 0;">
                         <label>Tìm kiếm thành viên</label>
@@ -22,25 +25,25 @@
                 </div>
 
                 <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 2rem 0;">
-                    <div class="stat-card stat-warning">
+                    <div class="stat-card stat-warning animate-spring animate-stagger-1">
                         <div class="stat-content">
                             <div class="stat-label">Chờ duyệt</div>
                             <div class="stat-value">{{ stats.pending }}</div>
                         </div>
                     </div>
-                    <div class="stat-card stat-success">
+                    <div class="stat-card stat-success animate-spring animate-stagger-2">
                         <div class="stat-content">
                             <div class="stat-label">Đã duyệt</div>
                             <div class="stat-value">{{ stats.approved }}</div>
                         </div>
                     </div>
-                    <div class="stat-card stat-danger">
+                    <div class="stat-card stat-danger animate-spring animate-stagger-3">
                         <div class="stat-content">
                             <div class="stat-label">Từ chối</div>
                             <div class="stat-value">{{ stats.rejected }}</div>
                         </div>
                     </div>
-                    <div class="stat-card stat-info">
+                    <div class="stat-card stat-info animate-spring animate-stagger-4">
                         <div class="stat-content">
                             <div class="stat-label">Tổng cộng</div>
                             <div class="stat-value">{{ stats.total }}</div>
@@ -63,7 +66,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="req in filteredRequests" :key="req.id">
+                            <tr v-for="(req, index) in filteredRequests" :key="req.id" class="list-item-animate" :style="{ animationDelay: (0.1 + index * 0.03) + 's' }">
                                 <td>
                                     <strong>{{ req.memberName || getMemberName(req.memberId) }}</strong>
                                 </td>
@@ -121,11 +124,20 @@
                         <label>Ghi chú (tùy chọn)</label>
                         <textarea v-model="adminNote" rows="3" placeholder="Nhập ghi chú cho thành viên..." class="form-control"></textarea>
                     </div>
-                    <div class="form-actions">
-                        <button class="btn" :class="confirmType === 'approve' ? 'btn-success' : 'btn-danger'" @click="handleConfirm">
-                            {{ confirmType === 'approve' ? 'Xác Nhận Duyệt' : 'Xác Nhận Từ Chối' }}
+                    <div class="form-actions" style="display: flex; gap: 1rem; margin-top: 2rem;">
+                        <button class="btn btn-hero" :class="confirmType === 'approve' ? 'btn-hero-income' : 'btn-hero-expense'" @click="handleConfirm">
+                            <div class="btn-hero-icon">
+                                <svg v-if="confirmType === 'approve'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </div>
+                            <span class="btn-hero-text">{{ confirmType === 'approve' ? 'Xác Nhận Duyệt' : 'Xác Nhận Từ Chối' }}</span>
                         </button>
-                        <button class="btn btn-secondary" @click="closeConfirmModal">Hủy</button>
+                        <button class="btn btn-secondary" @click="closeConfirmModal" style="height: 60px; border-radius: 1.25rem; flex: 1;">Hủy</button>
                     </div>
                 </div>
             </div>
@@ -186,6 +198,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useAppState } from '../composables/useAppState';
+import BaseSelect from '../components/BaseSelect.vue';
 
 const { leaveRequests, matches, getMemberName, approveLeaveRequest, rejectLeaveRequest } = useAppState();
 

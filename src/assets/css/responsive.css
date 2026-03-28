@@ -11,7 +11,9 @@
         transform: translate(-100%);
         transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: none;
-        background: rgba(15, 23, 42, 0.95); /* More opaque on mobile for focus */
+        background: var(--bg-elevated);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
     }
 
     .sidebar.open {
@@ -19,7 +21,61 @@
         box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
     }
 
-    .main-content { margin-left: 0 }
+    .main-content { 
+        margin-left: 0; 
+        padding-bottom: 80px; 
+        transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-radius 0.5s ease;
+    }
+    
+    .main-content.menu-open {
+        transform: scale(0.95) translateX(10px);
+        border-radius: 20px;
+        pointer-events: none;
+        overflow: hidden;
+        box-shadow: -10px 10px 30px rgba(0,0,0,0.2);
+    }
+}
+
+[data-app-platform="mobile"] .sidebar {
+    width: 85%;
+    max-width: 320px;
+    transform: translate(-100%);
+    transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: none;
+    background: var(--bg-elevated);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex !important;
+    position: fixed;
+    z-index: 1000;
+}
+
+[data-app-platform="mobile"] .sidebar.open {
+    transform: translate(0) !important;
+    box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
+}
+
+[data-app-platform="mobile"] .main-content { 
+    margin-left: 0 !important; 
+    padding-bottom: 80px; 
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-radius 0.5s ease;
+}
+
+[data-app-platform="mobile"] .main-content.menu-open {
+    transform: scale(0.95) translateX(10px);
+    border-radius: 20px;
+    pointer-events: none;
+    overflow: hidden;
+    box-shadow: -10px 10px 30px rgba(0,0,0,0.2);
+}
+
+[data-app-platform="mobile"] .sidebar-overlay.show {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
+
+@media (max-width: 768px) {
 
     .top-bar {
         padding: var(--spacing-md);
@@ -53,12 +109,14 @@
     .page-actions .btn { width: 100% }
 
     .mobile-menu-toggle {
-        display: flex;
-        align-items: center;
-        justify-content: center
+        display: none !important;
     }
 
-    .sidebar-overlay.show { display: block }
+    .sidebar-overlay.show { 
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+    }
 
     .btn { padding: var(--spacing-sm) var(--spacing-md); font-size: .875rem }
     .btn-lg { padding: var(--spacing-md) var(--spacing-lg); font-size: 1rem }
@@ -120,7 +178,7 @@
     .page-title { font-size: 1rem }
     .top-bar-actions { gap: .375rem }
     .sync-controls { gap: .25rem; padding: .25rem .5rem; flex-direction: column; align-items: stretch }
-    .sync-status { gap: .25rem; padding-right: 0; font-size: .75rem; border-right: none; border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: var(--spacing-xs) }
+    .sync-status { gap: .25rem; padding-right: 0; font-size: .75rem; border-right: none; border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-xs) }
     .sync-icon { width: 12px; height: 12px }
     .page-content { padding: .75rem 1rem; max-height: calc(100vh - 50px) }
     .page-actions { margin-bottom: .75rem; gap: .5rem }
@@ -165,4 +223,40 @@
     .modal-close { width: 28px; height: 28px; font-size: 1.125rem }
     .notification { padding: var(--spacing-md) }
     .notification-content { font-size: .875rem }
+}
+
+@media (max-width: 768px) {
+    .page-header-fancy {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 1.5rem !important;
+    }
+    
+    .header-action-btns {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+    }
+    
+    .btn-hero {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 56px !important;
+        padding: 0.875rem 1.5rem !important;
+    }
+
+    .search-input-fancy-wrapper {
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .btn-hero-text {
+        font-size: 0.95rem !important;
+    }
+    
+    .btn-hero-icon {
+        width: 28px !important;
+        height: 28px !important;
+    }
 }

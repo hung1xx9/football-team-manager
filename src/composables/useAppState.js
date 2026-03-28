@@ -16,6 +16,8 @@ const contributionTiers = ref([]);
 const settings = ref({ momoPhone: '' });
 const isInitialized = ref(false);
 const isSyncingLocal = ref(false); // Guard against race conditions during local writes
+const isMobileView = ref(localStorage.getItem('isMobileView') === 'true');
+
 
 let uploadDebounceTimer = null;
 
@@ -789,15 +791,12 @@ const getMemberStats = (memberId) => {
     return { attendanceRate: Math.round((attended / total) * 100) };
 };
 
-// Contribution Tiers CRUD
-const addContributionTier = (tierData) => {
-    contributionTiers.value.push({
-        id: Date.now(),
-        ...tierData,
-        isDefault: false
-    });
-    saveData();
+const toggleMobileView = () => {
+    isMobileView.value = !isMobileView.value;
+    localStorage.setItem('isMobileView', isMobileView.value);
 };
+
+// --- Exports ---
 
 const updateContributionTier = (id, updates) => {
     const tier = contributionTiers.value.find(t => t.id === id);
@@ -934,6 +933,15 @@ const updatePassword = async (role, newPassword) => {
 };
 
 
+const addContributionTier = (tierData) => {
+    const newTier = {
+        id: Date.now(),
+        ...tierData
+    };
+    contributionTiers.value.push(newTier);
+    saveData();
+};
+
 export const useAppState = () => {
     return {
         // State
@@ -950,9 +958,13 @@ export const useAppState = () => {
         sortedMatches,
         futureMatches,
         receivables,
+        isInitialized,
+        isSyncingLocal,
+        isMobileView,
 
         // Actions
         loadData,
+        saveData,
         updateFromFirebase,
         addMember,
         updateMember,
@@ -990,6 +1002,7 @@ export const useAppState = () => {
         getMemberLeaveRequests,
         hasApprovedLeave,
         getPassword,
-        updatePassword
+        updatePassword,
+        toggleMobileView
     };
 };

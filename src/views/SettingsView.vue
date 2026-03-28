@@ -1,10 +1,10 @@
 <template>
-    <div class="page-content">
+    <div class="page-content animate-fade">
         <div class="page-actions" style="margin-bottom: var(--spacing-lg);">
             <p class="text-muted" style="font-size: 1.1rem;">Quản lý thông tin tài khoản và bảo mật</p>
         </div>
 
-        <div class="card" style="margin-bottom: var(--spacing-xl);">
+        <div class="card animate-spring animate-stagger-1" style="margin-bottom: var(--spacing-xl);">
             <div class="card-header">
                 <h2>Thông Tin Tài Khoản</h2>
             </div>
@@ -22,7 +22,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card animate-spring animate-stagger-2">
             <div class="card-header">
                 <h2>Đổi Mật Khẩu</h2>
             </div>
@@ -94,7 +94,7 @@
         </div>
 
         <!-- Admin System Settings -->
-        <div v-if="permissions.canManageQRCode" class="card" style="margin-top: var(--spacing-xl);">
+        <div v-if="permissions.canManageQRCode" class="card animate-spring animate-stagger-3" style="margin-top: var(--spacing-xl);">
             <div class="card-header">
                 <h2>⚙️ Cài Đặt Hệ Thống</h2>
             </div>
@@ -179,7 +179,7 @@
         </div>
 
         <!-- Fixed Match Schedules -->
-        <div v-if="permissions.canManageQRCode" class="card" style="margin-top: var(--spacing-xl);">
+        <div v-if="permissions.canManageQRCode" class="card animate-spring animate-stagger-4" style="margin-top: var(--spacing-xl);">
             <div class="card-header">
                 <h2>🗓️ Lịch Trận Đấu Cố Định</h2>
             </div>
@@ -223,15 +223,18 @@
                     <div class="fixed-form-grid">
                         <div class="form-group">
                             <label>Thứ trong tuần</label>
-                            <select v-model="newFixed.dayOfWeek" class="form-control">
-                                <option value="1">Thứ 2</option>
-                                <option value="2">Thứ 3</option>
-                                <option value="3">Thứ 4</option>
-                                <option value="4">Thứ 5</option>
-                                <option value="5">Thứ 6</option>
-                                <option value="6">Thứ 7</option>
-                                <option value="0">Chủ Nhật</option>
-                            </select>
+                            <BaseSelect 
+                                v-model="newFixed.dayOfWeek"
+                                :options="[
+                                    { value: '1', label: 'Thứ 2' },
+                                    { value: '2', label: 'Thứ 3' },
+                                    { value: '3', label: 'Thứ 4' },
+                                    { value: '4', label: 'Thứ 5' },
+                                    { value: '5', label: 'Thứ 6' },
+                                    { value: '6', label: 'Thứ 7' },
+                                    { value: '0', label: 'Chủ Nhật' }
+                                ]"
+                            />
                         </div>
                         <div class="form-group">
                             <label>Giờ bắt đầu</label>
@@ -256,7 +259,7 @@
         </div>
 
         <!-- Data & Migration Settings -->
-        <div v-if="permissions.canManageQRCode" class="card" style="margin-top: var(--spacing-xl);">
+        <div v-if="permissions.canManageQRCode" class="card animate-spring animate-stagger-5" style="margin-top: var(--spacing-xl);">
             <div class="card-header">
                 <h2>📦 Dữ Liệu & Chuyển Đổi</h2>
             </div>
@@ -291,6 +294,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import BaseSelect from '../components/BaseSelect.vue';
 import { useAuth } from '../composables/useAuth';
 import { useAppState } from '../composables/useAppState';
 import { useFinancialCalculations } from '../composables/useFinancialCalculations';
