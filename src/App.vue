@@ -83,9 +83,8 @@
                             <line x1="12" y1="17" x2="12" y2="21"></line>
                         </svg>
                     </button>
-                    <button class="btn-theme-toggle" @click="toggleTheme" :title="currentTheme === 'light' ? 'Chuyển sang Giao diện tối' : 'Chuyển sang Giao diện sáng'">
-
-                        <svg v-if="currentTheme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="btn-theme-toggle" @click="toggleTheme" :title="currentTheme === 'dark' ? 'Chuyển sang Giao diện sáng' : 'Chuyển sang Giao diện tối'">
+                        <svg v-if="currentTheme === 'dark'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                         </svg>
                         <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

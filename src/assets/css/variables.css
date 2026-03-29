@@ -68,11 +68,12 @@
 /* --- THEME DEFINITIONS --- */
 
 /* Light theme — only applies when explicitly set */
+/* Light theme */
 html[data-theme="light"],
 body[data-theme="light"] {
     color-scheme: light;
-    --bg-primary: #f8fafc;
-    --bg-secondary: #ffffff;
+    --bg-primary: #ffffff; /* Pure white */
+    --bg-secondary: #f8fafc;
     --bg-tertiary: #f1f5f9;
     --bg-elevated: #ffffff;
     
@@ -92,34 +93,35 @@ body[data-theme="light"] {
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    --bg-overlay: rgba(0, 0, 0, 0.3);
+    --bg-overlay: rgba(15, 23, 42, 0.5);
 }
 
+/* Dark theme */
 html[data-theme="dark"],
 body[data-theme="dark"] {
     color-scheme: dark;
-    --bg-primary: #0b1120;
-    --bg-secondary: #0f172a;
-    --bg-tertiary: #1e293b;
-    --bg-elevated: #1e293b;
+    --bg-primary: #0a0e1a; /* Deep black-blue base */
+    --bg-secondary: #111827; /* Dark charcoal */
+    --bg-tertiary: #1f2937; /* Lighter charcoal */
+    --bg-elevated: #1f2937;
     
-    --header-bg: #111827;
-    --sidebar-bg: #0b1120;
+    --header-bg: #0a0e1a;
+    --sidebar-bg: #111827; /* Fixed: Changed from navy to charcoal grey */
     
     --text-primary: #f1f5f9;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
     
-    --border-color: #1e293b;
-    --border-hover: #334155;
+    --border-color: rgba(255, 255, 255, 0.05);
+    --border-hover: rgba(255, 255, 255, 0.1);
     
-    --bg-hover: rgba(255, 255, 255, 0.06);
-    --bg-active: rgba(255, 255, 255, 0.1);
+    --bg-hover: rgba(255, 255, 255, 0.05);
+    --bg-active: rgba(255, 255, 255, 0.08);
     
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
-    --bg-overlay: rgba(0, 0, 0, 0.7);
+    --bg-overlay: rgba(0, 0, 0, 0.8);
 }
 
 * {
