@@ -145,8 +145,10 @@
         </div>
 
         <!-- Finalize Preview Modal -->
-        <div v-if="showFinalizeModal" class="modal" style="display: flex;">
+        <Transition name="premium-modal">
+        <div v-if="showFinalizeModal" class="modal" style="display: flex;" @click.self="showFinalizeModal = false">
             <div class="modal-content" style="max-width: 600px;">
+
                 <div class="modal-header">
                     <h2>🏁 Chốt Trận & Ghi Nợ</h2>
                     <button class="modal-close" @click="showFinalizeModal = false">×</button>
@@ -197,13 +199,21 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @click="showFinalizeModal = false">Hủy</button>
-                    <button class="btn btn-primary" :disabled="!selectedMatchToFinalize || selectedMatchToFinalize.finalized" @click="handleFinalize">
-                        Chốt & Tính phạt
+                    <button class="btn btn-secondary" @click="showFinalizeModal = false" style="height: 48px; border-radius: var(--radius-md); flex: 1;">Hủy</button>
+                    <button class="btn btn-hero-confirm-mini" :disabled="!selectedMatchToFinalize || selectedMatchToFinalize.finalized" @click="handleFinalize" style="height: 48px; flex: 1.5; justify-content: center;">
+                        <div class="btn-mini-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        <span class="btn-mini-text">Chốt & Tính phạt</span>
                     </button>
                 </div>
             </div>
         </div>
+        </Transition>
+
     </div>
 </template>
 
@@ -213,13 +223,16 @@ import { useBreakpoints } from '../composables/useBreakpoints';
 import { useAppState } from '../composables/useAppState';
 import { useAuth } from '../composables/useAuth';
 import { usePenalties } from '../composables/usePenalties';
+import { useEscapeClose } from '../composables/useEscapeClose';
 import BaseSelect from '../components/BaseSelect.vue';
 
 const { isMobile } = useBreakpoints();
 const { 
     members, matches, pendingAttendances, hasApprovedLeave, 
-    saveMatch, finalizeMatch, getMemberName, updateManualAttendanceRequest 
+    saveMatch, finalizeMatch, getMemberName, updateManualAttendanceRequest,
+    showConfirm, showAlert 
 } = useAppState();
+
 const { isAdmin, isAccountant } = useAuth();
 const { getLatePenalty, absentPenalty } = usePenalties();
 
@@ -323,9 +336,9 @@ const handleFinalize = async () => {
         await finalizeMatch(selectedMatchToFinalize.value.id, previewPenalties.value);
         showFinalizeModal.value = false;
         selectedMatchToFinalize.value = null;
-        alert('Đã chốt trận và ghi nợ thành công!');
+        await showAlert('Đã chốt trận và ghi nợ thành công!');
     } catch (e) {
-        alert('Lỗi: ' + e.message);
+        await showAlert('Lỗi: ' + e.message);
     }
 };
 
@@ -521,6 +534,10 @@ const formatDateShort = (date) => new Date(date).toLocaleDateString("vi-VN", {
     day: "2-digit",
     month: "2-digit"
 });
+
+// Register Escape key to cancel editing or close modal
+useEscapeClose(() => cancelEdit(), editingCell);
+useEscapeClose(() => showFinalizeModal.value = false, showFinalizeModal);
 </script>
 
 <style scoped>

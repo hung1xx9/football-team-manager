@@ -102,8 +102,10 @@
         </div>
         <div ref="bottomSentinel" style="height: 1px;"></div>
         <!-- Match Form Modal -->
-        <div v-if="showMatchModal" class="modal" style="display: flex;">
+        <Transition name="premium-modal">
+        <div v-if="showMatchModal" class="modal" style="display: flex;" @click.self="closeMatchModal">
             <div class="modal-content modal-large">
+
                 <div class="modal-header">
                     <h2>{{ matchForm.id ? 'Sửa' : 'Thêm' }} Trận Đấu</h2>
                     <button class="modal-close" @click="closeMatchModal">×</button>
@@ -141,12 +143,16 @@
                 </div>
             </div>
         </div>
+        </Transition>
+
 
 
 
         <!-- QR Code Modal -->
-        <div v-if="showQRModal" class="modal" style="display: flex;">
+        <Transition name="premium-modal">
+        <div v-if="showQRModal" class="modal" style="display: flex;" @click.self="closeQRModal">
             <div class="modal-content" style="max-width: 450px; text-align: center;">
+
                 <div class="modal-header">
                     <h2>Quét Mã Điểm Danh</h2>
                     <button class="modal-close" @click="closeQRModal">×</button>
@@ -166,6 +172,7 @@
                 </div>
             </div>
         </div>
+        </Transition>
     </div>
 </template>
 
@@ -176,13 +183,16 @@ import { useAppState } from '../composables/useAppState';
 import BaseSelect from '../components/BaseSelect.vue';
 import { useAuth } from '../composables/useAuth';
 import { useQRAttendance as useQR } from '../composables/useQRAttendance';
+import { useEscapeClose } from '../composables/useEscapeClose';
 
 const { isMobile } = useBreakpoints();
 
 const { 
     sortedMatches, members, fixedMatches, getMemberName, 
-    saveMatch, deleteMatch, sendMessengerNotification 
+    saveMatch, deleteMatch, sendMessengerNotification,
+    showConfirm, showAlert 
 } = useAppState();
+
 const { permissions } = useAuth();
 const { generateQR } = useQR();
 
@@ -222,6 +232,8 @@ onMounted(() => {
 });
 
 const showMatchModal = ref(false);
+const showQRModal = ref(false);
+
 const matchForm = reactive({
     id: null,
     date: '',
@@ -231,9 +243,6 @@ const matchForm = reactive({
     location: ''
 });
 
-
-
-const showQRModal = ref(false);
 const qrCodeData = ref(null);
 const matchForQR = ref(null);
 
@@ -324,8 +333,8 @@ const closeQRModal = () => {
     matchForQR.value = null;
 };
 
-const handleDeleteMatch = (id) => {
-    if (confirm('Bạn có chắc chắn muốn xóa trận đấu này?')) {
+const handleDeleteMatch = async (id) => {
+    if (await showConfirm('Bạn có chắc chắn muốn xóa trận đấu này?')) {
         deleteMatch(id);
     }
 };
@@ -333,9 +342,9 @@ const handleDeleteMatch = (id) => {
 const handleSendMessenger = async (match) => {
     const result = await sendMessengerNotification(match);
     if (result && result.success) {
-        alert('✅ Đã gửi thông báo Messenger thành công!');
+        await showAlert('✅ Đã gửi thông báo Messenger thành công!');
     } else {
-        alert('❌ Gửi thông báo thất bại: ' + (result?.message || 'Lỗi không xác định'));
+        await showAlert('❌ Gửi thông báo thất bại: ' + (result?.message || 'Lỗi không xác định'));
     }
 };
 
@@ -373,6 +382,10 @@ const getAttendanceCount = (match, status) => {
     const attList = Array.isArray(match.attendance) ? match.attendance : Object.values(match.attendance);
     return attList.filter(a => a.status === status).length;
 };
+
+// Register Escape key to close modals
+useEscapeClose(() => closeMatchModal(), showMatchModal);
+useEscapeClose(() => closeQRModal(), showQRModal);
 </script>
 
 <style scoped>

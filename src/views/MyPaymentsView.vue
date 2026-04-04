@@ -181,7 +181,12 @@ import { useAuth } from '../composables/useAuth';
 import { useFinancialCalculations } from '../composables/useFinancialCalculations';
 import BaseSelect from '../components/BaseSelect.vue';
 
-const { transactions, pendingTransactions, addPendingTransaction, deletePendingTransaction, settings, members, receivables } = useAppState();
+const { 
+    transactions, pendingTransactions, addPendingTransaction, 
+    deletePendingTransaction, settings, members, receivables,
+    showConfirm, showAlert 
+} = useAppState();
+
 const { guestMemberId } = useAuth();
 const { getStatusText } = useFinancialCalculations();
 
@@ -220,20 +225,22 @@ const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currenc
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '';
 const formatDateTime = (ts) => ts ? new Date(ts).toLocaleString('vi-VN') : '';
 
-const openMoMo = () => {
+const openMoMo = async () => {
     if (settings.value.momoLink) window.open(settings.value.momoLink, '_blank');
-    else alert('Chưa cấu hình link MoMo trong cài đặt!');
+    else await showAlert('Chưa cấu hình link MoMo trong cài đặt!');
 };
 
 const submitConfirmation = async () => {
     if (!form.value.amount || form.value.amount <= 0) {
-        alert('Vui lòng nhập số tiền hợp lệ!');
+        await showAlert('Vui lòng nhập số tiền hợp lệ!');
         return;
     }
+
     if (!guestMemberId.value) {
-        alert('Lỗi: Không tìm thấy ID thành viên. Vui lòng đăng nhập lại!');
+        await showAlert('Lỗi: Không tìm thấy ID thành viên. Vui lòng đăng nhập lại!');
         return;
     }
+
 
     await addPendingTransaction({
         memberId: guestMemberId.value,
@@ -244,11 +251,11 @@ const submitConfirmation = async () => {
 
     form.value.amount = null;
     form.value.description = '';
-    alert('✅ Đã gửi yêu cầu xác nhận. Vui lòng chờ thủ quỹ duyệt!');
+    await showAlert('✅ Đã gửi yêu cầu xác nhận. Vui lòng chờ thủ quỹ duyệt!');
 };
 
 const deletePending = async (id) => {
-    if (confirm('Bạn có muốn xóa yêu cầu này?')) {
+    if (await showConfirm('Bạn có muốn xóa yêu cầu này?')) {
         await deletePendingTransaction(id);
     }
 };

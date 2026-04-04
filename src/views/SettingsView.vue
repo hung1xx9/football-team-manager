@@ -319,8 +319,10 @@ const { currentRole, ROLES, permissions } = useAuth();
 const { 
     getPassword, updatePassword, settings, updateSettings, 
     fixedMatches, addFixedMatch, deleteFixedMatch, checkAndCreateFixedMatches,
-    receivables, migrateToReceivables, members
+    receivables, migrateToReceivables, members,
+    showConfirm, showAlert 
 } = useAppState();
+
 
 const { getMemberFinancialStatus } = useFinancialCalculations();
 
@@ -458,7 +460,7 @@ const handleQRUpload = async (e) => {
 };
 
 const deleteQR = async () => {
-    if (confirm('Bạn có chắc muốn xóa mã QR?')) {
+    if (await showConfirm('Bạn có chắc muốn xóa mã QR?')) {
         sysSettings.value.fundQR = '';
         await updateSettings({ fundQR: '' });
         sysSuccess.value = '🗑️ Đã xóa mã QR thành công!';
@@ -488,8 +490,8 @@ const savePenalties = async () => {
     }
 };
 
-const resetPenalties = () => {
-    if (confirm('Bạn có chắc muốn khôi phục mức phạt về mặc định?')) {
+const resetPenalties = async () => {
+    if (await showConfirm('Bạn có chắc muốn khôi phục mức phạt về mặc định?')) {
         penalties.value = {
             absent: 50000,
             late: { lessThan10Min: 10000, lessThan20Min: 20000, moreThan20Min: 50000 }
@@ -504,22 +506,24 @@ const getDayName = (day) => {
     return names[day] || day;
 };
 
-const handleAddFixedMatch = () => {
+const handleAddFixedMatch = async () => {
     if (!newFixed.value.startTime || !newFixed.value.location) {
-        alert('Vui lòng điền đầy đủ giờ và địa điểm!');
+        await showAlert('Vui lòng điền đầy đủ giờ và địa điểm!');
         return;
     }
+
     
     addFixedMatch({ ...newFixed.value });
     newFixed.value = { dayOfWeek: '2', startTime: '16:30', opponent: '', location: '' };
     sysSuccess.value = '✅ Đã thêm lịch trận đấu cố định!';
     
     // Suggest running check immediately
-    setTimeout(() => {
-        if (confirm('Bạn có muốn hệ thống kiểm tra và tự động tạo trận đấu cho lịch này ngay bây giờ?')) {
+    setTimeout(async () => {
+        if (await showConfirm('Bạn có muốn hệ thống kiểm tra và tự động tạo trận đấu cho lịch này ngay bây giờ?')) {
             handleRunAutoCheck();
         }
     }, 1000);
+
     
     setTimeout(() => sysSuccess.value = '', 3000);
 };
@@ -541,10 +545,11 @@ const handleRunAutoCheck = async () => {
 
 const handleMigration = async () => {
     if (hasReceivables.value) {
-        if (!confirm('Hệ thống đã có dữ liệu nợ mới. Chuyển đổi lần nữa có thể làm sai lệch số liệu. Bạn vẫn muốn tiếp tục?')) return;
+        if (!await showConfirm('Hệ thống đã có dữ liệu nợ mới. Chuyển đổi lần nữa có thể làm sai lệch số liệu. Bạn vẫn muốn tiếp tục?')) return;
     } else {
-        if (!confirm('Xác nhận chuyển đổi toàn bộ nợ cũ sang cơ chế sổ nợ mới? Các trận đấu cũ sẽ được đánh dấu là "Đã chốt".')) return;
+        if (!await showConfirm('Xác nhận chuyển đổi toàn bộ nợ cũ sang cơ chế sổ nợ mới? Các trận đấu cũ sẽ được đánh dấu là "Đã chốt".')) return;
     }
+
 
     isMigrating.value = true;
     try {
@@ -557,8 +562,9 @@ const handleMigration = async () => {
         sysSuccess.value = '✅ Chuyển đổi dữ liệu thành công!';
         setTimeout(() => sysSuccess.value = '', 5000);
     } catch (e) {
-        alert('Lỗi: ' + e.message);
+        await showAlert('Lỗi: ' + e.message);
     } finally {
+
         isMigrating.value = false;
     }
 };

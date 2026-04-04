@@ -106,8 +106,10 @@
         </div>
 
         <!-- Confirm Approval/Rejection Modal -->
-        <div v-if="showConfirmModal" class="modal" style="display: flex;">
+        <Transition name="premium-modal">
+        <div v-if="showConfirmModal" class="modal" style="display: flex;" @click.self="closeConfirmModal">
             <div class="modal-content">
+
                 <div class="modal-header">
                     <h2>{{ confirmType === 'approve' ? 'Duyệt Đơn' : 'Từ Chối Đơn' }}</h2>
                     <button class="modal-close" @click="closeConfirmModal">×</button>
@@ -142,9 +144,11 @@
                 </div>
             </div>
         </div>
+        </Transition>
 
         <!-- Details Modal -->
-        <div v-if="showDetailsModal" class="modal" style="display: flex;">
+        <Transition name="premium-modal">
+        <div v-if="showDetailsModal" class="modal" style="display: flex;" @click.self="showDetailsModal = false">
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Chi Tiết Đơn Gửi</h2>
@@ -192,6 +196,7 @@
                 </div>
             </div>
         </div>
+        </Transition>
     </div>
 </template>
 

@@ -476,8 +476,10 @@
         </div>
         
         <!-- Transaction Modal -->
-        <div v-if="showModal" class="modal" style="display: flex;">
+        <Transition name="premium-modal">
+        <div v-if="showModal" class="modal" style="display: flex;" @click.self="closeModal">
             <div class="modal-content">
+
                 <div class="modal-header">
                     <h2>{{ form.type === 'income' ? '💰 Thêm Khoản Thu' : '💸 Thêm Khoản Chi' }}</h2>
                     <button class="modal-close" @click="closeModal">×</button>
@@ -513,15 +515,27 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @click="closeModal">Hủy Bỏ</button>
-                    <button class="btn btn-primary" @click="handleSaveTransaction">Lưu Giao Dịch</button>
+                    <button class="btn btn-secondary" @click="closeModal" style="height: 48px; border-radius: var(--radius-md); flex: 1;">Hủy Bỏ</button>
+                    <button class="btn btn-hero-confirm-mini" @click="handleSaveTransaction" style="height: 48px; flex: 1.5; justify-content: center;">
+                        <div class="btn-mini-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        <span class="btn-mini-text">Lưu Giao Dịch</span>
+                    </button>
                 </div>
             </div>
         </div>
+        </Transition>
+
 
         <!-- Per Match Detail Modal -->
-        <div v-if="showPMDetailModal" class="modal" style="display: flex;">
+        <Transition name="premium-modal">
+        <div v-if="showPMDetailModal" class="modal" style="display: flex;" @click.self="showPMDetailModal = false">
             <div class="modal-content" style="max-width: 900px;">
+
                 <div class="modal-header">
                     <h2>⚽ Chi Tiết Thu Tiền - {{ pmFormatDate(pmDetailMatch?.date) }}</h2>
                     <button class="modal-close" @click="showPMDetailModal = false">×</button>
@@ -551,6 +565,8 @@
                 </div>
             </div>
         </div>
+        </Transition>
+
     </div>
 </template>
 
@@ -559,6 +575,7 @@ import { ref, reactive, computed, watch, nextTick, onUnmounted } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useFinancialCalculations } from '../composables/useFinancialCalculations';
 import { useAuth } from '../composables/useAuth';
+import { useEscapeClose } from '../composables/useEscapeClose';
 import BaseSelect from '../components/BaseSelect.vue';
 
 const { 
@@ -566,8 +583,9 @@ const {
     addTransaction, deleteTransaction, 
     approvePendingTransaction, rejectPendingTransaction,
     contributionTiers, updateJerseyPayment, getMemberName,
-    receivables
+    receivables, showAlert, showConfirm, showPrompt
 } = useAppState();
+
 
 const { getStatusText } = useFinancialCalculations();
 const { isAdmin, isAccountant } = useAuth();
@@ -579,6 +597,7 @@ const props = defineProps({
 const activeTab = ref(props.initialTab);
 const showModal = ref(false);
 const showPMDetailModal = ref(false);
+
 const pmDetailMatchId = ref(null);
 const activeDropdownId = ref(null);
 const dropdownDirection = ref('down');
@@ -643,11 +662,13 @@ const openTransactionModal = (type) => {
 };
 const closeModal = () => { showModal.value = false; };
 const handleSaveTransaction = async () => { if (!form.description) form.description = currentCategories.value.find(c => c.value === form.category)?.label || form.category; await addTransaction({ ...form }); closeModal(); };
-const handleDeleteTransaction = (id) => { if (confirm('Xóa giao dịch này?')) deleteTransaction(id); };
+const handleDeleteTransaction = async (id) => { if (await showConfirm('Xóa giao dịch này?')) deleteTransaction(id); };
+
 
 const handleAutoClear = async (member) => {
     if (member.totalDebt <= 0) return;
-    if (!confirm(`Xác nhận thu TIỀN MẶT và xóa nợ cho ${member.name}?\nSố tiền: ${formatCurrency(member.totalDebt)}`)) return;
+    if (!await showConfirm(`Xác nhận thu TIỀN MẶT và xóa nợ cho ${member.name}?\nSố tiền: ${formatCurrency(member.totalDebt)}`, 'Xóa nợ thành viên')) return;
+
     await addTransaction({ type: 'income', category: 'other', amount: member.totalDebt, description: `Thu tiền mặt xóa nợ - ${member.name}`, date: new Date().toISOString().split('T')[0], memberId: member.id });
     closeDropdown();
 };
@@ -661,8 +682,9 @@ const handleManualPayment = (member, category) => {
     showModal.value = true; closeDropdown();
 };
 
-const handleApprove = (tx) => { const amount = prompt(`Xác nhận số tiền thực nhận:`, tx.amount); if (amount) approvePendingTransaction(tx.id, parseInt(amount.replace(/[^0-9]/g, ''))); };
-const handleReject = (tx) => { const reason = prompt('Lý do từ chối:'); if (reason !== null) rejectPendingTransaction(tx.id, reason); };
+const handleApprove = async (tx) => { const amount = await showPrompt(`Xác nhận số tiền thực nhận:`, 'Duyệt giao dịch', tx.amount); if (amount) approvePendingTransaction(tx.id, parseInt(amount.replace(/[^0-9]/g, ''))); };
+const handleReject = async (tx) => { const reason = await showPrompt('Lý do từ chối:', 'Từ chối giao dịch'); if (reason !== null) rejectPendingTransaction(tx.id, reason); };
+
 
 import { useBreakpoints } from '../composables/useBreakpoints';
 const { isMobile } = useBreakpoints();
@@ -703,11 +725,12 @@ const toggleMFPayment = async (memberId, month, event) => {
     const checked = event.target.checked; const key = `${memberId}-${selectedYear.value}-${month}`; const member = members.value.find(m => m.id === memberId);
     if (!member) return;
     if (checked) {
-        const fee = getMonthlyFee(member); const input = prompt(`Số tiền đóng quỹ T${month}/${selectedYear.value} của ${member.name}:`, fee);
-        if (input) await addTransaction({ type: 'income', category: 'monthly_fund', amount: parseInt(input.replace(/[^0-9]/g, '')), description: `Đóng quỹ T${month}/${selectedYear.value} - ${member.name}`, date: new Date(selectedYear.value, month - 1, 1).toISOString(), memberId, monthlyFundMeta: { year: selectedYear.value, month } }); else event.target.checked = false;
+        const fee = getMonthlyFee(member); const input = await showPrompt(`Số tiền đóng quỹ T${month}/${selectedYear.value} của ${member.name}:`, 'Thu quỹ theo tháng', fee);
+        if (input) await addTransaction({ type: 'income', category: 'monthly_fund', amount: parseInt(String(input).replace(/[^0-9]/g, '')), description: `Đóng quỹ T${month}/${selectedYear.value} - ${member.name}`, date: new Date(selectedYear.value, month - 1, 1).toISOString(), memberId, monthlyFundMeta: { year: selectedYear.value, month } }); else event.target.checked = false;
     } else {
-        const txId = mfProcessedPayments.value[key]; if (txId && confirm('Hủy ghi nhận đóng quỹ này?')) await deleteTransaction(txId); else event.target.checked = true;
+        const txId = mfProcessedPayments.value[key]; if (txId && await showConfirm('Hủy ghi nhận đóng quỹ này?', 'Hủy đóng quỹ')) await deleteTransaction(txId); else event.target.checked = true;
     }
+
 };
 
 const getMFTierName = (id) => getContributionTier(id)?.name || '';
@@ -816,15 +839,16 @@ const pmDetailMatchRevenue = computed(() => {
 });
 
 const pmCollectFeeModal = async (player) => {
-    if (confirm(`Thu tiền trận của ${player.name}?`)) {
+    if (await showConfirm(`Thu tiền trận của ${player.name}?`, 'Thu tiền trận')) {
         await addTransaction({ type: 'income', category: 'per_match_fund', amount: player.perMatchFee, description: `Thu tiền trận ${pmFormatDate(pmDetailMatch.value.date)} - ${player.name}`, date: pmDetailMatch.value.date, memberId: player.id, perMatchFundMeta: { matchId: pmDetailMatch.value.id } });
     }
 };
 
 const pmUndoCollectFeeModal = async (player) => {
     const tx = transactions.value.find(t => t.category === 'per_match_fund' && t.memberId === player.id && t.perMatchFundMeta?.matchId === pmDetailMatch.value.id);
-    if (tx && confirm('Hoàn tác thu tiền?')) await deleteTransaction(tx.id);
+    if (tx && await showConfirm('Hoàn tác thu tiền?', 'Hoàn tác')) await deleteTransaction(tx.id);
 };
+
 // Jersey logic
 const getJerseyData = (memberId) => jerseyPayments.value.find(p => p.memberId === memberId) || {};
 const jerseyTotalPaid = computed(() => jerseyPayments.value.filter(p => p.status === 'paid').reduce((a, b) => a + (b.amount || 0), 0));
@@ -837,7 +861,8 @@ const updateJersey = (memberId, updates) => {
 const markJerseyAsPaid = async (member) => {
     const data = getJerseyData(member.id);
     const amount = data.amount || 200000;
-    if (confirm(`Xác nhận thu ${formatCurrency(amount)} tiền áo của ${member.name}?`)) {
+    if (await showConfirm(`Xác nhận thu ${formatCurrency(amount)} tiền áo của ${member.name}?`, 'Thu tiền áo')) {
+
         await updateJerseyPayment(member.id, { status: 'paid', amount });
         await addTransaction({
             type: 'income',
@@ -855,6 +880,10 @@ const getStatusClass = (status) => {
     if (status === 'ordered') return 'text-warning';
     return '';
 };
+
+// Register Escape key to close modals
+useEscapeClose(() => closeModal(), showModal);
+useEscapeClose(() => showPMDetailModal.value = false, showPMDetailModal);
 </script>
 
 <style scoped>

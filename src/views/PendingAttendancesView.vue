@@ -55,7 +55,12 @@ import BaseSelect from '../components/BaseSelect.vue';
 import { useAuth } from '../composables/useAuth';
 import { useRouter } from 'vue-router';
 
-const { members, matches, pendingAttendances, updateManualAttendanceRequest, updateMatchAttendance } = useAppState();
+const { 
+    members, matches, pendingAttendances, 
+    updateManualAttendanceRequest, updateMatchAttendance,
+    showConfirm, showPrompt, showAlert
+} = useAppState();
+
 const { permissions, currentRole } = useAuth();
 const router = useRouter();
 
@@ -89,7 +94,8 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '';
 const formatDateTime = (ts) => ts ? new Date(ts).toLocaleString('vi-VN') : '';
 
 const approveRequest = async (req) => {
-    if (!confirm(`Phê duyệt điểm danh cho ${getMemberName(req.memberId)}?`)) return;
+    if (!await showConfirm(`Phê duyệt điểm danh cho ${getMemberName(req.memberId)}?`)) return;
+
     
     const match = matches.value.find(m => m.id === req.matchId);
     if (match) {
@@ -125,8 +131,9 @@ const approveRequest = async (req) => {
 };
 
 const rejectRequest = async (req) => {
-    const reason = prompt(`Lý do từ chối điểm danh của ${getMemberName(req.memberId)}?`, 'Thiếu ảnh minh chứng hoặc sai giờ');
+    const reason = await showPrompt(`Lý do từ chối điểm danh của ${getMemberName(req.memberId)}?`, 'Từ chối điểm danh', 'Thiếu ảnh minh chứng hoặc sai giờ');
     if (reason === null) return;
+
     
     const match = matches.value.find(m => m.id === req.matchId);
     if (match) {

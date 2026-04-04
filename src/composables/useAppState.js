@@ -22,6 +22,17 @@ const isInitialized = ref(false);
 const isSyncingLocal = ref(false); // Guard against race conditions during local writes
 const isMobileView = ref(localStorage.getItem('isMobileView') === 'true');
 
+// Dialog state
+const dialog = ref({
+    show: false,
+    title: '',
+    message: '',
+    type: 'alert', // 'alert', 'confirm', 'prompt'
+    resolve: null,
+    inputValue: ''
+});
+
+
 
 let uploadDebounceTimer = null;
 
@@ -795,7 +806,8 @@ const approvePendingTransaction = async (id) => {
             localStorage.setItem('transactions', JSON.stringify(transactions.value));
             return true;
         } catch (e) {
-            alert('Lỗi: ' + e.message);
+            await showAlert('Lỗi: ' + e.message, 'Lỗi phê duyệt');
+
             throw e;
         }
     } else {
@@ -934,7 +946,8 @@ const updateManualAttendanceRequest = async (request, action = 'save') => {
             localStorage.setItem('pendingAttendances', JSON.stringify(pendingAttendances.value));
             return;
         } catch (e) {
-            alert('Lỗi: ' + e.message);
+            await showAlert('Lỗi: ' + e.message, 'Lỗi điểm danh');
+
             throw e;
         }
     }
@@ -1010,6 +1023,44 @@ const updateJerseyPayment = async (memberId, updates) => {
     }
 };
 
+const showAlert = (message, title = 'Thông báo') => {
+    return new Promise((resolve) => {
+        dialog.value = {
+            show: true,
+            title,
+            message,
+            type: 'alert',
+            resolve
+        };
+    });
+};
+
+const showConfirm = (message, title = 'Xác nhận') => {
+    return new Promise((resolve) => {
+        dialog.value = {
+            show: true,
+            title,
+            message,
+            type: 'confirm',
+            resolve
+        };
+    });
+};
+
+const showPrompt = (message, title = 'Nhập thông tin', defaultValue = '') => {
+    return new Promise((resolve) => {
+        dialog.value = {
+            show: true,
+            title,
+            message,
+            type: 'prompt',
+            resolve,
+            inputValue: defaultValue
+        };
+    });
+};
+
+
 // Main application state management (Firebase Realtime DB sync, Automated Match Creation, and Messenger notifications)
 export const useAppState = () => {
     return {
@@ -1075,6 +1126,10 @@ export const useAppState = () => {
         getPassword,
         updatePassword,
         toggleMobileView,
-        sendMessengerNotification
+        sendMessengerNotification,
+        showAlert,
+        showConfirm,
+        showPrompt,
+        dialog
     };
 };

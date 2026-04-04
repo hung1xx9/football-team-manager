@@ -103,8 +103,10 @@
         </div>
 
         <!-- Update Modal -->
-        <div v-if="showModal" class="modal" style="display: flex;">
+        <Transition name="premium-modal">
+        <div v-if="showModal" class="modal" style="display: flex;" @click.self="closeModal">
             <div class="modal-content" style="max-width: 800px;">
+
                 <div class="modal-header">
                     <h2>✏️ Cập Nhật Bảng Vàng</h2>
                     <button class="modal-close" @click="closeModal">×</button>
@@ -162,6 +164,8 @@
                 </div>
             </div>
         </div>
+        </Transition>
+
     </div>
 </template>
 
@@ -171,8 +175,9 @@ import { useAppState } from '../composables/useAppState';
 import { useAuth } from '../composables/useAuth';
 import MemberSelector from '../components/MemberSelector.vue';
 
-const { members, settings, updateSettings } = useAppState();
+const { members, settings, updateSettings, showConfirm, showAlert } = useAppState();
 const { permissions } = useAuth();
+
 
 const showModal = ref(false);
 
@@ -218,7 +223,7 @@ const handleSave = async () => {
     const updatedSettings = { ...settings.value, hallOfFame: form.value };
     await updateSettings(updatedSettings);
     showModal.value = false;
-    alert('✅ Đã cập nhật Bảng Vàng thành công!');
+    await showAlert('✅ Đã cập nhật Bảng Vàng thành công!');
 };
 
 onMounted(() => {

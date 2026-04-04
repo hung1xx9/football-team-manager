@@ -139,8 +139,10 @@
         </div>
 
         <!-- Reject Modal -->
-        <div class="modal" v-if="rejectModal.show" @click.self="closeRejectModal">
+        <Transition name="premium-modal">
+        <div class="modal" v-if="rejectModal.show" @click.self="closeRejectModal" style="display: flex;">
             <div class="modal-content">
+
                 <div class="modal-header">
                     <h2>Từ Chối Giao Dịch</h2>
                     <button class="modal-close" @click="closeRejectModal">×</button>
@@ -160,12 +162,22 @@
                             rows="3"></textarea>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" @click="closeRejectModal">Hủy</button>
-                    <button class="btn btn-danger" @click="confirmReject">Xác Nhận Từ Chối</button>
+                <div class="modal-footer" style="padding-top: 2rem;">
+                    <button class="btn btn-secondary" @click="closeRejectModal" style="height: 54px; border-radius: var(--radius-md); flex: 1;">Hủy</button>
+                    <button class="btn btn-hero-expense" @click="confirmReject" style="height: 54px; flex: 1.5; border-radius: var(--radius-md); font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <div class="btn-hero-icon" style="width: 24px; height: 24px; padding: 4px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </div>
+                        <span class="btn-hero-text">Xác Nhận Từ Chối</span>
+                    </button>
                 </div>
             </div>
         </div>
+        </Transition>
+
     </div>
 </template>
 
@@ -178,8 +190,11 @@ const {
     getMemberName, 
     approvePendingTransaction, 
     rejectPendingTransaction,
-    deletePendingTransaction 
+    deletePendingTransaction,
+    showConfirm,
+    showAlert
 } = useAppState();
+
 
 const currentTab = ref('pending');
 const rejectModal = ref({
@@ -260,21 +275,24 @@ const getMemberInitials = (memberId) => {
 };
 
 const approveTransaction = async (id) => {
-    if (!confirm('Bạn có chắc chắn muốn phê duyệt giao dịch này?')) return;
+    if (!await showConfirm('Bạn có chắc chắn muốn phê duyệt giao dịch này?')) return;
+
     
     const success = await approvePendingTransaction(id);
     if (success) {
         // success handeled by snackbar/alert in App.vue via useAppState
     } else {
-        alert('❌ Có lỗi xảy ra khi phê duyệt giao dịch');
+        await showAlert('❌ Có lỗi xảy ra khi phê duyệt giao dịch');
     }
 };
+
 
 const approveAllTransactions = async () => {
     const count = filteredTransactions.value.length;
     const total = formatCurrency(pendingAmount.value);
     
-    if (!confirm(`Bạn có chắc chắn muốn phê duyệt toàn bộ ${count} giao dịch?\nTổng số tiền: ${total}`)) return;
+    if (!await showConfirm(`Bạn có chắc chắn muốn phê duyệt toàn bộ ${count} giao dịch?\nTổng số tiền: ${total}`)) return;
+
     
     let successCount = 0;
     const ids = filteredTransactions.value.map(t => t.id);
@@ -288,7 +306,8 @@ const approveAllTransactions = async () => {
         }
     }
     
-    alert(`✅ Đã phê duyệt thành công ${successCount}/${count} giao dịch!`);
+    
+    await showAlert(`✅ Đã phê duyệt thành công ${successCount}/${count} giao dịch!`);
 };
 
 const showRejectModal = (transaction) => {
@@ -314,18 +333,19 @@ const confirmReject = () => {
     );
     
     if (success) {
-        alert('✅ Đã từ chối giao dịch');
+        await showAlert('✅ Đã từ chối giao dịch');
         closeRejectModal();
     } else {
-        alert('❌ Có lỗi xảy ra');
+        await showAlert('❌ Có lỗi xảy ra');
     }
 };
 
-const deleteTransaction = (id) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa giao dịch này?')) return;
+
+const deleteTransaction = async (id) => {
+    if (!await showConfirm('Bạn có chắc chắn muốn xóa giao dịch này?')) return;
     
     deletePendingTransaction(id);
-    alert('✅ Đã xóa giao dịch');
+    await showAlert('✅ Đã xóa giao dịch');
 };
 </script>
 

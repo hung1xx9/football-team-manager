@@ -1,5 +1,7 @@
 import { ref } from 'vue';
 import QRCode from 'qrcode';
+import { useAppState } from './useAppState';
+
 
 // QR Code data structure
 const generateQRData = (matchId, matchDate) => {
@@ -31,8 +33,9 @@ export const generateQRCode = async (matchId, matchDate) => {
 };
 
 // Parse QR Code data
-export const parseQRData = (qrString) => {
+export const parseQRData = async (qrString) => {
     console.log('🔍 parseQRData - Raw input:', qrString);
+    const { showAlert } = useAppState();
 
     try {
         const data = JSON.parse(qrString);
@@ -56,13 +59,13 @@ export const parseQRData = (qrString) => {
 
         // Show alert on mobile for debugging
         const debugInfo = `QR Data:\n${JSON.stringify(data, null, 2)}\n\nValidation:\ntype: ${data.type}\nmatchId: ${data.matchId}\nmatchDate: ${data.matchDate}`;
-        alert('⚠️ QR Structure Invalid\n\n' + debugInfo);
+        await showAlert('⚠️ Cấu trúc mã QR không hợp lệ\n\n' + debugInfo, 'Lỗi QR');
 
         console.warn('⚠️ parseQRData - Invalid QR data structure');
         return null;
     } catch (error) {
         // Show alert on mobile for debugging
-        alert('❌ QR Parse Error\n\nRaw: ' + qrString.substring(0, 100) + '...\n\nError: ' + error.message);
+        await showAlert('❌ Lỗi xử lý mã QR\n\nRaw: ' + qrString.substring(0, 100) + '...\n\nError: ' + error.message, 'Lỗi QR');
 
         console.error('❌ parseQRData - JSON parse error:', error.message);
         return null;

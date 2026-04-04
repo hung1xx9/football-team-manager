@@ -154,8 +154,10 @@
         </div>
 
         <!-- Member Edit/Add Modal -->
+        <Transition name="premium-modal">
         <div v-if="showMemberModal" class="modal-overlay" @click="closeMemberModal">
             <div class="modal-card" @click.stop>
+
                 <div class="modal-header">
                     <h2>{{ memberForm.id ? 'Sửa' : 'Thêm' }} Thành Viên</h2>
                     <button class="modal-close-btn" @click="closeMemberModal">×</button>
@@ -219,6 +221,8 @@
                 </div>
             </div>
         </div>
+        </Transition>
+
 
         <!-- Contribution Tiers Modal -->
         <ContributionTiersModal :show="showTiersModal" @close="showTiersModal = false" />
@@ -230,6 +234,7 @@ import { ref, reactive, computed } from 'vue';
 import { useBreakpoints } from '../composables/useBreakpoints';
 import { useAppState } from '../composables/useAppState';
 import { useAuth } from '../composables/useAuth';
+import { useEscapeClose } from '../composables/useEscapeClose';
 import BaseSelect from '../components/BaseSelect.vue';
 import ContributionTiersModal from '../components/ContributionTiersModal.vue';
 
@@ -237,8 +242,10 @@ const { isMobile } = useBreakpoints();
 
 const { 
     members, contributionTiers, receivables, getMemberStats, 
-    addMember, updateMember, deleteMember, getContributionTier 
+    addMember, updateMember, deleteMember, getContributionTier,
+    showConfirm, showAlert 
 } = useAppState();
+
 
 const { permissions } = useAuth();
 
@@ -282,6 +289,7 @@ const getMemberDebt = (memberId, type) => {
 
 const showMemberModal = ref(false);
 const showTiersModal = ref(false);
+
 const memberForm = reactive({
     id: null,
     name: '',
@@ -342,8 +350,8 @@ const handleSaveMember = () => {
     closeMemberModal();
 };
 
-const handleDeleteMember = (id) => {
-    if (confirm('Xóa thành viên này?')) {
+const handleDeleteMember = async (id) => {
+    if (await showConfirm('Xóa thành viên này?')) {
         deleteMember(id);
     }
 };
@@ -377,6 +385,10 @@ const getAttendanceRateClass = (rate) => {
     if (rate >= 50) return 'badge-warning';
     return 'badge-danger';
 };
+
+// Register Escape key to close modals
+useEscapeClose(() => closeMemberModal(), showMemberModal);
+useEscapeClose(() => showTiersModal.value = false, showTiersModal);
 </script>
 
 <style scoped>

@@ -166,6 +166,7 @@
         </div>
 
         <!-- Attendance Result Modal -->
+        <Transition name="premium-modal">
         <div v-if="attendanceResult" class="attendance-modal" @click="closeResult">
             <div class="attendance-modal-content" :class="attendanceResult.success ? 'success' : 'error'" @click.stop>
                 <svg v-if="attendanceResult.success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; margin: 0 auto">
@@ -182,6 +183,7 @@
                 <button class="btn btn-secondary" @click="closeResult">Đóng</button>
             </div>
         </div>
+        </Transition>
     </div>
 </template>
 

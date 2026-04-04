@@ -97,7 +97,8 @@ const stopScanning = () => {
 
 const onDetect = async (detectedCodes) => {
     if (detectedCodes && detectedCodes.length > 0) {
-        const qrData = parseQRData(detectedCodes[0].rawValue);
+        const qrData = await parseQRData(detectedCodes[0].rawValue);
+
         
         console.log('🔍 QR Scan Debug:', {
             guestMemberId: guestMemberId.value,

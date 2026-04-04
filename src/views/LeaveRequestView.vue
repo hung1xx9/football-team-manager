@@ -62,8 +62,10 @@
         </div>
 
         <!-- Add Leave/Late Request Modal -->
-        <div v-if="showModal" class="modal" style="display: flex;">
+        <Transition name="premium-modal">
+        <div v-if="showModal" class="modal" style="display: flex;" @click.self="closeModal">
             <div class="modal-content">
+
                 <div class="modal-header">
                     <h2>Gửi Đơn Xin Nghỉ/ Muộn</h2>
                     <button class="modal-close" @click="closeModal">×</button>
@@ -142,6 +144,8 @@
                 </div>
             </div>
         </div>
+        </Transition>
+
     </div>
 </template>
 
@@ -151,7 +155,11 @@ import { useAppState } from '../composables/useAppState';
 import BaseSelect from '../components/BaseSelect.vue';
 import { useAuth } from '../composables/useAuth';
 
-const { matches, members, createLeaveRequest, getMemberLeaveRequests } = useAppState();
+const { 
+    matches, members, createLeaveRequest, getMemberLeaveRequests,
+    showConfirm, showAlert 
+} = useAppState();
+
 const { guestMemberId } = useAuth();
 
 const showModal = ref(false);
@@ -187,21 +195,25 @@ const onMatchChange = () => {
 
 const submitRequest = async () => {
     if (!form.value.leaveDate) {
-        alert(`Vui lòng chọn ngày ${form.value.type === 'late' ? 'đi muộn' : 'xin nghỉ'} hoặc trận đấu`);
+        await showAlert(`Vui lòng chọn ngày ${form.value.type === 'late' ? 'đi muộn' : 'xin nghỉ'} hoặc trận đấu`);
         return;
     }
+
     if (form.value.type === 'late' && (!form.value.lateMinutes || form.value.lateMinutes <= 0)) {
-        alert('Vui lòng nhập số phút đi muộn');
+        await showAlert('Vui lòng nhập số phút đi muộn');
         return;
     }
+
     if (!form.value.reason?.trim()) {
-        alert('Vui lòng nhập lý do');
+        await showAlert('Vui lòng nhập lý do');
         return;
     }
+
     if (!guestMemberId.value) {
-        alert('Không tìm thấy thông tin thành viên');
+        await showAlert('Không tìm thấy thông tin thành viên');
         return;
     }
+
 
     const member = members.value.find(m => m.id === guestMemberId.value);
     
@@ -215,7 +227,8 @@ const submitRequest = async () => {
         lateMinutes: form.value.type === 'late' ? form.value.lateMinutes : 0
     });
 
-    alert(`✅ Đã gửi đơn ${form.value.type === 'late' ? 'xin đi muộn' : 'xin nghỉ'} thành công!`);
+    await showAlert(`✅ Đã gửi đơn ${form.value.type === 'late' ? 'xin đi muộn' : 'xin nghỉ'} thành công!`);
+
     closeModal();
 };
 

@@ -334,15 +334,21 @@
             </div>
             <button class="notification-close" @click="notification.show = false">×</button>
         </div>
+
+        <!-- Global Dialog -->
+        <AppConfirm />
     </div>
 </template>
+
 
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import Sidebar from './components/Sidebar.vue';
 import BottomNav from './components/BottomNav.vue';
+import AppConfirm from './components/AppConfirm.vue';
 import { useAppState } from './composables/useAppState';
+
 import { useFirebase } from './composables/useFirebase';
 import { useAuth } from './composables/useAuth';
 import { useBreakpoints } from './composables/useBreakpoints';
@@ -351,7 +357,12 @@ const appVersion = __APP_VERSION__;
 
 const { isMobile: isMobileDevice } = useBreakpoints();
 const router = useRouter();
-const { loadData, members, matches, transactions, pendingTransactions, contributionTiers, settings, updateFromFirebase, isMobileView, toggleMobileView } = useAppState();
+const { 
+    loadData, members, matches, transactions, pendingTransactions, 
+    contributionTiers, settings, updateFromFirebase, isMobileView, 
+    toggleMobileView, showConfirm, showAlert, dialog 
+} = useAppState();
+
 
 const { initFirebase, signIn: firebaseSignIn, signOut: firebaseSignOut, uploadData, downloadData, syncStatus, isSignedIn, isConfigured, hasNewUpdate, setupRealtimeListener, stopRealtimeListener } = useFirebase();
 const { currentRole, isAdmin, setRole, logout, permissions } = useAuth();
@@ -657,6 +668,19 @@ const cancelAdminLogin = () => {
     adminLoginError.value = '';
 };
 
+const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+        // Don't trigger if a global dialog is open
+        if (dialog.value.show) return;
+        
+        if (selectingAdmin.value || selectingAccountant.value) {
+            cancelAdminLogin();
+        } else if (selectingGuest.value) {
+            cancelGuestSelection();
+        }
+    }
+};
+
 const handleSetRole = (role) => {
     setRole(role);
     showNotification(`Đã vào chế độ ${role === 'admin' ? 'Quản trị' : 'Thành viên'}`, 'success');
@@ -860,11 +884,13 @@ const handleGuestClick = async () => {
 onMounted(() => {
     loadData();
     initFirebase();
+    window.addEventListener('keydown', handleKeyDown);
 });
 
 onBeforeUnmount(() => {
     // Cleanup realtime listener when component is destroyed
     stopRealtimeListener();
+    window.removeEventListener('keydown', handleKeyDown);
 });
 
 // Note: Data is now auto-downloaded when admin logs in (see confirmAdminLogin)
@@ -899,9 +925,10 @@ const downloadFromFirebase = async () => {
         return;
     }
     
-    if (!confirm('⚠️ Lấy dữ liệu từ Cloud sẽ GHI ĐÈ dữ liệu hiện tại. Bạn có chắc chắn?')) {
+    if (!await showConfirm('⚠️ Lấy dữ liệu từ Cloud sẽ GHI ĐÈ dữ liệu hiện tại. Bạn có chắc chắn?', 'Cảnh báo ghi đè')) {
         return;
     }
+
     
     try {
         const data = await downloadData();
