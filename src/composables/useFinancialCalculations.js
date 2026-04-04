@@ -17,7 +17,8 @@ export const useFinancialCalculations = () => {
     const calculateRequiredFines = (memberId) => {
         let total = 0;
         matches.value.forEach(match => {
-            const record = match.attendance?.find(a => a.memberId === memberId);
+            const attList = Array.isArray(match.attendance) ? match.attendance : Object.values(match.attendance || {});
+            const record = attList.find(a => String(a.memberId) === String(memberId));
             if (record) {
                 total += calculatePenalty(record);
             }
@@ -79,8 +80,9 @@ export const useFinancialCalculations = () => {
 
     const calculatePerMatchRevenue = (match) => {
         if (!match || !match.attendance) return 0;
+        const attList = Array.isArray(match.attendance) ? match.attendance : Object.values(match.attendance || {});
         let total = 0;
-        match.attendance.forEach(record => {
+        attList.forEach(record => {
             if (record.status === 'present') {
                 const member = members.value.find(m => m.id === record.memberId);
                 if (member && member.paymentType === 'per-match') {
@@ -93,8 +95,9 @@ export const useFinancialCalculations = () => {
 
     const calculateMatchFines = (match) => {
         if (!match || !match.attendance) return 0;
+        const attList = Array.isArray(match.attendance) ? match.attendance : Object.values(match.attendance || {});
         let total = 0;
-        match.attendance.forEach(record => {
+        attList.forEach(record => {
             total += calculatePenalty(record);
         });
         return total;

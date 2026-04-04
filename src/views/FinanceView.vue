@@ -20,6 +20,9 @@
             <button class="tab-btn" :class="{ active: activeTab === 'transactions' }" @click="activeTab = 'transactions'">
                 Lịch Sử Giao Dịch
             </button>
+            <button class="tab-btn" :class="{ active: activeTab === 'jersey' }" @click="activeTab = 'jersey'">
+                👕 Tiền Áo
+            </button>
         </div>
 
         <!-- Overview Tab -->
@@ -405,16 +408,74 @@
                             <div class="spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 8px; vertical-align: middle;"></div>
                             Đang tải thêm giao dịch...
                         </div>
-                        <div v-else-if="txDisplayedStats.length > 0" style="text-align: center; margin-top: 16px; margin-bottom: 16px; color: var(--text-muted); font-size: 13px;">
-                            Đã hiển thị tất cả các giao dịch
-                        </div>
-                        <div ref="txBottomSentinel" style="height: 1px;"></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Add Transaction Modal -->
+        <!-- Jersey Management Tab -->
+        <div v-if="activeTab === 'jersey'" class="tab-content animate-fade">
+            <div class="card">
+                <div class="card-header">
+                    <h2>👕 Quản Lý Tiền Áo Đấu</h2>
+                    <div class="card-actions">
+                        <div class="summary-badge info">Tổng đã thu: {{ formatCurrency(jerseyTotalPaid) }}</div>
+                        <div class="summary-badge warning">Còn thiếu: {{ formatCurrency(jerseyTotalMissing) }}</div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Thành viên</th>
+                                    <th>Size áo</th>
+                                    <th>Số tiền</th>
+                                    <th>Trạng thái</th>
+                                    <th>Ghi chú</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="member in members" :key="member.id">
+                                    <td class="font-bold">{{ member.name }}</td>
+                                    <td>
+                                        <select :value="getJerseyData(member.id).size" @change="updateJersey(member.id, { size: $event.target.value })" class="form-control-sm">
+                                            <option value="">--</option>
+                                            <option value="S">S</option>
+                                            <option value="M">M</option>
+                                            <option value="L">L</option>
+                                            <option value="XL">XL</option>
+                                            <option value="2XL">2XL</option>
+                                            <option value="3XL">3XL</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" :value="getJerseyData(member.id).amount" @change="updateJersey(member.id, { amount: parseInt($event.target.value) })" class="form-control-sm" style="width: 100px;">
+                                    </td>
+                                    <td>
+                                        <select :value="getJerseyData(member.id).status" @change="updateJersey(member.id, { status: $event.target.value })" class="form-control-sm" :class="getStatusClass(getJerseyData(member.id).status)">
+                                            <option value="none">Chưa đăng ký</option>
+                                            <option value="ordered">Đã đặt áo</option>
+                                            <option value="paid">✅ Đã đóng tiền</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" :value="getJerseyData(member.id).note" @change="updateJersey(member.id, { note: $event.target.value })" placeholder="..." class="form-control-sm">
+                                    </td>
+                                    <td>
+                                        <button v-if="getJerseyData(member.id).status !== 'paid'" class="btn btn-sm btn-success" @click="markJerseyAsPaid(member)">Thu tiền</button>
+                                        <span v-else class="text-success font-bold">✓ Xong</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Transaction Modal -->
         <div v-if="showModal" class="modal" style="display: flex;">
             <div class="modal-content">
                 <div class="modal-header">
@@ -501,10 +562,10 @@ import { useAuth } from '../composables/useAuth';
 import BaseSelect from '../components/BaseSelect.vue';
 
 const { 
-    transactions, stats, members, getMemberName, 
+    transactions, stats, members, matches, pendingTransactions, jerseyPayments,
     addTransaction, deleteTransaction, 
-    pendingTransactions, approvePendingTransaction, rejectPendingTransaction,
-    contributionTiers, matches, getContributionTier,
+    approvePendingTransaction, rejectPendingTransaction,
+    contributionTiers, updateJerseyPayment, getMemberName,
     receivables
 } = useAppState();
 
@@ -661,7 +722,13 @@ const pmOpenDetail = (id) => { pmDetailMatchId.value = id; showPMDetailModal.val
 const pmDetailMatch = computed(() => matches.value.find(m => m.id === pmDetailMatchId.value));
 
 const pmAllStats = computed(() => matches.value.map(match => {
-    const players = pmPerMatchMembers.value.map(m => ({ id: m.id, fee: m.perMatchFee || 50000, attended: match.attendance?.[m.id]?.status === 'present', paid: pmIsPaid(m.id, match.id) }));
+    const attList = Array.isArray(match.attendance) ? match.attendance : Object.values(match.attendance || {});
+    const players = pmPerMatchMembers.value.map(m => ({
+        id: m.id, 
+        fee: m.perMatchFee || 50000, 
+        attended: attList.some(a => String(a.memberId) === String(m.id) && a.status === 'present'), 
+        paid: pmIsPaid(m.id, match.id)
+    }));
     const attended = players.filter(p => p.attended);
     return { id: match.id, date: match.date, location: match.location, attendedPerMatchPlayers: attended.length, totalRevenue: attended.reduce((a, p) => a + p.fee, 0), totalCollected: attended.filter(p => p.paid).reduce((a, p) => a + p.fee, 0) };
 }).sort((a, b) => new Date(b.date) - new Date(a.date)));
@@ -736,7 +803,14 @@ onUnmounted(() => {
 const pmGrandTotalCollected = computed(() => pmAllStats.value.reduce((a, s) => a + s.totalCollected, 0));
 const pmDetailMatchRevenue = computed(() => {
     const m = pmDetailMatch.value; if (!m) return { players: [] };
-    const players = pmPerMatchMembers.value.map(mem => ({ id: mem.id, name: mem.name, perMatchFee: mem.perMatchFee || 50000, attended: m.attendance?.[mem.id]?.status === 'present', isPaid: pmIsPaid(mem.id, m.id) }));
+    const attList = Array.isArray(m.attendance) ? m.attendance : Object.values(m.attendance || {});
+    const players = pmPerMatchMembers.value.map(mem => ({
+        id: mem.id, 
+        name: mem.name, 
+        perMatchFee: mem.perMatchFee || 50000, 
+        attended: attList.some(a => String(a.memberId) === String(mem.id) && a.status === 'present'), 
+        isPaid: pmIsPaid(mem.id, m.id)
+    }));
     const attended = players.filter(p => p.attended);
     return { totalRevenue: attended.reduce((a, p) => a + p.perMatchFee, 0), totalCollected: attended.filter(p => p.isPaid).reduce((a, p) => a + p.perMatchFee, 0), players };
 });
@@ -750,6 +824,36 @@ const pmCollectFeeModal = async (player) => {
 const pmUndoCollectFeeModal = async (player) => {
     const tx = transactions.value.find(t => t.category === 'per_match_fund' && t.memberId === player.id && t.perMatchFundMeta?.matchId === pmDetailMatch.value.id);
     if (tx && confirm('Hoàn tác thu tiền?')) await deleteTransaction(tx.id);
+};
+// Jersey logic
+const getJerseyData = (memberId) => jerseyPayments.value.find(p => p.memberId === memberId) || {};
+const jerseyTotalPaid = computed(() => jerseyPayments.value.filter(p => p.status === 'paid').reduce((a, b) => a + (b.amount || 0), 0));
+const jerseyTotalMissing = computed(() => jerseyPayments.value.filter(p => p.status !== 'paid').reduce((a, b) => a + (b.amount || 0), 0));
+
+const updateJersey = (memberId, updates) => {
+    updateJerseyPayment(memberId, updates);
+};
+
+const markJerseyAsPaid = async (member) => {
+    const data = getJerseyData(member.id);
+    const amount = data.amount || 200000;
+    if (confirm(`Xác nhận thu ${formatCurrency(amount)} tiền áo của ${member.name}?`)) {
+        await updateJerseyPayment(member.id, { status: 'paid', amount });
+        await addTransaction({
+            type: 'income',
+            category: 'other',
+            amount: amount,
+            description: `Thu tiền áo - ${member.name}`,
+            date: new Date().toISOString().split('T')[0],
+            memberId: member.id
+        });
+    }
+};
+
+const getStatusClass = (status) => {
+    if (status === 'paid') return 'text-success';
+    if (status === 'ordered') return 'text-warning';
+    return '';
 };
 </script>
 

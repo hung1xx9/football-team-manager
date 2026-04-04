@@ -125,11 +125,35 @@ const approveRequest = async (req) => {
 };
 
 const rejectRequest = async (req) => {
-    if (!confirm(`Từ chối điểm danh của ${getMemberName(req.memberId)}?`)) return;
+    const reason = prompt(`Lý do từ chối điểm danh của ${getMemberName(req.memberId)}?`, 'Thiếu ảnh minh chứng hoặc sai giờ');
+    if (reason === null) return;
     
+    const match = matches.value.find(m => m.id === req.matchId);
+    if (match) {
+        const attList = Array.isArray(match.attendance) ? [...match.attendance] : Object.values(match.attendance || {});
+        const mId = req.memberId;
+        const idx = attList.findIndex(a => String(a.memberId) === String(mId));
+        
+        const updObj = {
+            memberId: mId,
+            status: 'rejected',
+            timestamp: new Date().toISOString(),
+            method: 'manual_rejected',
+            rejectionReason: reason
+        };
+        
+        if (idx !== -1) {
+            attList[idx] = { ...attList[idx], ...updObj };
+        } else {
+            attList.push(updObj);
+        }
+        await updateMatchAttendance(match.id, attList);
+    }
+
     await updateManualAttendanceRequest({
         ...req,
         status: 'rejected',
+        rejectionReason: reason || 'Không có lý do cụ thể',
         reviewedBy: currentRole.value,
         reviewedAt: new Date().toISOString()
     });

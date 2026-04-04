@@ -114,9 +114,26 @@
                                     <span class="attendance-separator">/</span>
                                     <span class="attendance-absent">{{ getAbsentCount(match) }}</span>
                                 </div>
-                                <button v-if="canCheckin(match)" class="btn btn-primary" :class="isMobile ? 'btn-md' : 'btn-sm'" @click="handleCheckin(match)" :disabled="isCheckingIn">
-                                    {{ isCheckingIn ? '...' : 'Điểm Danh' }}
+                                <div v-if="!isPending(match.id) && getLastRejectedRequest(match.id)" class="rejection-msg">
+                                    {{ getLastRejectedRequest(match.id).rejectionReason }}
+                                </div>
+                                <button 
+                                    v-if="canCheckin(match) && !isRejected(match.id)" 
+                                    class="btn" 
+                                    :class="[
+                                        isMobile ? 'btn-md' : 'btn-sm',
+                                        isPending(match.id) ? 'btn-secondary' : 'btn-primary'
+                                    ]" 
+                                    @click="handleCheckin(match)" 
+                                    :disabled="isCheckingIn || isPending(match.id)"
+                                >
+                                    <template v-if="isCheckingIn">...</template>
+                                    <template v-else-if="isPending(match.id)">Đã gửi yêu cầu</template>
+                                    <template v-else>Điểm Danh</template>
                                 </button>
+                                <div v-else-if="isRejected(match.id)" class="rejected-badge">
+                                    🚫 Đã bị từ chối
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -176,7 +193,7 @@ import { useAuth } from '../composables/useAuth';
 import { usePenalties } from '../composables/usePenalties';
 
 const { isMobile } = useBreakpoints();
-const { stats: appStats, sortedMatches, members, settings, saveMatch, updateManualAttendanceRequest } = useAppState();
+const { stats: appStats, sortedMatches, members, settings, saveMatch, updateManualAttendanceRequest, pendingAttendances } = useAppState();
 const { isAdmin, isGuest, guestMemberId } = useAuth();
 const { getLatePenalty } = usePenalties();
 
@@ -259,6 +276,37 @@ const activeAwards = computed(() => {
 
 const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '';
+const isPending = (matchId) => {
+    if (!guestMemberId.value) return false;
+    return (pendingAttendances.value || []).some(p => 
+        String(p.matchId) === String(matchId) && 
+        String(p.memberId) === String(guestMemberId.value) &&
+        p.status === 'pending'
+    );
+};
+
+const getLastRejectedRequest = (matchId) => {
+    if (!guestMemberId.value) return null;
+    const reqs = (pendingAttendances.value || [])
+        .filter(p => 
+            String(p.matchId) === String(matchId) && 
+            String(p.memberId) === String(guestMemberId.value) &&
+            p.status === 'rejected'
+        )
+        .sort((a, b) => new Date(b.reviewedAt) - new Date(a.reviewedAt));
+    return reqs.length > 0 ? reqs[0] : null;
+};
+
+const isRejected = (matchId) => {
+    if (!guestMemberId.value) return false;
+    const reqs = (pendingAttendances.value || [])
+        .filter(p => 
+            String(p.matchId) === String(matchId) && 
+            String(p.memberId) === String(guestMemberId.value)
+        )
+        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    return reqs.length > 0 && reqs[0].status === 'rejected';
+};
 
 const getPresentCount = (match, status) => {
     const att = match.attendance;
@@ -427,6 +475,29 @@ const closeResult = () => {
 
 .attendance-present { color: var(--success); }
 .attendance-absent { color: var(--danger); }
+
+.rejection-msg {
+    font-size: 10px;
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    margin-top: 4px;
+    font-weight: 600;
+    max-width: 150px;
+    text-align: right;
+    line-height: 1.2;
+}
+
+.rejected-badge {
+    font-size: 11px;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    font-weight: 700;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
 
 .awards-compact { 
     display: flex; 

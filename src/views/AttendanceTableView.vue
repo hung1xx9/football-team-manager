@@ -30,6 +30,7 @@
                                 <button type="button" class="opt-btn opt-present" :class="{ active: editStatus === 'present' }" @click.stop="editStatus = 'present'">Có mặt</button>
                                 <button type="button" class="opt-btn opt-late" :class="{ active: editStatus === 'late' }" @click.stop="editStatus = 'late'">Muộn</button>
                                 <button type="button" class="opt-btn opt-absent" :class="{ active: editStatus === 'absent' }" @click.stop="editStatus = 'absent'">Vắng</button>
+                                <button type="button" class="opt-btn opt-rejected" :class="{ active: editStatus === 'rejected' }" @click.stop="editStatus = 'rejected'">Từ chối</button>
                             </div>
 
                             <div v-if="editStatus === 'absent'" class="extra-field">
@@ -87,6 +88,7 @@
                     <div class="legend-item"><div class="legend-color status-late"></div><span>Muộn</span></div>
                     <div class="legend-item"><div class="legend-color status-absent-cp"></div><span>Vắng (CP)</span></div>
                     <div class="legend-item"><div class="legend-color status-absent"></div><span>Vắng</span></div>
+                    <div class="legend-item"><div class="legend-color status-rejected"></div><span>Bị từ chối</span></div>
                 </div>
                 <div v-if="monthMatches.length > 0 && canEdit" class="table-actions">
                     <button class="btn btn-primary" @click="showFinalizeModal = true">
@@ -214,7 +216,10 @@ import { usePenalties } from '../composables/usePenalties';
 import BaseSelect from '../components/BaseSelect.vue';
 
 const { isMobile } = useBreakpoints();
-const { members, matches, hasApprovedLeave, saveMatch, finalizeMatch, getMemberName } = useAppState();
+const { 
+    members, matches, pendingAttendances, hasApprovedLeave, 
+    saveMatch, finalizeMatch, getMemberName, updateManualAttendanceRequest 
+} = useAppState();
 const { isAdmin, isAccountant } = useAuth();
 const { getLatePenalty, absentPenalty } = usePenalties();
 
@@ -252,6 +257,7 @@ const editingCellStatusLabel = computed(() => {
     if (editStatus.value === 'absent') {
         return editIsCP.value ? 'vắng (CP)' : 'vắng';
     }
+    if (editStatus.value === 'rejected') return 'bị từ chối';
     return 'có mặt';
 });
 
@@ -279,7 +285,8 @@ const previewPenalties = computed(() => {
     const penalties = [];
     const match = selectedMatchToFinalize.value;
     members.value.forEach(member => {
-        const att = match.attendance?.find(a => a.memberId === member.id);
+        const attList = Array.isArray(match.attendance) ? match.attendance : Object.values(match.attendance || {});
+        const att = attList.find(a => String(a.memberId) === String(member.id));
         if (att) {
             if (att.status === 'present' && att.isLate) {
                 penalties.push({
@@ -368,7 +375,8 @@ const isEditing = (mId, matchId) => editingCell.value && editingCell.value.membe
 
 const startEdit = (mId, match, event) => {
     if (!canEdit.value) return;
-    const att = match.attendance?.find(a => a.memberId === mId);
+    const attList = Array.isArray(match.attendance) ? match.attendance : Object.values(match.attendance || {});
+    const att = attList.find(a => String(a.memberId) === String(mId));
     
     // Spotlight & Popover Positioning
     const cell = event ? event.currentTarget : null;
@@ -404,9 +412,10 @@ const startEdit = (mId, match, event) => {
         const popoverHeight = 250;
         const showBelow = (window.innerHeight - rect.bottom) > (popoverHeight + 20);
 
+        const popoverWidth = 360;
         popoverStyle.value = {
             top: showBelow ? (rect.bottom + 12) + 'px' : (rect.top - popoverHeight - 12) + 'px',
-            left: Math.max(10, Math.min(window.innerWidth - 310, rect.left + rect.width / 2 - 150)) + 'px'
+            left: Math.max(10, Math.min(window.innerWidth - (popoverWidth + 10), rect.left + rect.width / 2 - (popoverWidth / 2))) + 'px'
         };
     }
 
@@ -456,6 +465,23 @@ const saveEdit = async (mId, match) => {
         if (idx !== -1) attendance[idx] = newRecord;
         else attendance.push(newRecord);
         const updatedMatch = { ...match, attendance };
+
+        // Sync with pending attendance requests if any
+        const reqIdx = pendingAttendances.value.findIndex(r => 
+            String(r.matchId) === String(match.id) && 
+            String(r.memberId) === String(mId)
+        );
+        if (reqIdx !== -1) {
+            const req = pendingAttendances.value[reqIdx];
+            const newReqStatus = (status === 'rejected') ? 'rejected' : 'approved';
+            await updateManualAttendanceRequest({
+                ...req,
+                status: newReqStatus,
+                reviewedAt: new Date().toISOString(),
+                rejectionReason: (status === 'rejected') ? 'Admin cập nhật trực tiếp tại bảng' : undefined
+            });
+        }
+
         editingCell.value = null;
         await saveMatch(updatedMatch);
     } catch (error) {
@@ -484,6 +510,7 @@ const getStatusLabel = (mId, match) => {
         case "late": return "muộn";
         case "absent-cp": return "vắng (CP)";
         case "absent": return "vắng";
+        case "rejected": return "bị từ chối";
         default: return "";
     }
 };
@@ -565,6 +592,7 @@ const formatDateShort = (date) => new Date(date).toLocaleDateString("vi-VN", {
 .legend-color.status-late { background: #d6336c; box-shadow: 0 0 8px rgba(214, 51, 108, 0.4); }
 .legend-color.status-absent-cp { background: #f08c00; box-shadow: 0 0 8px rgba(240, 140, 0, 0.4); }
 .legend-color.status-absent { background: var(--danger); box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+.legend-color.status-rejected { background: var(--gray-500); box-shadow: 0 0 8px rgba(107, 114, 128, 0.4); }
 
 .table-wrapper { 
     overflow: auto; 
@@ -631,6 +659,8 @@ td.sticky-col, td.sticky-col-name { background: var(--bg-secondary); }
 .status-absent .status-indicator { background: var(--danger); opacity: 0.6; }
 .status-absent-cp .status-inner { background: rgba(240, 140, 0, 0.1); color: #f08c00; }
 .status-absent-cp .status-indicator { background: #f08c00; }
+.status-rejected .status-inner { background: rgba(107, 114, 128, 0.1); color: var(--text-muted); opacity: 0.8; }
+.status-rejected .status-indicator { background: var(--gray-500); }
 
 /* Spotlight UI Styles */
 .spotlight-overlay {
@@ -655,7 +685,7 @@ td.sticky-col, td.sticky-col-name { background: var(--bg-secondary); }
 
 .edit-popover {
     position: fixed; 
-    width: 320px; 
+    width: 360px; 
     background: var(--bg-elevated);
     border: 1px solid var(--border-color); 
     border-radius: var(--radius-lg);
@@ -674,16 +704,17 @@ td.sticky-col, td.sticky-col-name { background: var(--bg-secondary); }
 .popover-title { font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0; }
 .popover-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-weight: 500;}
 
-.status-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.status-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
 .opt-btn {
     border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary); height: 40px;
-    border-radius: var(--radius-md); font-size: 12px; font-weight: 700; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+    border-radius: var(--radius-md); font-size: 11px; font-weight: 700; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
 }
 .opt-btn:hover:not(.active) { background: var(--bg-hover); border-color: var(--border-hover); }
 
 .opt-btn.active.opt-present { background: var(--success); color: #fff; border-color: var(--success); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
 .opt-btn.active.opt-late { background: var(--primary-600); color: #fff; border-color: var(--primary-600); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
 .opt-btn.active.opt-absent { background: var(--danger); color: #fff; border-color: var(--danger); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
+.opt-btn.active.opt-rejected { background: var(--gray-600); color: #fff; border-color: var(--gray-600); box-shadow: 0 4px 12px rgba(75, 85, 99, 0.2); }
 
 .extra-field { margin-top: 12px; }
 

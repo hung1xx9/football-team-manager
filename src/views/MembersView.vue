@@ -37,12 +37,13 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Tên</th>
+                            <th>Họ và Tên</th>
+                            <th>Số áo</th>
+                            <th>Ngày sinh</th>
+                            <th>Số điện thoại</th>
                             <th>Loại Đóng</th>
                             <th>Mức Đóng Quỹ</th>
                             <th>Tham Gia</th>
-                            <th>Dư Nợ Quỹ</th>
-                            <th>Tiền Phạt Treo</th>
                             <th>Hành Động</th>
                         </tr>
                     </thead>
@@ -64,6 +65,12 @@
                                 <strong v-else>{{ member.name }}</strong>
                             </td>
                             <td>
+                                <span v-if="member.shirtNumber" class="badge badge-primary">#{{ member.shirtNumber }}</span>
+                                <span v-else class="text-muted">-</span>
+                            </td>
+                            <td>{{ member.dob ? new Date(member.dob).toLocaleDateString('vi-VN') : '-' }}</td>
+                            <td>{{ member.phone || '-' }}</td>
+                            <td>
                                 <span v-if="member.paymentType === 'per-match'" class="badge badge-warning">⚽ Đá theo trận</span>
                                 <span v-else class="badge badge-info">👥 Đá theo đội</span>
                             </td>
@@ -79,16 +86,6 @@
                             <td>
                                 <span class="badge" :class="getAttendanceRateClass(getMemberStats(member.id).attendanceRate)">
                                     {{ getMemberStats(member.id).attendanceRate }}%
-                                </span>
-                            </td>
-                            <td>
-                                <span :class="{'text-danger': getMemberDebt(member.id, 'monthly_fund') > 0, 'text-success': getMemberDebt(member.id, 'monthly_fund') === 0}">
-                                    {{ formatCurrency(getMemberDebt(member.id, 'monthly_fund')) }}
-                                </span>
-                            </td>
-                            <td>
-                                <span :class="{'text-danger': getMemberDebt(member.id, 'fine') > 0, 'text-success': getMemberDebt(member.id, 'fine') === 0}">
-                                    {{ formatCurrency(getMemberDebt(member.id, 'fine')) }}
                                 </span>
                             </td>
                             <td>
@@ -122,32 +119,30 @@
                         </span>
                     </div>
                     <div class="card-content">
-                        <div class="info-row">
+                        <div class="info-row" style="margin-top: 8px;">
+                            <span class="label">Số áo:</span>
+                            <span class="value text-primary">#{{ member.shirtNumber || '-' }}</span>
+                        </div>
+                        <div class="info-row" style="margin-top: 4px;">
+                            <span class="label">Ngày sinh:</span>
+                            <span class="value">{{ member.dob ? new Date(member.dob).toLocaleDateString('vi-VN') : '-' }}</span>
+                        </div>
+                        <div class="info-row" style="margin-top: 4px;">
+                            <span class="label">SĐT:</span>
+                            <span class="value">{{ member.phone || '-' }}</span>
+                        </div>
+                        <div class="info-row" style="margin-top: 8px;">
                             <span class="label">Hình thức:</span>
                             <span v-if="member.paymentType === 'per-match'" class="value text-warning">⚽ Đá theo trận</span>
                             <span v-else class="value text-info">👥 Đá theo đội</span>
                         </div>
-                        <div class="info-row" style="margin-top: 8px;">
+                        <div class="info-row" style="margin-top: 4px;">
                             <span class="label">Mức phí:</span>
                             <span class="value" v-if="member.paymentType === 'per-match'">{{ formatCurrency(member.perMatchFee || 50000) }}/trận</span>
                             <span class="value" v-else-if="member.contributionTierId">
                                 {{ getTierIcon(member.contributionTierId) }} {{ getTierName(member.contributionTierId) }}
                             </span>
                             <span v-else class="value text-secondary">Chưa chọn</span>
-                        </div>
-                        <div class="debt-box" style="margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: var(--radius-md);">
-                            <div class="info-row">
-                                <span class="label">Nợ Quỹ:</span>
-                                <span :class="['value', getMemberDebt(member.id, 'monthly_fund') > 0 ? 'text-danger' : 'text-success']">
-                                    {{ formatCurrency(getMemberDebt(member.id, 'monthly_fund')) }}
-                                </span>
-                            </div>
-                            <div class="info-row" style="margin-top: 4px;">
-                                <span class="label">Tiền Phạt:</span>
-                                <span :class="['value', getMemberDebt(member.id, 'fine') > 0 ? 'text-danger' : 'text-success']">
-                                    {{ formatCurrency(getMemberDebt(member.id, 'fine')) }}
-                                </span>
-                            </div>
                         </div>
                     </div>
                     <div class="card-footer" style="padding: 12px; display: flex; gap: 8px; background: var(--bg-tertiary); border-top: 1px solid var(--border-color);">
@@ -171,6 +166,22 @@
                         <input type="text" v-model="memberForm.name" placeholder="Nhập tên..." class="form-control">
                     </div>
                     
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group">
+                            <label>Số áo</label>
+                            <input type="number" v-model="memberForm.shirtNumber" placeholder="vd: 10" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Số điện thoại</label>
+                            <input type="text" v-model="memberForm.phone" placeholder="09xxx..." class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ngày tháng năm sinh</label>
+                        <input type="date" v-model="memberForm.dob" class="form-control">
+                    </div>
+
                     <div class="form-group">
                         <label>Hình thức đóng phí</label>
                         <BaseSelect 
@@ -274,6 +285,9 @@ const showTiersModal = ref(false);
 const memberForm = reactive({
     id: null,
     name: '',
+    shirtNumber: '',
+    dob: '',
+    phone: '',
     contributionTierId: null,
     paymentType: 'team-based',
     perMatchFee: 50000
@@ -282,6 +296,9 @@ const memberForm = reactive({
 const openAddModal = () => {
     memberForm.id = null;
     memberForm.name = '';
+    memberForm.shirtNumber = '';
+    memberForm.dob = '';
+    memberForm.phone = '';
     memberForm.contributionTierId = null;
     memberForm.paymentType = 'team-based';
     memberForm.perMatchFee = 50000;
@@ -291,6 +308,9 @@ const openAddModal = () => {
 const openEditModal = (member) => {
     memberForm.id = member.id;
     memberForm.name = member.name;
+    memberForm.shirtNumber = member.shirtNumber || '';
+    memberForm.dob = member.dob || '';
+    memberForm.phone = member.phone || '';
     memberForm.contributionTierId = member.contributionTierId || null;
     memberForm.paymentType = member.paymentType || 'team-based';
     memberForm.perMatchFee = member.perMatchFee || 50000;
@@ -304,20 +324,20 @@ const closeMemberModal = () => {
 const handleSaveMember = () => {
     if (!memberForm.name) return;
 
+    const payload = {
+        name: memberForm.name,
+        shirtNumber: memberForm.shirtNumber,
+        dob: memberForm.dob,
+        phone: memberForm.phone,
+        contributionTierId: memberForm.contributionTierId,
+        paymentType: memberForm.paymentType,
+        perMatchFee: memberForm.paymentType === 'per-match' ? memberForm.perMatchFee : undefined
+    };
+
     if (memberForm.id) {
-        updateMember(memberForm.id, {
-            name: memberForm.name,
-            contributionTierId: memberForm.contributionTierId,
-            paymentType: memberForm.paymentType,
-            perMatchFee: memberForm.paymentType === 'per-match' ? memberForm.perMatchFee : undefined
-        });
+        updateMember(memberForm.id, payload);
     } else {
-        addMember({
-            name: memberForm.name,
-            contributionTierId: memberForm.contributionTierId,
-            paymentType: memberForm.paymentType,
-            perMatchFee: memberForm.paymentType === 'per-match' ? memberForm.perMatchFee : undefined
-        });
+        addMember(payload);
     }
     closeMemberModal();
 };

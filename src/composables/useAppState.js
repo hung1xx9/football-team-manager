@@ -10,6 +10,7 @@ const transactions = ref([]);
 const pendingTransactions = ref([]); // Giao dịch chờ phê duyệt
 const leaveRequests = ref([]); // Đơn xin nghỉ/muộn
 const pendingAttendances = ref([]); // Yêu cầu điểm danh thủ công
+const jerseyPayments = ref([]); // Thanh toán áo đấu
 const fixedMatches = ref([]); // Trận đấu cố định (lịch hẹn)
 const receivables = ref([]); // Các khoản phải thu (phạt, quỹ, phí sân...)
 const contributionTiers = ref([]);
@@ -83,6 +84,7 @@ const loadData = () => {
     const savedPendingTransactions = localStorage.getItem('pendingTransactions');
     const savedLeaveRequests = localStorage.getItem('leaveRequests');
     const savedPendingAttendances = localStorage.getItem('pendingAttendances');
+    const savedJersey = localStorage.getItem('jerseyPayments');
     const savedFixedMatches = localStorage.getItem('fixedMatches');
     const savedReceivables = localStorage.getItem('receivables');
     const savedTiers = localStorage.getItem('contributionTiers');
@@ -94,6 +96,7 @@ const loadData = () => {
     if (savedPendingTransactions) pendingTransactions.value = JSON.parse(savedPendingTransactions);
     if (savedLeaveRequests) leaveRequests.value = JSON.parse(savedLeaveRequests);
     if (savedPendingAttendances) pendingAttendances.value = JSON.parse(savedPendingAttendances);
+    if (savedJersey) jerseyPayments.value = JSON.parse(savedJersey);
     if (savedFixedMatches) fixedMatches.value = JSON.parse(savedFixedMatches);
     if (savedReceivables) receivables.value = JSON.parse(savedReceivables);
     if (savedTiers) contributionTiers.value = JSON.parse(savedTiers);
@@ -140,10 +143,22 @@ const loadData = () => {
                 isDefault: true
             }
         ];
-        saveData();
     }
+        
+        // Ensure every member has a jersey payment entry if it's a new system
+        members.value.forEach(m => {
+            if (!jerseyPayments.value.find(p => p.memberId === m.id)) {
+                jerseyPayments.value.push({
+                    memberId: m.id,
+                    size: '',
+                    status: 'none', // none, ordered, paid
+                    amount: 0,
+                    note: ''
+                });
+            }
+        });
 
-    isInitialized.value = true;
+        isInitialized.value = true;
     checkAndCreateMonthlyDebts();
 };
 
@@ -200,6 +215,7 @@ const saveData = (skipFirebase = false) => {
     localStorage.setItem('pendingTransactions', JSON.stringify(pendingTransactions.value));
     localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests.value));
     localStorage.setItem('pendingAttendances', JSON.stringify(pendingAttendances.value));
+    localStorage.setItem('jerseyPayments', JSON.stringify(jerseyPayments.value));
     localStorage.setItem('fixedMatches', JSON.stringify(fixedMatches.value));
     localStorage.setItem('receivables', JSON.stringify(receivables.value));
     localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
@@ -216,6 +232,7 @@ const saveData = (skipFirebase = false) => {
                 transactions: transactions.value,
                 pendingTransactions: pendingTransactions.value,
                 pendingAttendances: pendingAttendances.value,
+                jerseyPayments: jerseyPayments.value,
                 leaveRequests: leaveRequests.value,
                 receivables: receivables.value,
                 contributionTiers: contributionTiers.value,
@@ -253,6 +270,7 @@ const updateFromFirebase = (data) => {
     if (data.pendingTransactions) pendingTransactions.value = data.pendingTransactions;
     if (data.leaveRequests) leaveRequests.value = data.leaveRequests;
     if (data.pendingAttendances) pendingAttendances.value = data.pendingAttendances;
+    if (data.jerseyPayments) jerseyPayments.value = data.jerseyPayments;
     if (data.fixedMatches) fixedMatches.value = data.fixedMatches;
     if (data.receivables) receivables.value = data.receivables;
     if (data.contributionTiers) contributionTiers.value = data.contributionTiers;
@@ -263,6 +281,7 @@ const updateFromFirebase = (data) => {
     localStorage.setItem('transactions', JSON.stringify(transactions.value));
     localStorage.setItem('pendingTransactions', JSON.stringify(pendingTransactions.value));
     localStorage.setItem('pendingAttendances', JSON.stringify(pendingAttendances.value));
+    localStorage.setItem('jerseyPayments', JSON.stringify(jerseyPayments.value));
     localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests.value));
     localStorage.setItem('receivables', JSON.stringify(receivables.value));
     localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
@@ -977,6 +996,20 @@ const addContributionTier = (tierData) => {
     saveData();
 };
 
+const updateJerseyPayment = async (memberId, updates) => {
+    const idx = jerseyPayments.value.findIndex(p => p.memberId === memberId);
+    if (idx !== -1) {
+        jerseyPayments.value[idx] = { ...jerseyPayments.value[idx], ...updates };
+        saveData(true);
+        if (isSignedIn.value) {
+            isSyncingLocal.value = true;
+            uploadSingleItem('jerseyPayments', jerseyPayments.value[idx])
+                .catch(e => console.error(e))
+                .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+        }
+    }
+};
+
 // Main application state management (Firebase Realtime DB sync, Automated Match Creation, and Messenger notifications)
 export const useAppState = () => {
     return {
@@ -987,6 +1020,7 @@ export const useAppState = () => {
         pendingTransactions,
         leaveRequests,
         pendingAttendances,
+        jerseyPayments,
         fixedMatches,
         contributionTiers,
         settings,
@@ -1026,6 +1060,7 @@ export const useAppState = () => {
         rejectLeaveRequest,
         deleteLeaveRequest,
         updateManualAttendanceRequest,
+        updateJerseyPayment,
         addFixedMatch,
         deleteFixedMatch,
         checkAndCreateFixedMatches,
