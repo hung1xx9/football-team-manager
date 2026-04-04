@@ -28,11 +28,8 @@
     }
     
     .main-content.menu-open {
-        transform: scale(0.95) translateX(10px);
-        border-radius: 20px;
         pointer-events: none;
         overflow: hidden;
-        box-shadow: -10px 10px 30px rgba(0,0,0,0.2);
     }
 }
 
@@ -62,11 +59,8 @@
 }
 
 [data-app-platform="mobile"] .main-content.menu-open {
-    transform: scale(0.95) translateX(10px);
-    border-radius: 20px;
     pointer-events: none;
     overflow: hidden;
-    box-shadow: -10px 10px 30px rgba(0,0,0,0.2);
 }
 
 [data-app-platform="mobile"] .sidebar-overlay.show {

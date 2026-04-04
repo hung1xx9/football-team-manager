@@ -270,52 +270,5 @@ const appVersion = __APP_VERSION__;
     background: var(--bg-hover);
 }
 
-/* Open Animation for Mobile Sidebar Items */
-:global(.sidebar.open) .nav-item {
-    animation: sidebarItemIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
 
-@keyframes sidebarItemIn {
-    0% {
-        opacity: 0;
-        transform: translateX(-30px) scale(0.9);
-    }
-    100% {
-        opacity: 1;
-        transform: translateX(0) scale(1);
-    }
-}
-
-
-:global(.sidebar.open) .nav-item:nth-child(1) { animation-delay: 0.1s; }
-:global(.sidebar.open) .nav-item:nth-child(2) { animation-delay: 0.13s; }
-:global(.sidebar.open) .nav-item:nth-child(3) { animation-delay: 0.16s; }
-:global(.sidebar.open) .nav-item:nth-child(4) { animation-delay: 0.19s; }
-:global(.sidebar.open) .nav-item:nth-child(5) { animation-delay: 0.22s; }
-:global(.sidebar.open) .nav-item:nth-child(6) { animation-delay: 0.25s; }
-:global(.sidebar.open) .nav-item:nth-child(7) { animation-delay: 0.28s; }
-:global(.sidebar.open) .nav-item:nth-child(8) { animation-delay: 0.31s; }
-:global(.sidebar.open) .nav-item:nth-child(9) { animation-delay: 0.34s; }
-:global(.sidebar.open) .nav-item:nth-child(10) { animation-delay: 0.37s; }
-:global(.sidebar.open) .nav-item:nth-child(11) { animation-delay: 0.4s; }
-:global(.sidebar.open) .nav-item:nth-child(12) { animation-delay: 0.43s; }
-
-/* Dynamic Logo Animation */
-:global(.sidebar.open) .logo-image {
-    animation: logoPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
-    animation-delay: 0.1s;
-}
-
-@keyframes logoPop {
-    0% {
-        transform: scale(0) rotate(-180deg);
-        filter: blur(10px) brightness(2);
-        opacity: 0;
-    }
-    100% {
-        transform: scale(1) rotate(0);
-        filter: blur(0) brightness(1);
-        opacity: 1;
-    }
-}
 </style>

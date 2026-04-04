@@ -404,26 +404,47 @@ const applyTheme = (theme) => {
 };
 
 // Pull to refresh logic
+const touchStartX = ref(0);
 const touchStartY = ref(0);
 const touchCurrentY = ref(0);
+const touchCurrentX = ref(0);
 const isPulling = ref(false);
 const pullDistance = ref(0);
 const isRefreshing = ref(false);
 const PULL_THRESHOLD = 70;
 
 const handleTouchStart = (e) => {
+    touchStartX.value = e.touches[0].clientX;
+    touchStartY.value = e.touches[0].clientY;
+    
     if (window.scrollY <= 0 && isMobileView.value) {
-        touchStartY.value = e.touches[0].clientY;
         touchCurrentY.value = e.touches[0].clientY;
         isPulling.value = true;
     }
 };
 
 const handleTouchMove = (e) => {
-    if (!isPulling.value || isRefreshing.value) return;
-    
+    touchCurrentX.value = e.touches[0].clientX;
     touchCurrentY.value = e.touches[0].clientY;
+
+    // Swipe to open/close menu logic
+    const dx = touchCurrentX.value - touchStartX.value;
     const dy = touchCurrentY.value - touchStartY.value;
+
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
+        // Horizontal swipe
+        if (dx > 50 && !mobileMenuOpen.value && touchStartX.value < 50) {
+            // Swipe right from edge to open
+            mobileMenuOpen.value = true;
+            touchStartX.value = touchCurrentX.value; // Reset to avoid multiple triggers
+        } else if (dx < -50 && mobileMenuOpen.value) {
+            // Swipe left to close
+            mobileMenuOpen.value = false;
+            touchStartX.value = touchCurrentX.value;
+        }
+    }
+
+    if (!isPulling.value || isRefreshing.value) return;
     
     if (dy > 0 && window.scrollY <= 0) {
         // Provide resistance for pulling
@@ -437,8 +458,14 @@ const handleTouchMove = (e) => {
 };
 
 const handleTouchEnd = () => {
-    if (!isPulling.value) return;
+    if (!isPulling.value) {
+        touchStartX.value = 0;
+        touchStartY.value = 0;
+        return;
+    }
     isPulling.value = false;
+    touchStartX.value = 0;
+    touchStartY.value = 0;
     
     if (pullDistance.value >= PULL_THRESHOLD) {
         isRefreshing.value = true;
@@ -1535,8 +1562,8 @@ const downloadFromFirebase = async () => {
     position: fixed;
     bottom: 24px;
     right: 24px;
-    width: 60px;
-    height: 60px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
     color: white;
@@ -1570,8 +1597,8 @@ const downloadFromFirebase = async () => {
 }
 
 .fab-icon-wrapper svg {
-    width: 28px;
-    height: 28px;
+    width: 36px;
+    height: 36px;
 }
 
 /* Simulation Adjustments */
