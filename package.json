@@ -1,13 +1,14 @@
 {
   "name": "football-team-manager",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "clean": "if exist dist rmdir /s /q dist && if exist .firebase rmdir /s /q .firebase",
     "build": "npm run clean && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm version patch --no-git-tag-version && npm run build && firebase deploy"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

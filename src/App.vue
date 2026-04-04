@@ -294,6 +294,14 @@
                         </div>
                     </div>
                 </div>
+                <div class="login-modal-footer">
+                    <div class="version-tag">
+                        <svg class="version-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                        </svg>
+                        <span>Phiên bản v{{ appVersion }}</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -339,6 +347,7 @@ import { useFirebase } from './composables/useFirebase';
 import { useAuth } from './composables/useAuth';
 import { useBreakpoints } from './composables/useBreakpoints';
 import bcrypt from 'bcryptjs';
+const appVersion = __APP_VERSION__;
 
 const { isMobile: isMobileDevice } = useBreakpoints();
 const router = useRouter();

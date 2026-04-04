@@ -135,9 +135,16 @@
                 </svg>
                 <span>Cài Đặt</span>
             </router-link>
-
-
         </nav>
+
+        <div class="sidebar-footer">
+            <div class="version-tag">
+                <svg class="version-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                </svg>
+                <span>Phiên bản v{{ appVersion }}</span>
+            </div>
+        </div>
     </aside>
 </template>
 
@@ -145,6 +152,7 @@
 import { useAuth } from '../composables/useAuth';
 
 const { permissions } = useAuth();
+const appVersion = __APP_VERSION__;
 </script>
 
 <style scoped>
@@ -203,6 +211,13 @@ const { permissions } = useAuth();
     flex-direction: column;
     gap: 4px;
     overflow-y: auto;
+    padding-bottom: var(--spacing-xl);
+}
+
+.sidebar-footer {
+    padding: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+    background: var(--sidebar-bg);
 }
 
 .nav-item {
