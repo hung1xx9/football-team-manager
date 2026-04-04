@@ -118,7 +118,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(member, idx) in members" :key="member.id">
+                        <tr v-for="(member, idx) in members" :key="member.id" v-memo="[member, monthMatches, editingCell?.memberId === member.id]">
                             <td class="sticky-col stt-cell">{{ idx + 1 }}</td>
                             <td class="sticky-col-name name-cell">{{ member.name }}</td>
                             <td v-for="match in monthMatches" :key="match.id" 

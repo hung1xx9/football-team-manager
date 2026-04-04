@@ -97,7 +97,7 @@
                 </div>
                 <div class="card-content">
                     <div v-if="recentMatches.length > 0" class="recent-matches-list">
-                        <div v-for="(match, index) in recentMatches" :key="match.id" class="match-item list-item-animate" :class="{ 'mobile-match-item': isMobile }" :style="{ animationDelay: (0.1 + index * 0.05) + 's' }">
+                        <div v-for="(match, index) in recentMatches" :key="match.id" v-memo="[match, match.attendance, isMobile, pendingAttendances.length]" class="match-item list-item-animate" :class="{ 'mobile-match-item': isMobile }" :style="{ animationDelay: (0.1 + index * 0.05) + 's' }">
                             <div class="match-info">
                                 <div class="match-date">{{ formatDate(match.date) }} {{ match.startTime ? `- ${match.startTime}` : '' }}</div>
                                 <div class="match-opponent">
@@ -150,7 +150,7 @@
                 </div>
                 <div class="card-content">
                     <div v-if="hasAwards" class="awards-compact">
-                        <div v-for="(award, key, index) in activeAwards" :key="key" class="award-compact-item list-item-animate" :style="{ animationDelay: (0.1 + index * 0.05) + 's' }">
+                        <div v-for="(award, key, index) in activeAwards" :key="key" v-memo="[award]" class="award-compact-item list-item-animate" :style="{ animationDelay: (0.1 + index * 0.05) + 's' }">
                             <span class="award-icon">{{ awardIcons[key] }}</span>
                             <div class="award-info">
                                 <div class="award-title">{{ awardLabels[key] }}</div>

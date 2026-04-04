@@ -93,7 +93,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="(member, index) in monthlyMembers" :key="member.id" :class="{ 'active-row': activeDropdownId === member.id }" class="list-item-animate" :style="{ animationDelay: (0.1 + index * 0.03) + 's' }">
+                                    <tr v-for="(member, index) in monthlyMembers" :key="member.id" v-memo="[member, activeDropdownId === member.id]" :class="{ 'active-row': activeDropdownId === member.id }" class="list-item-animate" :style="{ animationDelay: (0.1 + index * 0.03) + 's' }">
                                         <td class="font-medium">{{ member.name }}</td>
                                         <td class="text-center">
                                             <div class="debt-cell">
@@ -234,7 +234,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(member, index) in sortedMonthlyMembersForFund" :key="member.id">
+                                <tr v-for="(member, index) in sortedMonthlyMembersForFund" :key="member.id" v-memo="[member, selectedYear, mfProcessedPayments]">
                                     <td class="mf-sticky-col text-center">{{ index + 1 }}</td>
                                     <td class="mf-sticky-col mf-name-col">
                                         <div class="member-info">
@@ -296,7 +296,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="stat in pmDisplayedStats" :key="stat.id" @click="pmOpenDetail(stat.id)" style="cursor:pointer;" :class="{ 'selected-row': pmSelectedMatchId === stat.id }">
+                                <tr v-for="stat in pmDisplayedStats" :key="stat.id" v-memo="[stat, pmSelectedMatchId === stat.id]" @click="pmOpenDetail(stat.id)" style="cursor:pointer;" :class="{ 'selected-row': pmSelectedMatchId === stat.id }">
                                     <td>{{ pmFormatDate(stat.date) }}</td>
                                     <td>{{ stat.location || 'Sân đấu' }}</td>
                                     <td class="text-center">{{ stat.attendedPerMatchPlayers }} người</td>
@@ -346,7 +346,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="tx in pendingTransactions" :key="tx.id">
+                                <tr v-for="tx in pendingTransactions" :key="tx.id" v-memo="[tx]">
                                     <td>{{ formatFullDateTime(tx.date) }}</td>
                                     <td class="font-medium">{{ getMemberName(tx.memberId) }}</td>
                                     <td>
@@ -385,7 +385,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(tx, index) in txDisplayedStats" :key="tx.id" class="list-item-animate" :style="{ animationDelay: (0.1 + index * 0.03) + 's' }">
+                                <tr v-for="(tx, index) in txDisplayedStats" :key="tx.id" v-memo="[tx]" class="list-item-animate" :style="{ animationDelay: (0.1 + index * 0.03) + 's' }">
                                     <td>{{ formatDate(tx.date) }}</td>
                                     <td>
                                         <span class="badge" :class="getCategoryClass(tx)">
@@ -437,7 +437,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="member in members" :key="member.id">
+                                <tr v-for="member in members" :key="member.id" v-memo="[member, getJerseyData(member.id)]">
                                     <td class="font-bold">{{ member.name }}</td>
                                     <td>
                                         <select :value="getJerseyData(member.id).size" @change="updateJersey(member.id, { size: $event.target.value })" class="form-control-sm">
@@ -549,7 +549,7 @@
                         <table class="data-table">
                             <thead><tr><th>Thành Viên</th><th class="text-center">Giá/Trận</th><th class="text-center">Điểm danh</th><th class="text-center">Đã thu</th><th class="text-center">Hành động</th></tr></thead>
                             <tbody>
-                                <tr v-for="player in pmDetailMatchRevenue.players" :key="player.id" :class="{ 'row-absent': !player.attended, 'row-paid': player.attended && player.isPaid }">
+                                <tr v-for="player in pmDetailMatchRevenue.players" :key="player.id" v-memo="[player]" :class="{ 'row-absent': !player.attended, 'row-paid': player.attended && player.isPaid }">
                                     <td class="font-medium">{{ player.name }}</td>
                                     <td class="text-center">{{ formatCurrency(player.perMatchFee) }}</td>
                                     <td class="text-center"><span v-if="player.attended" class="badge badge-success">✅ Có mặt</span><span v-else class="badge badge-secondary">❌ Vắng</span></td>

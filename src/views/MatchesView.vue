@@ -13,7 +13,7 @@
         </div>
 
         <div class="matches-list">
-            <div v-for="(match, index) in displayedMatches" :key="match.id" class="match-card list-item-animate" :style="{ animationDelay: (0.1 + index * 0.05) + 's' }">
+            <div v-for="(match, index) in displayedMatches" :key="match.id" v-memo="[match, match.attendance, isMobile]" class="match-card list-item-animate" :style="{ animationDelay: (0.1 + index * 0.05) + 's' }">
                 <div class="match-card-header" :class="{ 'mobile-header': isMobile }">
                     <div class="match-info-main">
                         <div class="match-card-title">{{ getMatchDisplayTitle(match) }}</div>
@@ -40,7 +40,7 @@
                 <div class="match-card-body">
                     <div class="attendance-grid">
                         <template v-for="att in match.attendance" :key="att.memberId">
-                            <div v-if="getMemberName(att.memberId)" class="attendance-item" :class="att.status">
+                            <div v-if="getMemberName(att.memberId)" class="attendance-item" :class="att.status" v-memo="[att]">
                                 <div class="attendance-status" :class="att.status"></div>
                                 <div class="attendance-content">
                                     <div class="attendance-name">{{ getMemberName(att.memberId) }}</div>

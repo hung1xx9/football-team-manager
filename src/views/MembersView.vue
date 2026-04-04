@@ -48,7 +48,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(member, index) in filteredMembers" :key="member.id" class="list-item-animate" :style="{ animationDelay: (0.1 + index * 0.03) + 's' }">
+                        <tr v-for="(member, index) in filteredMembers" :key="member.id" v-memo="[member, editingId === member.id, member.paymentType, member.contributionTierId, getMemberStats(member.id).attendanceRate]" class="list-item-animate" :style="{ animationDelay: (0.1 + index * 0.03) + 's' }">
                             <td @dblclick="startEditing(member)" :title="'Double click để sửa nhanh'">
                                 <div v-if="editingId === member.id" class="inline-edit-group">
                                     <input 
@@ -111,7 +111,7 @@
 
             <!-- Mobile View: Cards -->
             <div v-else class="mobile-member-list">
-                <div v-for="(member, index) in filteredMembers" :key="member.id" class="card list-item-animate" :style="{ animationDelay: (0.1 + index * 0.04) + 's' }" style="margin-bottom: 12px;">
+                <div v-for="(member, index) in filteredMembers" :key="member.id" v-memo="[member, member.paymentType, member.contributionTierId, getMemberStats(member.id).attendanceRate]" class="card list-item-animate" :style="{ animationDelay: (0.1 + index * 0.04) + 's' }" style="margin-bottom: 12px;">
                     <div class="card-header">
                         <span class="member-name">{{ member.name }}</span>
                         <span class="badge" :class="getAttendanceRateClass(getMemberStats(member.id).attendanceRate)">
