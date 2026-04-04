@@ -1586,7 +1586,6 @@ const downloadFromFirebase = async () => {
     background: var(--bg-elevated);
     color: var(--text-primary);
     box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-    transform: rotate(180deg);
 }
 
 .fab-icon-wrapper {
