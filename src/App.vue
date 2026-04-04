@@ -68,7 +68,7 @@
                                     <polyline points="17 8 12 3 7 8"></polyline>
                                     <line x1="12" y1="3" x2="12" y2="15"></line>
                                 </svg>
-                                Lên Cloud
+                                <span class="btn-cloud-label">Lên Cloud</span>
                             </button>
                             <button class="btn btn-sm btn-info" @click="downloadFromFirebase" title="Lấy dữ liệu từ Firebase">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -76,7 +76,7 @@
                                     <polyline points="7 10 12 15 17 10"></polyline>
                                     <line x1="12" y1="15" x2="12" y2="3"></line>
                                 </svg>
-                                Từ Cloud
+                                <span class="btn-cloud-label">Từ Cloud</span>
                             </button>
                         </template>
                     </div>
@@ -1635,6 +1635,21 @@ const downloadFromFirebase = async () => {
 @media (max-width: 768px) {
     .mobile-view-toggle {
         display: none !important;
+    }
+}
+
+/* Smaller FAB on tiny phones so it doesn't block content */
+@media (max-width: 480px) {
+    .btn-mobile-fab {
+        width: 52px;
+        height: 52px;
+        bottom: 16px;
+        right: 16px;
+        box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+    }
+    .fab-icon-wrapper svg {
+        width: 26px;
+        height: 26px;
     }
 }
 

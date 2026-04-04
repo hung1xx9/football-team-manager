@@ -8,8 +8,10 @@
     .sidebar {
         width: 85%;
         max-width: 320px;
-        transform: translate(-100%);
-        transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+        transform: translate3d(-100%, 0, 0);
+        -webkit-transform: translate3d(-100%, 0, 0);
+        transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), -webkit-transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+        will-change: transform;
         box-shadow: none;
         background: var(--bg-elevated);
         backdrop-filter: blur(16px);
@@ -17,7 +19,8 @@
     }
 
     .sidebar.open {
-        transform: translate(0);
+        transform: translate3d(0, 0, 0);
+        -webkit-transform: translate3d(0, 0, 0);
         box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
     }
 
@@ -30,14 +33,19 @@
     .main-content.menu-open {
         pointer-events: none;
         overflow: hidden;
+        /* Collapse stacking context so sticky headers stay below the sidebar overlay */
+        position: relative;
+        z-index: 0;
     }
 }
 
 [data-app-platform="mobile"] .sidebar {
     width: 85%;
     max-width: 320px;
-    transform: translate(-100%);
-    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+    transform: translate3d(-100%, 0, 0);
+    -webkit-transform: translate3d(-100%, 0, 0);
+    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), -webkit-transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform;
     box-shadow: none;
     background: var(--bg-elevated);
     backdrop-filter: blur(16px);
@@ -48,7 +56,8 @@
 }
 
 [data-app-platform="mobile"] .sidebar.open {
-    transform: translate(0) !important;
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
     box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
 }
 
@@ -61,6 +70,9 @@
 [data-app-platform="mobile"] .main-content.menu-open {
     pointer-events: none;
     overflow: hidden;
+    /* Collapse stacking context so sticky table headers don't float above the sidebar overlay */
+    position: relative;
+    z-index: 0;
 }
 
 [data-app-platform="mobile"] .sidebar-overlay.show {
@@ -72,17 +84,20 @@
 @media (max-width: 768px) {
 
     .top-bar {
-        padding: var(--spacing-md);
-        flex-wrap: wrap;
-        gap: var(--spacing-md)
+        padding: var(--spacing-sm) var(--spacing-md);
+        flex-wrap: nowrap;
+        gap: var(--spacing-sm);
+        overflow: hidden;
     }
 
-    .page-title { font-size: 1.5rem }
-    .top-bar-actions { width: 100%; justify-content: space-between }
+    .page-title { font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+    .top-bar-actions { gap: var(--spacing-sm); flex-shrink: 0; flex-wrap: nowrap }
 
     .sync-controls {
-        flex-wrap: wrap;
-        padding: var(--spacing-xs) var(--spacing-sm)
+        flex-wrap: nowrap;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        flex-shrink: 1;
+        min-width: 0;
     }
 
     .sync-status {
@@ -168,13 +183,17 @@
 }
 
 @media (max-width: 480px) {
-    .top-bar { padding: .5rem .75rem; min-height: 50px }
-    .page-title { font-size: 1rem }
-    .top-bar-actions { gap: .375rem }
-    .sync-controls { gap: .25rem; padding: .25rem .5rem; flex-direction: column; align-items: stretch }
-    .sync-status { gap: .25rem; padding-right: 0; font-size: .75rem; border-right: none; border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-xs) }
-    .sync-icon { width: 12px; height: 12px }
-    .page-content { padding: .75rem 1rem; max-height: calc(100vh - 50px) }
+    .top-bar { padding: .5rem .75rem; min-height: 50px; flex-wrap: nowrap; overflow: hidden }
+    .page-title { font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px }
+    .top-bar-actions { gap: .25rem; flex-wrap: nowrap; flex-shrink: 0 }
+    /* Collapse sync controls to icon-only on tiny screens */
+    .sync-controls { gap: .25rem; padding: .25rem .375rem }
+    .sync-status { gap: 0; padding: 4px 6px; font-size: .75rem; border-right: none }
+    .status-text { display: none }
+    .sync-icon { width: 14px; height: 14px }
+    /* Cloud buttons: icon-only */
+    .btn-cloud-label { display: none !important }
+    .page-content { padding: .75rem .75rem; max-height: calc(100vh - 50px) }
     .page-actions { margin-bottom: .75rem; gap: .5rem }
     .btn-sm { font-size: .75rem; padding: .3125rem .5rem }
 
