@@ -20,7 +20,11 @@ const settings = ref({
 });
 const isInitialized = ref(false);
 const isSyncingLocal = ref(false); // Guard against race conditions during local writes
-const isMobileView = ref(localStorage.getItem('isMobileView') === 'true');
+// Detect if running as PWA (standalone app)
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || false;
+// Nếu là PWA thì ép mặc định luôn là Mobile Mode, trừ khi user đã từng chủ động save false
+const savedMobileView = localStorage.getItem('isMobileView');
+const isMobileView = ref(savedMobileView !== null ? savedMobileView === 'true' : isStandalone);
 
 // Dialog state
 const dialog = ref({

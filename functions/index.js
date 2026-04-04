@@ -3,7 +3,7 @@
  * Handles incoming payment notifications from MoMo
  */
 
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 
@@ -251,3 +251,61 @@ exports.createMoMoPayment = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', error.message);
     }
 });
+
+/**
+ * Send FCM Push Notification when a new match is created
+ */
+exports.notifyNewMatch = functions.firestore
+    .document('teams/primary/matches/{matchId}')
+    .onCreate(async (snap, context) => {
+        const matchData = snap.data();
+        
+        try {
+            // Get all FCM tokens from Firestore
+            const tokensSnap = await db.collection('teams').doc('primary').collection('fcmTokens').get();
+            const tokens = [];
+            tokensSnap.forEach(doc => {
+                if (doc.data().token) tokens.push(doc.data().token);
+            });
+
+            if (tokens.length === 0) {
+                console.log('No FCM tokens found.');
+                return null;
+            }
+
+            const typeLabel = matchData.matchType === 'friendly' ? 'Đấu tập' : 'Đấu đối';
+            const dateFormatted = new Date(matchData.date).toLocaleDateString('vi-VN');
+
+            // Construct notification payload
+            const payload = {
+                notification: {
+                    title: '⚽ Trận đấu mới đã được lên lịch!',
+                    body: `${typeLabel} vs ${matchData.opponent || 'Nội bộ'} vào lúc ${matchData.startTime || 'chưa rõ'} ngày ${dateFormatted}. Vào app điểm danh ngay!`,
+                    icon: '/favicon.png', // Or the absolute URL to icon
+                    clickAction: 'https://your-domain.com' // Should be dynamic in production
+                }
+            };
+
+            // Send messages
+            const response = await admin.messaging().sendToDevice(tokens, payload);
+            console.log('Successfully sent push notifications:', response.successCount);
+            
+            // Cleanup invalid tokens
+            response.results.forEach((result, index) => {
+                const error = result.error;
+                if (error) {
+                    console.error('Failure sending notification to', tokens[index], error);
+                    // Remove unregistered tokens
+                    if (error.code === 'messaging/invalid-registration-token' ||
+                        error.code === 'messaging/registration-token-not-registered') {
+                        db.collection('teams').doc('primary').collection('fcmTokens').doc(tokens[index]).delete();
+                    }
+                }
+            });
+
+            return null;
+        } catch (error) {
+            console.error('Error sending push notification:', error);
+            return null;
+        }
+    });

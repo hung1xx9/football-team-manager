@@ -1,5 +1,13 @@
 <template>
     <div class="app-container" :class="{ 'simulate-mobile-view': isMobileView && !isMobileDevice, 'mobile-menu-active': mobileMenuOpen }">
+        <!-- Pull to Refresh Indicator -->
+        <div class="pull-to-refresh-indicator" :class="{ 'refreshing': isRefreshing, 'pulling': isPulling }" :style="{ transform: `translateY(${pullDistance}px) scale(${Math.min(pullDistance / 60, 1)})`, opacity: Math.min(pullDistance / 40, 1) }">
+            <svg viewBox="0 0 24 24" fill="none" class="pull-spinner" stroke="currentColor" stroke-width="3">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
+                <polyline points="21 3 21 8 16 8"></polyline>
+            </svg>
+        </div>
+
         <!-- Sidebar Overlay for Mobile -->
         <div class="sidebar-overlay" :class="{ show: mobileMenuOpen }" @click="toggleMobileMenu"></div>
 
@@ -395,6 +403,57 @@ const applyTheme = (theme) => {
     html.style.colorScheme = theme;
 };
 
+// Pull to refresh logic
+const touchStartY = ref(0);
+const touchCurrentY = ref(0);
+const isPulling = ref(false);
+const pullDistance = ref(0);
+const isRefreshing = ref(false);
+const PULL_THRESHOLD = 70;
+
+const handleTouchStart = (e) => {
+    if (window.scrollY <= 0 && isMobileView.value) {
+        touchStartY.value = e.touches[0].clientY;
+        touchCurrentY.value = e.touches[0].clientY;
+        isPulling.value = true;
+    }
+};
+
+const handleTouchMove = (e) => {
+    if (!isPulling.value || isRefreshing.value) return;
+    
+    touchCurrentY.value = e.touches[0].clientY;
+    const dy = touchCurrentY.value - touchStartY.value;
+    
+    if (dy > 0 && window.scrollY <= 0) {
+        // Provide resistance for pulling
+        pullDistance.value = Math.min(dy * 0.4, 100);
+        
+        // Prevent default browser scroll when pulling down
+        if (e.cancelable) e.preventDefault();
+    } else {
+        pullDistance.value = 0;
+    }
+};
+
+const handleTouchEnd = () => {
+    if (!isPulling.value) return;
+    isPulling.value = false;
+    
+    if (pullDistance.value >= PULL_THRESHOLD) {
+        isRefreshing.value = true;
+        pullDistance.value = 60; // Keep spinner visible
+        if (navigator.vibrate) navigator.vibrate(50);
+        
+        // Reload data (full reload to ensure clean state)
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 500);
+    } else {
+        pullDistance.value = 0;
+    }
+};
+
 const initTheme = () => {
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -457,14 +516,22 @@ const toggleTheme = (event) => {
 };
 
 onMounted(() => {
-    // Other initialization if needed
-    
+    // Add touch listeners for Pull to refresh
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
     // Apply platform style guide
     if (isMobileDevice.value || isMobileView.value) {
         document.documentElement.setAttribute('data-app-platform', 'mobile');
     }
 });
 
+onBeforeUnmount(() => {
+    document.removeEventListener('touchstart', handleTouchStart);
+    document.removeEventListener('touchmove', handleTouchMove);
+    document.removeEventListener('touchend', handleTouchEnd);
+});
 
 // Watch for screen size changes or simulation to switch style guides
 watch([isMobileDevice, isMobileView], ([newDevice, newSim]) => {
@@ -551,7 +618,7 @@ const toggleMobileMenu = () => {
 
 const confirmAdminLogin = async () => {
     adminLoginError.value = '';
-    
+
     // Determine the role we're trying to log into
     const loginUsername = adminForm.username || (selectingAdmin.value ? 'admin' : 'ketoan');
     
@@ -1543,6 +1610,35 @@ const downloadFromFirebase = async () => {
     .mobile-view-toggle {
         display: none !important;
     }
+}
+
+/* Pull to refresh logic */
+.pull-to-refresh-indicator {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    margin-left: -20px;
+    width: 40px;
+    height: 40px;
+    background: var(--surface-full, #ffffff);
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    color: var(--primary-500, #3b82f6);
+    pointer-events: none;
+}
+.pull-spinner {
+    width: 24px;
+    height: 24px;
+}
+.pull-to-refresh-indicator.refreshing .pull-spinner {
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    100% { transform: rotate(360deg); }
 }
 </style>
 

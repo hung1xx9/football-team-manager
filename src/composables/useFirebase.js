@@ -3,6 +3,7 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
+import 'firebase/compat/messaging';
 
 // State
 const isConfigured = ref(false);
@@ -52,10 +53,44 @@ const initFirebase = async () => {
     }
 };
 
+const requestNotificationPermission = async () => {
+    try {
+        if (!firebase.messaging.isSupported()) {
+            console.warn('Firebase Messaging is not supported in this browser.');
+            return;
+        }
+
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            const messaging = firebase.messaging();
+            const token = await messaging.getToken({ vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY });
+            
+            if (token && db) {
+                // Save the token globally for this app instance
+                await db.collection('teams').doc('primary')
+                    .collection('fcmTokens').doc(token)
+                    .set({
+                        token: token,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                console.log('✅ FCM Push Notification Token saved successfully!');
+            }
+        } else {
+            console.warn('Push notification permission denied by user.');
+        }
+    } catch (e) {
+        console.error('Error getting notification permission:', e);
+    }
+};
+
 const signIn = async () => {
     if (!isConfigured.value) return;
     try {
         await firebase.auth().signInAnonymously();
+        // Sau khi đăng nhập, xin quyền gửi thông báo luôn
+        setTimeout(() => {
+            requestNotificationPermission();
+        }, 3000); // Đợi 3s để app load xong giao diện, request sẽ đỡ bị block
     } catch (e) {
         console.error('Sign in error:', e);
     }
@@ -354,6 +389,7 @@ export const useFirebase = () => {
         approveAttendanceAtomic,
         downloadData,
         setupRealtimeListener,
-        stopRealtimeListener
+        stopRealtimeListener,
+        requestNotificationPermission
     };
 };
