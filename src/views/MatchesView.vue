@@ -67,6 +67,13 @@
                             Mã QR
                         </button>
 
+                        <button v-if="permissions.canAddMatch" class="btn btn-action btn-messenger-action" @click="handleSendMessenger(match)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-13.3 8.38 8.38 0 0 1 3.9 1L21 3z"></path>
+                            </svg>
+                            Gửi TB
+                        </button>
+
                         <button class="btn btn-action btn-edit-action" @click="openEditModal(match)">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -172,7 +179,10 @@ import { useQRAttendance as useQR } from '../composables/useQRAttendance';
 
 const { isMobile } = useBreakpoints();
 
-const { sortedMatches, members, fixedMatches, getMemberName, saveMatch, deleteMatch } = useAppState();
+const { 
+    sortedMatches, members, fixedMatches, getMemberName, 
+    saveMatch, deleteMatch, sendMessengerNotification 
+} = useAppState();
 const { permissions } = useAuth();
 const { generateQR } = useQR();
 
@@ -320,6 +330,15 @@ const handleDeleteMatch = (id) => {
     }
 };
 
+const handleSendMessenger = async (match) => {
+    const result = await sendMessengerNotification(match);
+    if (result && result.success) {
+        alert('✅ Đã gửi thông báo Messenger thành công!');
+    } else {
+        alert('❌ Gửi thông báo thất bại: ' + (result?.message || 'Lỗi không xác định'));
+    }
+};
+
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString('vi-VN') : '');
 
 const getMatchDisplayTitle = (match) => {
@@ -441,6 +460,9 @@ const getAttendanceCount = (match, status) => {
     gap: 2px;
     font-weight: 500;
 }
+
+.btn-messenger-action { color: #0084ff; }
+.btn-messenger-action:hover { background: rgba(0, 132, 255, 0.1); border-color: #0084ff; }
 
 .match-card-actions { 
     margin-top: 8px; 

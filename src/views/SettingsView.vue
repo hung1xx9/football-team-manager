@@ -1,4 +1,5 @@
 <template>
+    <!-- System settings interface for Admins: Password, QR, Penalties, and Automated Schedules -->
     <div class="page-content animate-fade">
         <div class="page-actions" style="margin-bottom: var(--spacing-lg);">
             <p class="text-muted" style="font-size: 1.1rem;">Quản lý thông tin tài khoản và bảo mật</p>
@@ -105,8 +106,14 @@
                     
                     <div class="form-group" style="margin-bottom: var(--spacing-xl);">
                         <label>Link MoMo thanh toán</label>
-                        <input type="url" v-model="sysSettings.momoLink" placeholder="https://nhantien.momo.vn/..." class="form-control" @change="saveMomoLink">
+                        <input type="url" v-model="sysSettings.momoLink" placeholder="https://nhantien.momo.vn/..." class="form-control" @change="saveSettings">
                         <small class="form-hint">Dán link "Nhận tiền" từ ứng dụng MoMo của bạn vào đây.</small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: var(--spacing-xl);">
+                        <label>Messenger Webhook URL (Make.com)</label>
+                        <input type="url" v-model="sysSettings.messengerWebhookUrl" placeholder="https://hook.us1.make.com/..." class="form-control" @change="saveSettings">
+                        <small class="form-hint">Dán URL Webhook từ Make.com để gửi thông báo trận đấu vào nhóm Messenger.</small>
                     </div>
 
                     <div class="branding-grid single-item">
@@ -138,6 +145,7 @@
 
                 <div class="penalty-section" style="margin-top: var(--spacing-xl);">
                     <h3>💸 Cấu Hình Mức Phạt</h3>
+                    <!-- Section to configure financial penalties for missing or being late to matches -->
                     <div class="form-group">
                         <label>Vắng mặt không phép</label>
                         <div class="input-with-unit">
@@ -179,12 +187,19 @@
         </div>
 
         <!-- Fixed Match Schedules -->
+        <!-- Allows periodic match creation (e.g., every Monday at 5PM) and Messenger notifications -->
         <div v-if="permissions.canManageQRCode" class="card animate-spring animate-stagger-4" style="margin-top: var(--spacing-xl);">
             <div class="card-header">
                 <h2>🗓️ Lịch Trận Đấu Cố Định</h2>
             </div>
             <div class="card-content">
-                <p class="section-desc">Thiết lập các trận đấu định kỳ hàng tuần. Hệ thống sẽ tự động tạo trận đấu trước 1 ngày.</p>
+                <div class="fixed-match-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <p class="section-desc" style="margin-bottom: 0;">Thiết lập các trận đấu định kỳ hàng tuần. Hệ thống sẽ tự động tạo trận đấu và gửi thông báo Messenger trước 2 ngày.</p>
+                    <button class="btn btn-sm btn-secondary" @click="handleRunAutoCheck" :disabled="isCheckingAuto">
+                        <span v-if="isCheckingAuto">⏳ Đang kiểm tra...</span>
+                        <span v-else>🔄 Kiểm tra & Tạo ngay</span>
+                    </button>
+                </div>
                 
                 <div class="table-container" style="margin-bottom: 2rem;">
                     <table class="data-table">
@@ -303,7 +318,7 @@ import bcrypt from 'bcryptjs';
 const { currentRole, ROLES, permissions } = useAuth();
 const { 
     getPassword, updatePassword, settings, updateSettings, 
-    fixedMatches, addFixedMatch, deleteFixedMatch,
+    fixedMatches, addFixedMatch, deleteFixedMatch, checkAndCreateFixedMatches,
     receivables, migrateToReceivables, members
 } = useAppState();
 
@@ -315,7 +330,7 @@ const isBusy = ref(false);
 const errorMsg = ref('');
 const successMsg = ref('');
 
-const sysSettings = ref({ fundQR: '', momoLink: '' });
+const sysSettings = ref({ fundQR: '', momoLink: '', messengerWebhookUrl: '' });
 const qrInput = ref(null);
 const sysError = ref('');
 const sysSuccess = ref('');
@@ -332,6 +347,7 @@ const newFixed = ref({
     opponent: '',
     location: ''
 });
+const isCheckingAuto = ref(false);
 
 const isMigrating = ref(false);
 const hasReceivables = computed(() => receivables.value.length > 0);
@@ -358,6 +374,7 @@ onMounted(() => {
     if (settings.value) {
         sysSettings.value.fundQR = settings.value.fundQR || '';
         sysSettings.value.momoLink = settings.value.momoLink || '';
+        sysSettings.value.messengerWebhookUrl = settings.value.messengerWebhookUrl || '';
         if (settings.value.penalties) {
             penalties.value.absent = settings.value.penalties.absent || 50000;
             penalties.value.late = { ...settings.value.penalties.late };
@@ -449,9 +466,12 @@ const deleteQR = async () => {
     }
 };
 
-const saveMomoLink = async () => {
-    await updateSettings({ momoLink: sysSettings.value.momoLink });
-    sysSuccess.value = '✅ Đã lưu link MoMo thành công!';
+const saveSettings = async () => {
+    await updateSettings({ 
+        momoLink: sysSettings.value.momoLink,
+        messengerWebhookUrl: sysSettings.value.messengerWebhookUrl
+    });
+    sysSuccess.value = '✅ Đã lưu cài đặt hệ thống thành công!';
     setTimeout(() => sysSuccess.value = '', 3000);
 };
 
@@ -493,7 +513,30 @@ const handleAddFixedMatch = () => {
     addFixedMatch({ ...newFixed.value });
     newFixed.value = { dayOfWeek: '2', startTime: '16:30', opponent: '', location: '' };
     sysSuccess.value = '✅ Đã thêm lịch trận đấu cố định!';
+    
+    // Suggest running check immediately
+    setTimeout(() => {
+        if (confirm('Bạn có muốn hệ thống kiểm tra và tự động tạo trận đấu cho lịch này ngay bây giờ?')) {
+            handleRunAutoCheck();
+        }
+    }, 1000);
+    
     setTimeout(() => sysSuccess.value = '', 3000);
+};
+
+const handleRunAutoCheck = async () => {
+    isCheckingAuto.value = true;
+    try {
+        await checkAndCreateFixedMatches();
+        sysSuccess.value = '✅ Đã kiểm tra và cập nhật các trận đấu tự động!';
+        setTimeout(() => sysSuccess.value = '', 3000);
+    } catch (e) {
+        sysError.value = 'Lỗi khi kiểm tra lịch: ' + e.message;
+    } finally {
+        setTimeout(() => {
+            isCheckingAuto.value = false;
+        }, 1000);
+    }
 };
 
 const handleMigration = async () => {

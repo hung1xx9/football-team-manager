@@ -1,4 +1,5 @@
 <template>
+    <!-- View for Administrators to review and approve/reject attendance requests (Manual/QR) -->
     <div class="page-content animate-fade">
         <div class="card card-static animate-spring">
             <div class="card-header">
@@ -25,7 +26,12 @@
                                 <span class="request-time">{{ formatDateTime(req.submittedAt) }}</span>
                                 <span class="match-name">{{ getMatchName(req.matchId) }}</span>
                             </div>
-                            <div class="member-name">{{ getMemberName(req.memberId) }}</div>
+                            <div class="member-row">
+                                <div class="member-name">{{ getMemberName(req.memberId) }}</div>
+                                <span class="method-badge" :class="'method-' + (req.method || 'manual')">
+                                    {{ req.method === 'qr' ? '📲 QR' : (req.method === 'dashboard' ? '📱 App' : '👤 Thủ công') }}
+                                </span>
+                            </div>
                             <span v-if="req.isLate" class="badge badge-late">⏰ Đi muộn {{ req.lateMinutes }} phút</span>
                         </div>
                         <div class="request-actions">
@@ -144,7 +150,19 @@ const rejectRequest = async (req) => {
 .request-item { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; }
 .request-info { display: flex; flex-direction: column; gap: 0.4rem; }
 .request-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--text-muted); }
+.member-row { display: flex; align-items: center; gap: 0.75rem; }
 .member-name { font-weight: 700; font-size: 1.1rem; color: var(--text-primary); }
+.method-badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.method-qr { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+.method-dashboard { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.3); }
+.method-manual { background: rgba(107, 114, 128, 0.1); color: #6b7280; border: 1px solid rgba(107, 114, 128, 0.3); }
+
 .badge-late { background: rgba(245, 158, 11, 0.1); color: var(--warning-400); font-weight: 600; padding: 0.2rem 0.5rem; }
 
 .request-actions { display: flex; gap: 0.75rem; }

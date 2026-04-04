@@ -65,7 +65,7 @@ import { useQRAttendance, parseQRData, canScanMatch, markScannedMatch, getScanne
 import { useAppState } from '../composables/useAppState';
 import { useAuth } from '../composables/useAuth';
 
-const { matches, saveMatch } = useAppState();
+const { matches, saveMatch, updateManualAttendanceRequest } = useAppState();
 const { guestMemberId } = useAuth();
 
 const isScanning = ref(false);
@@ -191,31 +191,25 @@ const onDetect = async (detectedCodes) => {
         
         match.attendance[attendanceIndex].status = 'present';
         match.attendance[attendanceIndex].timestamp = attendanceTimestamp.toISOString();
-        match.attendance[attendanceIndex].attendanceMethod = 'qr'; // Mark as QR attendance
+        match.attendance[attendanceIndex].attendanceMethod = 'qr';
         match.attendance[attendanceIndex].isLate = isLate;
         match.attendance[attendanceIndex].lateMinutes = lateMinutes;
         match.attendance[attendanceIndex].lateFine = lateFine;
         
-        // Save match with updated attendance
         try {
             await saveMatch(match);
-            console.log('✅ Attendance updated:', {
+            console.log('✅ QR Attendance updated directly:', {
                 matchId: match.id,
                 memberId: guestMemberId.value,
                 status: 'present',
-                timestamp: attendanceTimestamp.toISOString(),
-                isLate,
-                lateMinutes,
-                lateFine
+                timestamp: attendanceTimestamp.toISOString()
             });
             
-            // Mark as scanned for this match (prevent duplicate scan)
             markScannedMatch(guestMemberId.value, qrData.matchId);
             
             const matchInfo = `${match.opponent || 'Trận đấu'} - ${new Date(match.date).toLocaleDateString('vi-VN')}`;
             let lateInfo = isLate ? ` (Đi muộn ${lateMinutes} phút)` : ' (Đúng giờ)';
             
-            // Add fine info if applicable
             if (lateFine > 0) {
                 const fineFormatted = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(lateFine);
                 lateInfo += `\n💰 Phạt: ${fineFormatted}`;
@@ -223,12 +217,11 @@ const onDetect = async (detectedCodes) => {
             
             showResult(true, '✅ Điểm danh thành công!' + lateInfo, matchInfo);
             
-            // Stop scanning after 3 seconds (longer to read fine info)
             setTimeout(() => {
                 stopScanning();
             }, 3000);
         } catch (error) {
-            console.error('❌ Error saving attendance:', error);
+            console.error('❌ Error saving QR attendance:', error);
             showResult(false, 'Lỗi khi lưu điểm danh. Vui lòng thử lại.');
         }
     }

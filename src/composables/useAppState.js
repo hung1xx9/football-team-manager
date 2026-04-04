@@ -13,7 +13,10 @@ const pendingAttendances = ref([]); // Yêu cầu điểm danh thủ công
 const fixedMatches = ref([]); // Trận đấu cố định (lịch hẹn)
 const receivables = ref([]); // Các khoản phải thu (phạt, quỹ, phí sân...)
 const contributionTiers = ref([]);
-const settings = ref({ momoPhone: '' });
+const settings = ref({ 
+    momoPhone: '',
+    messengerWebhookUrl: '' 
+});
 const isInitialized = ref(false);
 const isSyncingLocal = ref(false); // Guard against race conditions during local writes
 const isMobileView = ref(localStorage.getItem('isMobileView') === 'true');
@@ -22,7 +25,10 @@ const isMobileView = ref(localStorage.getItem('isMobileView') === 'true');
 let uploadDebounceTimer = null;
 
 // Firebase integration
-const { uploadData, uploadSingleItem, deleteSingleItem, isSignedIn, approvePendingTransactionAtomic, approveAttendanceAtomic } = useFirebase();
+const { 
+    uploadData, uploadSingleItem, deleteSingleItem, isSignedIn, 
+    approvePendingTransactionAtomic, approveAttendanceAtomic 
+} = useFirebase();
 
 // --- Computed Stats ---
 const stats = computed(() => {
@@ -138,7 +144,6 @@ const loadData = () => {
     }
 
     isInitialized.value = true;
-    checkAndCreateFixedMatches();
     checkAndCreateMonthlyDebts();
 };
 
@@ -263,6 +268,9 @@ const updateFromFirebase = (data) => {
     localStorage.setItem('contributionTiers', JSON.stringify(contributionTiers.value));
     localStorage.setItem('fixedMatches', JSON.stringify(fixedMatches.value));
     localStorage.setItem('settings', JSON.stringify(settings.value));
+    
+    // After syncing from Firebase, check if we need to auto-create monthly debts
+    checkAndCreateMonthlyDebts();
 };
 
 // CRUD
@@ -433,6 +441,63 @@ const saveMatch = async (matchData) => {
                 setTimeout(() => { isSyncingLocal.value = false; }, 2000);
             });
     }
+
+    // --- Messenger Notification Trigger ---
+    // Only send for NEW matches (not edits) and if webhook is configured
+    if (!matchData.id && settings.value.messengerWebhookUrl) {
+        sendMessengerNotification(matchToUpload);
+    }
+};
+
+const sendMessengerNotification = async (matchData) => {
+    if (!settings.value.messengerWebhookUrl) return { success: false, message: 'Chưa cấu hình Webhook' };
+
+    const typeLabel = matchData.matchType === 'friendly' ? 'Đấu tập ⚽' : 'Đấu đối ⚔️';
+    const dateFormatted = new Date(matchData.date).toLocaleDateString('vi-VN');
+    
+    // Construct a beautiful message for Messenger
+    const message = `
+📢 **THÔNG BÁO TRẬN ĐẤU MỚI** 📢
+
+🏟️ **Loại trận:** ${typeLabel}
+🆚 **Đối thủ:** ${matchData.opponent || 'Nội bộ'}
+📅 **Ngày:** ${dateFormatted}
+⏰ **Giờ:** ${matchData.startTime || 'Chưa chốt'}
+📍 **Địa điểm:** ${matchData.location || 'Chưa rõ'}
+
+🔗 **Anh em vào điểm danh ngay tại:**
+${window.location.origin}
+
+*Chúc anh em có một trận cầu rực lửa!* 🔥
+`.trim();
+
+    try {
+        const response = await fetch(settings.value.messengerWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: message,
+                matchId: matchData.id,
+                date: matchData.date,
+                opponent: matchData.opponent,
+                location: matchData.location,
+                startTime: matchData.startTime,
+                matchType: matchData.matchType,
+                appUrl: window.location.origin
+            })
+        });
+
+        if (response.ok) {
+            console.log('✅ Đã gửi thông báo Messenger thành công');
+            return { success: true };
+        } else {
+            console.error('❌ Lỗi khi gửi thông báo Messenger:', response.statusText);
+            return { success: false, message: response.statusText };
+        }
+    } catch (error) {
+        console.error('❌ Lỗi kết nối Messenger Webhook:', error);
+        return { success: false, message: error.message };
+    }
 };
 
 const finalizeMatch = async (matchId, penaltyList) => {
@@ -557,8 +622,12 @@ const addTransaction = async (tData) => {
         // 1. Update member totals (legacy support)
         const member = members.value.find(m => m.id === tData.memberId);
         if (member) {
-            if (tData.category === 'fund') member.fundPaid = (member.fundPaid || 0) + tData.amount;
-            else if (tData.category === 'fine') member.fines = (member.fines || 0) + tData.amount;
+            // Update legacy member totals correctly based on and categories
+            if (tData.category === 'fund' || tData.category === 'monthly_fund') {
+                member.fundPaid = (member.fundPaid || 0) + tData.amount;
+            } else if (tData.category === 'fine' || tData.category === 'pitch_fee') {
+                member.fines = (member.fines || 0) + tData.amount;
+            }
             updatedMember = member;
         }
 
@@ -670,43 +739,9 @@ const deleteFixedMatch = async (id) => {
     }
 };
 
-const checkAndCreateFixedMatches = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const currentDay = today.getDay();
-
-    fixedMatches.value.forEach(fixed => {
-        const targetDay = Number(fixed.dayOfWeek);
-        
-        // Tính khoảng thời gian phải chờ cho lịch trình này
-        let daysUntilMatch = targetDay - currentDay;
-        // Nếu qua rồi hoặc âm thì tính cho trận của tuần tới
-        if (daysUntilMatch < 0) {
-            daysUntilMatch += 7;
-        }
-
-        // Tự động tạo trận nếu chưa có trận đấu nào sắp tới, rà soát bù trước 1 ngày
-        if (daysUntilMatch <= 1) {
-            const targetDate = new Date(today);
-            targetDate.setDate(today.getDate() + daysUntilMatch);
-            const targetDateStr = targetDate.toISOString().split('T')[0];
-
-            // Rà soát lại xem đã tạo trận lịch đó chưa
-            const exists = matches.value.some(m => m.date === targetDateStr && m.fixedMatchId === fixed.id);
-
-            if (!exists) {
-                console.log(`🚀 Tự động kích hoạt lịch cố định (trước ${daysUntilMatch} ngày) cho ngày: ${targetDateStr}`);
-                saveMatch({
-                    date: targetDateStr,
-                    startTime: fixed.startTime,
-                    matchType: fixed.matchType || 'friendly',
-                    opponent: fixed.opponent || 'Nội bộ',
-                    location: fixed.location || 'Sân vận động',
-                    fixedMatchId: fixed.id // Flag để đánh dấu
-                });
-            }
-        }
-    });
+// Automatic match creation disabled temporarily as per user request
+const checkAndCreateFixedMatches = async () => {
+    return;
 };
 const deleteTransaction = (id) => {
     transactions.value = transactions.value.filter(t => t.id !== id);
@@ -942,6 +977,7 @@ const addContributionTier = (tierData) => {
     saveData();
 };
 
+// Main application state management (Firebase Realtime DB sync, Automated Match Creation, and Messenger notifications)
 export const useAppState = () => {
     return {
         // State
@@ -1003,6 +1039,7 @@ export const useAppState = () => {
         hasApprovedLeave,
         getPassword,
         updatePassword,
-        toggleMobileView
+        toggleMobileView,
+        sendMessengerNotification
     };
 };

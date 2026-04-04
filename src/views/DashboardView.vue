@@ -176,7 +176,7 @@ import { useAuth } from '../composables/useAuth';
 import { usePenalties } from '../composables/usePenalties';
 
 const { isMobile } = useBreakpoints();
-const { stats: appStats, sortedMatches, members, settings, saveMatch } = useAppState();
+const { stats: appStats, sortedMatches, members, settings, saveMatch, updateManualAttendanceRequest } = useAppState();
 const { isAdmin, isGuest, guestMemberId } = useAuth();
 const { getLatePenalty } = usePenalties();
 
@@ -315,21 +315,22 @@ const handleCheckin = async (match) => {
                 lateFine = getLatePenalty(lateMinutes);
             }
         }
-        const updatedRecord = {
-            memberId: att[memberIdx].memberId,
-            status: 'present',
-            timestamp: now.toISOString(),
-            attendanceMethod: 'dashboard',
+        // Create pending attendance request instead of direct update
+        await updateManualAttendanceRequest({
+            id: Date.now(),
+            matchId: match.id,
+            memberId: guestMemberId.value,
+            status: 'pending',
+            submittedAt: now.toISOString(),
+            method: 'dashboard',
             isLate: isLate || false,
             lateMinutes: lateMinutes || 0,
             lateFine: lateFine || 0
-        };
-        const newAttendance = [...att];
-        newAttendance[memberIdx] = updatedRecord;
-        await saveMatch({ ...match, attendance: newAttendance });
+        });
+
         let details = isLate ? `Đi muộn ${lateMinutes} phút` : 'Đúng giờ';
-        if (lateFine > 0) details += ` 💰 Phạt: ${formatCurrency(lateFine)}`;
-        showResult(true, '✅ Điểm danh thành công!', details);
+        showResult(true, '✅ Gửi yêu cầu điểm danh thành công!', 
+            `${details}\n Vui lòng chờ admin hoặc kế toán phê duyệt.`);
     } catch (e) {
         showResult(false, 'Có lỗi xảy ra khi điểm danh');
     } finally {
