@@ -835,13 +835,25 @@ const rejectPendingTransaction = (id, reason = '') => {
     pending.status = 'rejected';
     pending.rejectedAt = new Date().toISOString();
     pending.rejectionReason = reason;
-    saveData();
+    saveData(true);
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        uploadSingleItem('pendingTransactions', pending)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
     return true;
 };
 
 const deletePendingTransaction = (id) => {
     pendingTransactions.value = pendingTransactions.value.filter(t => t.id !== id);
-    saveData();
+    saveData(true);
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        deleteSingleItem('pendingTransactions', id)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
 };
 
 // --- Helpers ---
@@ -908,7 +920,15 @@ const createLeaveRequest = (requestData) => {
     };
 
     leaveRequests.value.push(newRequest);
-    saveData();
+    saveData(true);
+    
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        uploadSingleItem('leaveRequests', newRequest)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
+    
     return newRequest;
 };
 
@@ -920,7 +940,13 @@ const approveLeaveRequest = (id, adminNote = '') => {
     request.processedAt = new Date().toISOString();
     request.adminNote = adminNote.trim() || null;
 
-    saveData();
+    saveData(true);
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        uploadSingleItem('leaveRequests', request)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
     return true;
 };
 
@@ -932,13 +958,25 @@ const rejectLeaveRequest = (id, adminNote = '') => {
     request.processedAt = new Date().toISOString();
     request.adminNote = adminNote.trim() || null;
 
-    saveData();
+    saveData(true);
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        uploadSingleItem('leaveRequests', request)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
     return true;
 };
 
 const deleteLeaveRequest = (id) => {
     leaveRequests.value = leaveRequests.value.filter(r => r.id !== id);
-    saveData();
+    saveData(true);
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        deleteSingleItem('leaveRequests', id)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
 };
 
 // Pending Attendance Requests (Manual Check-ins)
@@ -962,7 +1000,15 @@ const updateManualAttendanceRequest = async (request, action = 'save') => {
     } else {
         pendingAttendances.value.push({ ...request });
     }
-    saveData();
+    
+    saveData(true);
+    
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        uploadSingleItem('pendingAttendances', request)
+            .catch(e => console.error(e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
 };
 
 const getMemberLeaveRequests = (memberId) => {

@@ -18,6 +18,11 @@ let auth = null;
 let storage = null;
 let realtimeListeners = []; 
 
+const getRootRef = () => {
+    const docId = import.meta.env.VITE_USE_TEST_DATA === 'true' ? 'testing' : 'primary';
+    return db.collection('teams').doc(docId);
+}; 
+
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -67,7 +72,7 @@ const requestNotificationPermission = async () => {
             
             if (token && db) {
                 // Save the token globally for this app instance
-                await db.collection('teams').doc('primary')
+                await getRootRef()
                     .collection('fcmTokens').doc(token)
                     .set({
                         token: token,
@@ -126,7 +131,7 @@ const uploadData = async (data) => {
     if (!isSignedIn.value || !db) return false;
     syncStatus.value = 'syncing';
     try {
-        const rootRef = db.collection('teams').doc('primary');
+        const rootRef = getRootRef();
         const batch = db.batch();
 
         batch.set(rootRef, cleanObject({
@@ -172,7 +177,7 @@ const uploadData = async (data) => {
 const uploadSingleItem = async (collectionName, item) => {
     if (!isSignedIn.value || !db) return false;
     try {
-        const rootRef = db.collection('teams').doc('primary');
+        const rootRef = getRootRef();
         const docRef = rootRef.collection(collectionName).doc(String(item.id));
         const cleanedItem = cleanObject(item);
         await docRef.set({ ...cleanedItem, _updatedAt: Date.now() }, { merge: true });
@@ -187,7 +192,7 @@ const uploadSingleItem = async (collectionName, item) => {
 const deleteSingleItem = async (collectionName, itemId) => {
     if (!isSignedIn.value || !db) return false;
     try {
-        const rootRef = db.collection('teams').doc('primary');
+        const rootRef = getRootRef();
         await rootRef.collection(collectionName).doc(String(itemId)).delete();
         await rootRef.set({ lastUpdated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
         return true;
@@ -202,7 +207,7 @@ const deleteSingleItem = async (collectionName, itemId) => {
 const runAtomicTransaction = async (transactionFn) => {
     if (!isSignedIn.value || !db) throw new Error('Firebase not ready');
     try {
-        const rootRef = db.collection('teams').doc('primary');
+        const rootRef = getRootRef();
         return await db.runTransaction(async (transaction) => {
             return await transactionFn(transaction, rootRef, firebase);
         });
@@ -304,7 +309,7 @@ const downloadData = async () => {
     if (!db) return null;
     syncStatus.value = 'syncing';
     try {
-        const rootRef = db.collection('teams').doc('primary');
+        const rootRef = getRootRef();
         const rootSnap = await rootRef.get();
         if (!rootSnap.exists) return null;
 
@@ -347,7 +352,7 @@ const setupRealtimeListener = (onUpdate) => {
     if (!db) return null;
     stopRealtimeListener();
     
-    const rootRef = db.collection('teams').doc('primary');
+    const rootRef = getRootRef();
     let debounceTimer = null;
     const triggerUpdate = async () => {
         if (debounceTimer) clearTimeout(debounceTimer);

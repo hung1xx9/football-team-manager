@@ -5,6 +5,7 @@
             <div class="card-header">
                 <h2>📋 Duyệt Điểm Danh</h2>
                 <div class="header-actions">
+                    <button v-if="filteredRequests.length > 1" @click="approveAll" class="btn btn-success btn-sm btn-approve-all">✅ Duyệt tất cả ({{ filteredRequests.length }})</button>
                     <span v-if="pendingRequests.length > 0" class="badge">{{ pendingRequests.length }} yêu cầu</span>
                 </div>
             </div>
@@ -130,6 +131,59 @@ const approveRequest = async (req) => {
     });
 };
 
+const approveAll = async () => {
+    if (!await showConfirm(`Phê duyệt tất cả ${filteredRequests.value.length} yêu cầu điểm danh?`)) return;
+    
+    const reqsByMatch = {};
+    for (const req of filteredRequests.value) {
+        if (!reqsByMatch[req.matchId]) reqsByMatch[req.matchId] = [];
+        reqsByMatch[req.matchId].push(req);
+    }
+
+    try {
+        for (const [matchId, reqs] of Object.entries(reqsByMatch)) {
+            const match = matches.value.find(m => m.id === matchId);
+            if (match) {
+                const attList = Array.isArray(match.attendance) ? [...match.attendance] : Object.values(match.attendance || {});
+                
+                for (const req of reqs) {
+                    const mId = req.memberId;
+                    const idx = attList.findIndex(a => String(a.memberId) === String(mId));
+                    const updObj = {
+                        memberId: mId,
+                        status: 'present',
+                        timestamp: new Date().toISOString(),
+                        method: 'manual_approved',
+                        isLate: req.isLate || false,
+                        lateMinutes: req.lateMinutes || 0,
+                        lateFine: req.lateFine || 0
+                    };
+                    if (idx !== -1) {
+                        attList[idx] = { ...attList[idx], ...updObj };
+                    } else {
+                        attList.push(updObj);
+                    }
+                }
+                
+                await updateMatchAttendance(matchId, attList);
+            }
+            
+            for (const req of reqs) {
+                await updateManualAttendanceRequest({
+                    ...req,
+                    status: 'approved',
+                    reviewedBy: currentRole.value,
+                    reviewedAt: new Date().toISOString()
+                });
+            }
+        }
+        showAlert(`Đã duyệt ${filteredRequests.value.length} yêu cầu thành công.`, 'success');
+    } catch (error) {
+        console.error("Error approving all", error);
+        showAlert("Có lỗi xảy ra khi duyệt tất cả yêu cầu.", "error");
+    }
+};
+
 const rejectRequest = async (req) => {
     const reason = await showPrompt(`Lý do từ chối điểm danh của ${getMemberName(req.memberId)}?`, 'Từ chối điểm danh', 'Thiếu ảnh minh chứng hoặc sai giờ');
     if (reason === null) return;
@@ -168,7 +222,7 @@ const rejectRequest = async (req) => {
 </script>
 
 <style scoped>
-.header-actions { display: flex; align-items: center; }
+.header-actions { display: flex; align-items: center; gap: 0.75rem; }
 .filters { margin-bottom: 1.5rem; }
 .form-select {
     width: 100%;

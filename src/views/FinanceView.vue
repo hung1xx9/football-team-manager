@@ -583,7 +583,8 @@ const {
     addTransaction, deleteTransaction, 
     approvePendingTransaction, rejectPendingTransaction,
     contributionTiers, updateJerseyPayment, getMemberName,
-    receivables, showAlert, showConfirm, showPrompt
+    receivables, showAlert, showConfirm, showPrompt,
+    getContributionTier
 } = useAppState();
 
 
@@ -682,7 +683,15 @@ const handleManualPayment = (member, category) => {
     showModal.value = true; closeDropdown();
 };
 
-const handleApprove = async (tx) => { const amount = await showPrompt(`Xác nhận số tiền thực nhận:`, 'Duyệt giao dịch', tx.amount); if (amount) approvePendingTransaction(tx.id, parseInt(amount.replace(/[^0-9]/g, ''))); };
+const handleApprove = async (tx) => { 
+    const amount = await showPrompt(`Xác nhận duyệt giao dịch:`, 'Duyệt giao dịch', formatCurrency(tx.amount)); 
+    if (amount) {
+        const success = await approvePendingTransaction(tx.id);
+        if (success) {
+            await showAlert('✅ Đã phê duyệt giao dịch thành công!');
+        }
+    } 
+};
 const handleReject = async (tx) => { const reason = await showPrompt('Lý do từ chối:', 'Từ chối giao dịch'); if (reason !== null) rejectPendingTransaction(tx.id, reason); };
 
 

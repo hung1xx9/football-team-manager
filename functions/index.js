@@ -277,31 +277,36 @@ exports.notifyNewMatch = functions.firestore
             const dateFormatted = new Date(matchData.date).toLocaleDateString('vi-VN');
 
             // Construct notification payload
-            const payload = {
+            const message = {
                 notification: {
                     title: '⚽ Trận đấu mới đã được lên lịch!',
                     body: `${typeLabel} vs ${matchData.opponent || 'Nội bộ'} vào lúc ${matchData.startTime || 'chưa rõ'} ngày ${dateFormatted}. Vào app điểm danh ngay!`,
-                    icon: '/favicon.png', // Or the absolute URL to icon
-                    clickAction: 'https://your-domain.com' // Should be dynamic in production
-                }
+                },
+                webpush: {
+                    notification: { icon: '/favicon.png' }
+                },
+                tokens: tokens
             };
 
             // Send messages
-            const response = await admin.messaging().sendToDevice(tokens, payload);
-            console.log('Successfully sent push notifications:', response.successCount);
-            
+            const response = await admin.messaging().sendEachForMulticast(message);
+            console.log(`Successfully sent: ${response.successCount}/${tokens.length}`);
+
             // Cleanup invalid tokens
-            response.results.forEach((result, index) => {
-                const error = result.error;
-                if (error) {
-                    console.error('Failure sending notification to', tokens[index], error);
-                    // Remove unregistered tokens
-                    if (error.code === 'messaging/invalid-registration-token' ||
-                        error.code === 'messaging/registration-token-not-registered') {
-                        db.collection('teams').doc('primary').collection('fcmTokens').doc(tokens[index]).delete();
+            const cleanupPromises = [];
+            response.responses.forEach((result, index) => {
+                if (!result.success) {
+                    const code = result.error?.code;
+                    console.error('Failure sending to', tokens[index], result.error);
+                    if (code === 'messaging/invalid-registration-token' ||
+                        code === 'messaging/registration-token-not-registered') {
+                        cleanupPromises.push(
+                            db.collection('teams').doc('primary').collection('fcmTokens').doc(tokens[index]).delete()
+                        );
                     }
                 }
             });
+            await Promise.all(cleanupPromises);
 
             return null;
         } catch (error) {
@@ -309,3 +314,67 @@ exports.notifyNewMatch = functions.firestore
             return null;
         }
     });
+
+/**
+ * HTTP endpoint để test push notification thủ công
+ * Gọi: GET/POST https://<region>-<project>.cloudfunctions.net/sendTestNotification
+ */
+exports.sendTestNotification = functions.https.onRequest(async (req, res) => {
+    // Cho phép CORS từ localhost và production
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'GET, POST');
+        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        return res.status(204).send('');
+    }
+
+    try {
+        const tokensSnap = await db.collection('teams').doc('primary').collection('fcmTokens').get();
+        const tokens = [];
+        tokensSnap.forEach(doc => {
+            if (doc.data().token) tokens.push(doc.data().token);
+        });
+
+        if (tokens.length === 0) {
+            return res.status(200).json({ success: false, message: 'Không tìm thấy FCM token nào. Hãy mở app và cho phép thông báo trước.' });
+        }
+
+        const message = {
+            notification: {
+                title: '🧪 Test Notification từ Tinh Hoa FC',
+                body: `PWA của anh đang hoạt động bình thường! Đã tìm thấy ${tokens.length} thiết bị.`,
+            },
+            webpush: {
+                notification: { icon: '/favicon.png' }
+            },
+            tokens: tokens
+        };
+
+        const response = await admin.messaging().sendEachForMulticast(message);
+
+        // Cleanup invalid tokens
+        const cleanupPromises = [];
+        response.responses.forEach((result, index) => {
+            if (!result.success) {
+                const code = result.error?.code;
+                if (code === 'messaging/invalid-registration-token' || code === 'messaging/registration-token-not-registered') {
+                    cleanupPromises.push(
+                        db.collection('teams').doc('primary').collection('fcmTokens').doc(tokens[index]).delete()
+                    );
+                }
+            }
+        });
+        await Promise.all(cleanupPromises);
+
+        return res.status(200).json({
+            success: true,
+            message: `Đã gửi thông báo đến ${response.successCount}/${tokens.length} thiết bị.`,
+            successCount: response.successCount,
+            failureCount: response.failureCount,
+            tokenCount: tokens.length
+        });
+    } catch (error) {
+        console.error('sendTestNotification error:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});

@@ -280,7 +280,7 @@ const approveTransaction = async (id) => {
     
     const success = await approvePendingTransaction(id);
     if (success) {
-        // success handeled by snackbar/alert in App.vue via useAppState
+        await showAlert('✅ Đã phê duyệt giao dịch thành công!');
     } else {
         await showAlert('❌ Có lỗi xảy ra khi phê duyệt giao dịch');
     }
