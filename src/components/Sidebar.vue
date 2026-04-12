@@ -40,15 +40,7 @@
                 <span>Trận Đấu</span>
             </router-link>
 
-            <!-- Attendance - Guest can see -->
-            <router-link v-if="permissions.canViewAttendance" to="/attendance" class="nav-item" active-class="active">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <path d="M3 9h18"></path>
-                    <path d="M9 21V9"></path>
-                </svg>
-                <span>Điểm Danh</span>
-            </router-link>
+
 
             <!-- Attendance Table - Guest can see -->
             <router-link v-if="permissions.canViewAttendance" to="/attendance-table" class="nav-item" active-class="active">

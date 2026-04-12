@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue';
 import { useFirebase } from './useFirebase';
-import { cleanupDeletedMatch } from './useQRAttendance';
+
 import bcrypt from 'bcryptjs';
 
 // --- Global State ---
@@ -598,9 +598,7 @@ const updateReceivable = async (id, updates) => {
     }
 };
 const deleteMatch = async (id) => {
-    // 1. Clean up scan records for this match
-    const cleanedCount = cleanupDeletedMatch(id);
-    console.log(`🗑️ Deleted match ${id}, cleaned up ${cleanedCount} scan records`);
+
 
     // 2. Remove associated receivables
     const initialCount = receivables.value.length;

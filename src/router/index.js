@@ -25,11 +25,7 @@ const routes = [
         name: 'Finance',
         component: () => import('../views/FinanceView.vue')
     },
-    {
-        path: '/attendance',
-        name: 'Attendance',
-        component: () => import('../views/AttendanceView.vue')
-    },
+
     {
         path: '/my-payments',
         name: 'My Payments',

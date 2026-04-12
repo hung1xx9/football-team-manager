@@ -41,7 +41,7 @@ Hệ thống quản lý điểm danh linh hoạt với 2 phương thức:
 
 Mỗi lần điểm danh sẽ hiển thị:
 - ⏰ Thời gian điểm danh
-- 📱 hoặc ✋ Phương thức (QR hoặc Thủ công)
+- 📱 Phương thức (App hoặc Thủ công)
 - ✓ hoặc ⏰ Trạng thái (Đúng giờ hoặc Muộn)
 - 💰 Phạt (nếu có)
 

@@ -59,13 +59,7 @@
                     </div>
 
                     <div class="match-card-actions">
-                        <button class="btn btn-action btn-qr-action" @click="generateAndShowQR(match)">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                <path d="M3 9h18"></path><path d="M9 21V9"></path>
-                            </svg>
-                            Mã QR
-                        </button>
+
 
                         <button v-if="permissions.canAddMatch" class="btn btn-action btn-messenger-action" @click="handleSendMessenger(match)">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -148,31 +142,7 @@
 
 
 
-        <!-- QR Code Modal -->
-        <Transition name="premium-modal">
-        <div v-if="showQRModal" class="modal" style="display: flex;" @click.self="closeQRModal">
-            <div class="modal-content" style="max-width: 450px; text-align: center;">
 
-                <div class="modal-header">
-                    <h2>Quét Mã Điểm Danh</h2>
-                    <button class="modal-close" @click="closeQRModal">×</button>
-                </div>
-                <div class="modal-body">
-                    <div v-if="qrCodeData">
-                        <div style="margin-bottom: 1rem; color: var(--text-secondary);">
-                            {{ getMatchDisplayTitle(matchForQR) }}
-                        </div>
-                        <img :src="qrCodeData" alt="Attendance QR Code" style="width: 100%; max-width: 300px; margin: 0 auto; border: 8px solid white; border-radius: var(--radius-lg);">
-                        <p style="margin-top: 1.5rem; font-weight: 500;">Thành viên quét mã này để ghi nhận điểm danh.</p>
-                    </div>
-                    <div v-else style="padding: 2rem;">
-                        <div class="spinner"></div>
-                        <p>Đang tạo mã QR...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        </Transition>
     </div>
 </template>
 
@@ -182,7 +152,6 @@ import { useBreakpoints } from '../composables/useBreakpoints';
 import { useAppState } from '../composables/useAppState';
 import BaseSelect from '../components/BaseSelect.vue';
 import { useAuth } from '../composables/useAuth';
-import { useQRAttendance as useQR } from '../composables/useQRAttendance';
 import { useEscapeClose } from '../composables/useEscapeClose';
 
 const { isMobile } = useBreakpoints();
@@ -194,7 +163,6 @@ const {
 } = useAppState();
 
 const { permissions } = useAuth();
-const { generateQR } = useQR();
 
 const displayCount = ref(3);
 
@@ -232,7 +200,6 @@ onMounted(() => {
 });
 
 const showMatchModal = ref(false);
-const showQRModal = ref(false);
 
 const matchForm = reactive({
     id: null,
@@ -243,8 +210,7 @@ const matchForm = reactive({
     location: ''
 });
 
-const qrCodeData = ref(null);
-const matchForQR = ref(null);
+
 
 const openAddModal = () => {
     matchForm.id = null;
@@ -319,19 +285,7 @@ const handleSaveMatch = () => {
 
 
 
-const generateAndShowQR = async (match) => {
-    matchForQR.value = match;
-    showQRModal.value = true;
-    qrCodeData.value = null;
-    const qr = await generateQR(match.id, match.date);
-    qrCodeData.value = qr;
-};
 
-const closeQRModal = () => {
-    showQRModal.value = false;
-    qrCodeData.value = null;
-    matchForQR.value = null;
-};
 
 const handleDeleteMatch = async (id) => {
     if (await showConfirm('Bạn có chắc chắn muốn xóa trận đấu này?')) {
@@ -385,7 +339,6 @@ const getAttendanceCount = (match, status) => {
 
 // Register Escape key to close modals
 useEscapeClose(() => closeMatchModal(), showMatchModal);
-useEscapeClose(() => closeQRModal(), showQRModal);
 </script>
 
 <style scoped>
