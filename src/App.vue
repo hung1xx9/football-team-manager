@@ -313,35 +313,8 @@
             </div>
         </div>
 
-        <!-- Notification -->
-        <div class="notification" :class="['notification-' + notification.type, { show: notification.show }]">
-            <div class="notification-status-stripe"></div>
-            <div class="notification-icon-container">
-                <svg v-if="notification.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                <svg v-else-if="notification.type === 'error'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>
-                <svg v-else-if="notification.type === 'warning'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                </svg>
-            </div>
-            <div class="notification-content">
-                <div class="notification-label">{{ notification.type === 'success' ? 'Thành công' : (notification.type === 'error' ? 'Lỗi' : 'Thông báo') }}</div>
-                <div class="notification-message">{{ notification.message }}</div>
-            </div>
-            <button class="notification-close" @click="notification.show = false">×</button>
-        </div>
+        <!-- Global Toast Container -->
+        <ToastContainer />
 
         <!-- Global Dialog -->
         <AppConfirm />
@@ -355,7 +328,9 @@ import { useRouter } from 'vue-router';
 import Sidebar from './components/Sidebar.vue';
 import BottomNav from './components/BottomNav.vue';
 import AppConfirm from './components/AppConfirm.vue';
+import ToastContainer from './components/ToastContainer.vue';
 import { useAppState } from './composables/useAppState';
+import { useToast } from './composables/useToast';
 
 import { useFirebase } from './composables/useFirebase';
 import { useAuth } from './composables/useAuth';
@@ -374,8 +349,8 @@ const {
 
 const { initFirebase, signIn: firebaseSignIn, signOut: firebaseSignOut, uploadData, downloadData, syncStatus, isSignedIn, isConfigured, hasNewUpdate, setupRealtimeListener, stopRealtimeListener } = useFirebase();
 const { currentRole, isAdmin, setRole, logout, permissions } = useAuth();
+const { showToast } = useToast();
 
-const notification = reactive({ show: false, message: '', type: 'info' });
 const mobileMenuOpen = ref(false);
 const selectingAdmin = ref(false);
 const selectingAccountant = ref(false);
@@ -928,10 +903,7 @@ const handleLogout = () => {
 };
 
 const showNotification = (msg, type = 'info') => {
-    notification.message = msg;
-    notification.type = type;
-    notification.show = true;
-    setTimeout(() => notification.show = false, 3000);
+    showToast(msg, type);
 };
 
 const handleGuestClick = async () => {

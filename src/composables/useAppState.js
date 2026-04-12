@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue';
+import { useToast } from './useToast';
 import { useFirebase } from './useFirebase';
 
 import bcrypt from 'bcryptjs';
@@ -1072,15 +1073,22 @@ const updateJerseyPayment = async (memberId, updates) => {
 };
 
 const showAlert = (message, title = 'Thông báo') => {
-    return new Promise((resolve) => {
-        dialog.value = {
-            show: true,
-            title,
-            message,
-            type: 'alert',
-            resolve
-        };
-    });
+    let type = 'info';
+    const lowerTitle = title.toLowerCase();
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerTitle.includes('lỗi') || lowerMessage.includes('lỗi') || message.includes('❌')) {
+        type = 'error';
+    } else if (lowerTitle.includes('thành công') || lowerMessage.includes('thành công') || message.includes('✅')) {
+        type = 'success';
+    } else if (lowerTitle.includes('cảnh báo') || message.includes('⚠️')) {
+        type = 'warning';
+    }
+
+    const { showToast } = useToast();
+    showToast(message, type);
+    
+    return Promise.resolve();
 };
 
 const showConfirm = (message, title = 'Xác nhận') => {
