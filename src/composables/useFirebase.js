@@ -223,11 +223,23 @@ const runAtomicTransaction = async (transactionFn) => {
 const approvePendingTransactionAtomic = async (pendingId) => {
     return runAtomicTransaction(async (transaction, rootRef, fb) => {
         const pendingRef = rootRef.collection('pendingTransactions').doc(String(pendingId));
+        
+        // === ALL READS FIRST (Firestore requirement) ===
         const pendingSnap = await transaction.get(pendingRef);
 
         if (!pendingSnap.exists) throw new Error('Yêu cầu không còn tồn tại.');
         const pending = pendingSnap.data();
         if (pending.status === 'approved') throw new Error('Yêu cầu đã được duyệt trước đó.');
+
+        // Read member doc BEFORE any writes
+        let memberSnap = null;
+        let memberRef = null;
+        if (pending.memberId) {
+            memberRef = rootRef.collection('members').doc(String(pending.memberId));
+            memberSnap = await transaction.get(memberRef);
+        }
+
+        // === ALL WRITES AFTER ALL READS ===
 
         // 1. Create income transaction
         const newTxId = Date.now();
@@ -245,14 +257,12 @@ const approvePendingTransactionAtomic = async (pendingId) => {
         transaction.set(txRef, newTx);
 
         // 2. Update member balance
-        if (pending.memberId) {
-            const memberRef = rootRef.collection('members').doc(String(pending.memberId));
-            const memberSnap = await transaction.get(memberRef);
-            if (memberSnap.exists) {
-                const member = memberSnap.data();
-                const update = {};
-                if (pending.category === 'fund') update.fundPaid = (member.fundPaid || 0) + pending.amount;
-                else if (pending.category === 'fine') update.fines = (member.fines || 0) + pending.amount;
+        if (memberRef && memberSnap && memberSnap.exists) {
+            const member = memberSnap.data();
+            const update = {};
+            if (pending.category === 'fund') update.fundPaid = (member.fundPaid || 0) + pending.amount;
+            else if (pending.category === 'fine') update.fines = (member.fines || 0) + pending.amount;
+            if (Object.keys(update).length > 0) {
                 transaction.update(memberRef, update);
             }
         }
