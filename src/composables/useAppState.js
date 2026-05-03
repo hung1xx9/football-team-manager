@@ -798,22 +798,65 @@ const approvePendingTransaction = async (id) => {
     if (isSignedIn.value) {
         try {
             const result = await approvePendingTransactionAtomic(id);
+
+            // 1. Remove from pending list
+            const approved = pendingTransactions.value.find(p => p.id === id);
             pendingTransactions.value = pendingTransactions.value.filter(p => p.id !== id);
+
+            // 2. Add the new income transaction to local state
             if (result.newTx && !transactions.value.some(t => t.id === result.newTx.id)) {
                 transactions.value.push(result.newTx);
             }
-            if (result.memberId) {
-                // Member balance updated in Firebase, downloadData will sync local later
+
+            // 3. Update local member balance (legacy fields) to keep UI in sync
+            if (result.memberId && approved) {
+                const member = members.value.find(m => m.id === result.memberId);
+                if (member) {
+                    if (approved.category === 'fund') {
+                        member.fundPaid = (member.fundPaid || 0) + approved.amount;
+                    } else if (approved.category === 'fine') {
+                        member.fines = (member.fines || 0) + approved.amount;
+                    }
+                }
             }
+
+            // 4. Auto-allocate against local receivables (fines first, then by date)
+            //    This mirrors what the atomic transaction does in Firestore.
+            if (result.memberId && approved) {
+                let remaining = approved.amount;
+                const paidAt = new Date().toISOString();
+                const unpaidList = receivables.value
+                    .filter(r => r.memberId === result.memberId && r.status === 'unpaid')
+                    .sort((a, b) => {
+                        if (a.type === 'fine' && b.type !== 'fine') return -1;
+                        if (a.type !== 'fine' && b.type === 'fine') return 1;
+                        return new Date(a.date) - new Date(b.date);
+                    });
+
+                for (const r of unpaidList) {
+                    if (remaining <= 0) break;
+                    if (remaining >= r.amount) {
+                        r.status = 'paid';
+                        r.paidAt = paidAt;
+                        r.transactionId = result.newTx.id;
+                        remaining -= r.amount;
+                    }
+                }
+            }
+
+            // 5. Persist updated local state
             localStorage.setItem('pendingTransactions', JSON.stringify(pendingTransactions.value));
             localStorage.setItem('transactions', JSON.stringify(transactions.value));
+            localStorage.setItem('members', JSON.stringify(members.value));
+            localStorage.setItem('receivables', JSON.stringify(receivables.value));
+
             return true;
         } catch (e) {
             await showAlert('Lỗi: ' + e.message, 'Lỗi phê duyệt');
-
             throw e;
         }
     } else {
+        // Offline fallback: use addTransaction which handles receivable allocation
         const pending = pendingTransactions.value.find(t => t.id === id);
         if (!pending) return false;
         await addTransaction({

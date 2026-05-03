@@ -219,24 +219,57 @@ const runAtomicTransaction = async (transactionFn) => {
 
 /**
  * approvePendingTransactionAtomic - Approve payment atomically
+ * Also marks matching unpaid receivables as paid for the member.
+ *
+ * Strategy:
+ *  - Query receivable doc IDs OUTSIDE the transaction (queries can't be done inside)
+ *  - Inside the transaction, transaction.get() each doc individually (all reads first)
+ *  - Then perform all writes
  */
 const approvePendingTransactionAtomic = async (pendingId) => {
-    return runAtomicTransaction(async (transaction, rootRef, fb) => {
-        const pendingRef = rootRef.collection('pendingTransactions').doc(String(pendingId));
-        
-        // === ALL READS FIRST (Firestore requirement) ===
-        const pendingSnap = await transaction.get(pendingRef);
+    if (!isSignedIn.value || !db) throw new Error('Firebase not ready');
+    const rootRef = getRootRef();
+    const pendingRef = rootRef.collection('pendingTransactions').doc(String(pendingId));
 
+    // Pre-read: get pending doc to know the memberId (needed for query)
+    const preSnap = await pendingRef.get();
+    if (!preSnap.exists) throw new Error('Yêu cầu không còn tồn tại.');
+    const prePending = preSnap.data();
+    if (prePending.status === 'approved') throw new Error('Yêu cầu đã được duyệt trước đó.');
+
+    // Query unpaid receivable doc IDs for this member OUTSIDE the transaction
+    let receivableDocIds = [];
+    if (prePending.memberId) {
+        const receivablesSnap = await rootRef.collection('receivables')
+            .where('memberId', '==', prePending.memberId)
+            .where('status', '==', 'unpaid')
+            .get();
+        receivableDocIds = receivablesSnap.docs.map(d => d.id);
+    }
+
+    // Run the atomic Firestore transaction
+    return db.runTransaction(async (transaction) => {
+        // === ALL READS FIRST ===
+        const pendingSnap = await transaction.get(pendingRef);
         if (!pendingSnap.exists) throw new Error('Yêu cầu không còn tồn tại.');
         const pending = pendingSnap.data();
         if (pending.status === 'approved') throw new Error('Yêu cầu đã được duyệt trước đó.');
 
-        // Read member doc BEFORE any writes
         let memberSnap = null;
         let memberRef = null;
         if (pending.memberId) {
             memberRef = rootRef.collection('members').doc(String(pending.memberId));
             memberSnap = await transaction.get(memberRef);
+        }
+
+        // Read each receivable doc individually inside the transaction
+        const receivableItems = [];
+        for (const docId of receivableDocIds) {
+            const ref = rootRef.collection('receivables').doc(docId);
+            const snap = await transaction.get(ref);
+            if (snap.exists && snap.data().status === 'unpaid') {
+                receivableItems.push({ ref, data: snap.data() });
+            }
         }
 
         // === ALL WRITES AFTER ALL READS ===
@@ -254,26 +287,45 @@ const approvePendingTransactionAtomic = async (pendingId) => {
             memberId: pending.memberId,
             _approvedFrom: pendingId
         };
-        transaction.set(txRef, newTx);
+        transaction.set(txRef, { ...newTx, _updatedAt: Date.now() });
 
-        // 2. Update member balance
+        // 2. Update member balance (legacy fields)
         if (memberRef && memberSnap && memberSnap.exists) {
             const member = memberSnap.data();
             const update = {};
             if (pending.category === 'fund') update.fundPaid = (member.fundPaid || 0) + pending.amount;
             else if (pending.category === 'fine') update.fines = (member.fines || 0) + pending.amount;
             if (Object.keys(update).length > 0) {
-                transaction.update(memberRef, update);
+                transaction.update(memberRef, { ...update, _updatedAt: Date.now() });
             }
         }
 
-        // 3. Delete pending
+        // 3. Auto-allocate against unpaid receivables (fines first, then oldest first)
+        const updatedReceivableIds = [];
+        const sorted = [...receivableItems].sort((a, b) => {
+            if (a.data.type === 'fine' && b.data.type !== 'fine') return -1;
+            if (a.data.type !== 'fine' && b.data.type === 'fine') return 1;
+            return new Date(a.data.date) - new Date(b.data.date);
+        });
+        let remaining = pending.amount;
+        const paidAt = new Date().toISOString();
+        for (const item of sorted) {
+            if (remaining <= 0) break;
+            if (remaining >= item.data.amount) {
+                transaction.update(item.ref, { status: 'paid', paidAt, transactionId: newTxId, _updatedAt: Date.now() });
+                remaining -= item.data.amount;
+                updatedReceivableIds.push(item.data.id != null ? item.data.id : item.ref.id);
+            }
+        }
+
+        // 4. Delete pending transaction
         transaction.delete(pendingRef);
-        
-        transaction.set(rootRef, { lastUpdated: fb.firestore.FieldValue.serverTimestamp() }, { merge: true });
-        return { newTx, memberId: pending.memberId };
+
+        transaction.set(rootRef, { lastUpdated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        return { newTx, memberId: pending.memberId, updatedReceivableIds };
     });
 };
+
 
 /**
  * approveAttendanceAtomic - Approve attendance atomically
