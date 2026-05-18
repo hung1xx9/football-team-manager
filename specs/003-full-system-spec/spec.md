@@ -329,7 +329,7 @@ Hệ thống theo dõi thanh toán áo đấu cho từng thành viên: size, sta
 
 - **FR-001**: System MUST authenticate users via 3 roles (Admin, Accountant, Guest) with bcrypt-hashed passwords stored in settings
 - **FR-002**: System MUST enforce role-based access control with specific permission sets for each role (25+ granular permissions)
-- **FR-003**: System MUST auto-expire sessions after 6 hours and redirect to login
+- **FR-003**: System MUST auto-expire sessions after 6 hours for Admin/Accountant roles. Guest sessions persist indefinitely.
 - **FR-004**: System MUST support full CRUD for members, matches, and transactions with automatic Firebase synchronization
 - **FR-005**: System MUST calculate and auto-create monthly fund receivables based on each member's contribution tier
 - **FR-006**: System MUST implement smart debt clearing — when income received, automatically mark oldest unpaid receivables as paid (fines first, then chronological)
@@ -342,8 +342,8 @@ Hệ thống theo dõi thanh toán áo đấu cho từng thành viên: size, sta
 - **FR-013**: System MUST implement granular Firebase sync (single-item upload/delete) to minimize network usage
 - **FR-014**: System MUST guard against race conditions during sync using isSyncingLocal flag
 - **FR-015**: System MUST support MoMo payment integration (personal QR + business API + webhook IPN)
-- **FR-016**: System MUST send Messenger notifications for new matches via configurable webhook
-- **FR-017**: System MUST send FCM push notifications when new matches are created (via Cloud Function)
+- **FR-016**: System MUST send Messenger and FCM push notifications 1 hour and 30 minutes before matches via scheduled Cloud Functions
+- **FR-017**: System MUST support Match RSVP, allowing members to confirm/decline participation, and notify Admins via FCM/Messenger when RSVPs change
 - **FR-018**: System MUST function as a PWA with service worker, offline support, and installability
 - **FR-019**: System MUST support dark/light theme with persistence and animated transitions
 - **FR-020**: System MUST support responsive design with desktop sidebar and mobile FAB navigation
@@ -354,7 +354,7 @@ Hệ thống theo dõi thanh toán áo đấu cho từng thành viên: size, sta
 ### Key Entities
 
 - **Member**: id, name, fundPaid, fines, contributionTierId, paymentType, perMatchFee
-- **Match**: id, date, startTime, opponent, location, matchType, attendance[], finalized
+- **Match**: id, date, startTime, opponent, location, matchType, attendance[], rsvp[], notified1h, notified30m, finalized
 - **Transaction**: id, type (income/expense), category, amount, description, date, memberId, momoTransId
 - **PendingTransaction**: id, type, category, amount, description, date, memberId, status (pending/approved/rejected), createdAt, approvedAt, rejectionReason
 - **Receivable**: id, memberId, amount, type (monthly_fund/fine/pitch_fee/legacy_debt), description, date, monthKey, matchId, status (unpaid/paid), paidAt, transactionId

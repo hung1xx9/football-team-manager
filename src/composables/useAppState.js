@@ -445,11 +445,18 @@ const saveMatch = async (matchData) => {
                 ...actualMatchData 
             } = matchData;
 
+            // Reset notification flags if date/time changed
+            const oldMatch = matches.value[idx];
+            const timeChanged = oldMatch.startTime !== actualMatchData.startTime 
+                || oldMatch.date !== actualMatchData.date;
+
             matches.value[idx] = {
                 ...matches.value[idx],
                 ...actualMatchData,
                 id: originalId, // Ensure ID is not overwritten
-                attendance // Use the attendance from above
+                attendance, // Use the attendance from above
+                // Reset scheduled notification flags if time changed
+                ...(timeChanged ? { notified1h: false, notified30m: false } : {})
             };
             matchToUpload = matches.value[idx];
         }
@@ -482,6 +489,85 @@ const saveMatch = async (matchData) => {
     if (!matchData.id && settings.value.messengerWebhookUrl) {
         sendMessengerNotification(matchToUpload);
     }
+};
+
+const rsvpMatch = async (matchId, memberId, status) => {
+    const match = matches.value.find(m => m.id === matchId);
+    if (!match) return false;
+
+    // Initialize rsvp array if not exists
+    if (!match.rsvp) match.rsvp = [];
+
+    // Upsert: find existing RSVP or create new
+    const existingIdx = match.rsvp.findIndex(
+        r => String(r.memberId) === String(memberId)
+    );
+
+    const rsvpEntry = {
+        memberId: memberId,
+        status: status, // 'confirmed' | 'declined'
+        respondedAt: new Date().toISOString()
+    };
+
+    if (existingIdx !== -1) {
+        match.rsvp[existingIdx] = rsvpEntry;
+    } else {
+        match.rsvp.push(rsvpEntry);
+    }
+
+    saveData(true);
+
+    // Level 2: Granular sync
+    if (isSignedIn.value) {
+        isSyncingLocal.value = true;
+        uploadSingleItem('matches', match)
+            .catch(e => console.error('Error syncing RSVP:', e))
+            .finally(() => setTimeout(() => { isSyncingLocal.value = false; }, 2000));
+    }
+
+    // Send notification to admin via Messenger Webhook
+    if (settings.value.messengerWebhookUrl) {
+        const memberName = getMemberName(memberId) || 'Một thành viên';
+        const dateFormatted = new Date(match.date).toLocaleDateString('vi-VN');
+        const statusText = status === 'confirmed' ? '✅ XÁC NHẬN THAM GIA' : '❌ KHÔNG THAM GIA';
+
+        const confirmedCount = match.rsvp.filter(r => r.status === 'confirmed').length;
+        const declinedCount = match.rsvp.filter(r => r.status === 'declined').length;
+        const totalMembers = members.value.length;
+        const notRespondedCount = totalMembers - confirmedCount - declinedCount;
+
+        const message = `
+📋 **XÁC NHẬN TRẬN ĐẤU** 📋
+
+👤 **${memberName}** đã ${statusText}
+🏟️ **Trận:** ${match.matchType === 'friendly' ? 'Đấu tập' : 'Đấu đối'} vs ${match.opponent || 'Nội bộ'}
+📅 **Ngày:** ${dateFormatted}
+⏰ **Giờ:** ${match.startTime || 'Chưa chốt'}
+
+📊 **Tổng hợp:**
+✅ Tham gia: ${confirmedCount}
+❌ Không tham gia: ${declinedCount}
+⏳ Chưa phản hồi: ${notRespondedCount}
+`.trim();
+
+        try {
+            await fetch(settings.value.messengerWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: message,
+                    type: 'rsvp',
+                    matchId: match.id,
+                    memberId: memberId,
+                    rsvpStatus: status
+                })
+            });
+        } catch (e) {
+            console.error('RSVP webhook notification failed:', e);
+        }
+    }
+
+    return true;
 };
 
 const sendMessengerNotification = async (matchData) => {
@@ -1226,6 +1312,7 @@ export const useAppState = () => {
         updatePassword,
         toggleMobileView,
         sendMessengerNotification,
+        rsvpMatch,
         showAlert,
         showConfirm,
         showPrompt,

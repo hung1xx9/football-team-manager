@@ -1,6 +1,7 @@
 <template>
-    <div class="page-content animate-fade">
-        <div class="page-header-fancy">
+    <PullToRefresh :onRefresh="handleRefresh">
+        <div class="page-content animate-fade">
+            <div class="page-header-fancy">
             <div class="header-action-btns">
                 <button v-if="permissions.canAddMatch" class="btn btn-lg btn-primary" @click="openAddModal">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 20px; height: 20px;">
@@ -34,6 +35,11 @@
                             <span class="badge badge-success">{{ getAttendanceCount(match, 'present') }} có mặt</span>
                             <span class="badge badge-danger">{{ getAttendanceCount(match, 'absent') }} vắng</span>
                         </div>
+                        <div v-if="getRsvpSummary(match).total > 0" class="rsvp-summary-admin">
+                            <span class="rsvp-badge rsvp-confirmed" :title="getRsvpConfirmedNames(match)">✅ {{ getRsvpSummary(match).confirmed }}</span>
+                            <span class="rsvp-badge rsvp-declined">❌ {{ getRsvpSummary(match).declined }}</span>
+                            <span class="rsvp-badge rsvp-pending">⏳ {{ getRsvpSummary(match).notResponded }}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -43,7 +49,11 @@
                             <div v-if="getMemberName(att.memberId)" class="attendance-item" :class="att.status" v-memo="[att]">
                                 <div class="attendance-status" :class="att.status"></div>
                                 <div class="attendance-content">
-                                    <div class="attendance-name">{{ getMemberName(att.memberId) }}</div>
+                                    <div class="attendance-name">
+                                        {{ getMemberName(att.memberId) }}
+                                        <span v-if="getMemberRsvpStatus(match, att.memberId) === 'confirmed'" title="Đã xác nhận tham gia" class="rsvp-indicator">✅</span>
+                                        <span v-else-if="getMemberRsvpStatus(match, att.memberId) === 'declined'" title="Không tham gia" class="rsvp-indicator">❌</span>
+                                    </div>
                                     <div v-if="att.status === 'present' && att.timestamp" class="attendance-detail">
                                         <span>{{ formatTimeOnly(att.timestamp) }} {{ formatDateOnly(att.timestamp) }} ✓</span>
                                         <span :style="{ color: att.isLate ? 'var(--warning-400)' : 'var(--success-400)', fontWeight: '600' }">
@@ -138,12 +148,8 @@
             </div>
         </div>
         </Transition>
-
-
-
-
-
     </div>
+    </PullToRefresh>
 </template>
 
 <script setup>
@@ -151,7 +157,9 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useBreakpoints } from '../composables/useBreakpoints';
 import { useAppState } from '../composables/useAppState';
 import BaseSelect from '../components/BaseSelect.vue';
+import PullToRefresh from '../components/PullToRefresh.vue';
 import { useAuth } from '../composables/useAuth';
+import { useFirebase } from '../composables/useFirebase';
 import { useEscapeClose } from '../composables/useEscapeClose';
 
 const { isMobile } = useBreakpoints();
@@ -159,8 +167,22 @@ const { isMobile } = useBreakpoints();
 const { 
     sortedMatches, members, fixedMatches, getMemberName, 
     saveMatch, deleteMatch, sendMessengerNotification,
-    showConfirm, showAlert 
+    showConfirm, showAlert, updateFromFirebase 
 } = useAppState();
+
+const { downloadData } = useFirebase();
+
+const handleRefresh = async () => {
+    try {
+        const data = await downloadData();
+        if (data) {
+            updateFromFirebase(data);
+        }
+    } catch (error) {
+        console.error(error);
+        await showAlert('Lỗi khi tải dữ liệu mới: ' + (error.message || 'Không có kết nối mạng'));
+    }
+};
 
 const { permissions } = useAuth();
 
@@ -339,6 +361,31 @@ const getAttendanceCount = (match, status) => {
 
 // Register Escape key to close modals
 useEscapeClose(() => closeMatchModal(), showMatchModal);
+
+// RSVP Summary for Admin
+const getRsvpSummary = (match) => {
+    const rsvp = match.rsvp || [];
+    const confirmed = rsvp.filter(r => r.status === 'confirmed').length;
+    const declined = rsvp.filter(r => r.status === 'declined').length;
+    const total = confirmed + declined;
+    const notResponded = members.value.length - confirmed - declined;
+    return { confirmed, declined, notResponded, total };
+};
+
+const getRsvpConfirmedNames = (match) => {
+    if (!match.rsvp) return '';
+    const confirmed = match.rsvp
+        .filter(r => r.status === 'confirmed')
+        .map(r => getMemberName(r.memberId) || 'Unknown')
+        .join(', ');
+    return confirmed ? `Tham gia: ${confirmed}` : '';
+};
+
+const getMemberRsvpStatus = (match, memberId) => {
+    if (!match.rsvp) return null;
+    const rsvp = match.rsvp.find(r => String(r.memberId) === String(memberId));
+    return rsvp ? rsvp.status : null;
+};
 </script>
 
 <style scoped>
@@ -474,5 +521,41 @@ useEscapeClose(() => closeMatchModal(), showMatchModal);
 @media (max-width: 600px) {
     .attendance-grid { grid-template-columns: 1fr; }
     .match-card-actions { justify-content: stretch; }
+}
+
+/* RSVP Admin Summary */
+.rsvp-summary-admin {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.rsvp-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    cursor: default;
+}
+
+.rsvp-confirmed {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--success);
+}
+
+.rsvp-declined {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+}
+
+.rsvp-pending {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+}
+
+.rsvp-indicator {
+    font-size: 0.85em;
+    margin-left: 4px;
+    vertical-align: text-top;
 }
 </style>
