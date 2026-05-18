@@ -44,7 +44,8 @@ let uploadDebounceTimer = null;
 // Firebase integration
 const { 
     uploadData, uploadSingleItem, deleteSingleItem, isSignedIn, 
-    approvePendingTransactionAtomic, approveAttendanceAtomic 
+    approvePendingTransactionAtomic, approveAttendanceAtomic,
+    postAttendanceFeeAtomic, voidMatchFeesAtomic,
 } = useFirebase();
 
 // --- Computed Stats ---
@@ -479,9 +480,42 @@ const saveMatch = async (matchData) => {
         uploadSingleItem('matches', matchToUpload)
             .catch(e => console.error('Error syncing match:', e))
             .finally(() => {
-                // Keep flag for a bit to let Firestore listeners settle
                 setTimeout(() => { isSyncingLocal.value = false; }, 2000);
             });
+    }
+
+    // T016: If this is an EDIT to a FINALIZED match, sync attendance fee changes atomically
+    if (matchData.id && matchToUpload && matchToUpload.finalized && isSignedIn.value) {
+        const oldMatch = matches.value.find(m => m.id === matchData.id);
+        if (oldMatch) {
+            const oldAttList = Array.isArray(oldMatch.attendance)
+                ? oldMatch.attendance
+                : Object.values(oldMatch.attendance || {});
+            const newAttList = Array.isArray(attendance) ? attendance : Object.values(attendance || {});
+
+            // Import penalty calc inline to avoid circular dependency
+            const { usePenalties } = await import('./usePenalties');
+            const { calculatePenalty } = usePenalties();
+
+            for (const newAtt of newAttList) {
+                const oldAtt = oldAttList.find(
+                    a => String(a.memberId) === String(newAtt.memberId)
+                );
+                const oldStatus = oldAtt?.status;
+                const newStatus = newAtt?.status;
+                if (oldStatus !== newStatus) {
+                    const feeAmount = calculatePenalty(newAtt);
+                    const feeDescription = feeAmount > 0
+                        ? (newAtt.status === 'absent' || newAtt.status === 'ABSENT'
+                            ? 'Phạt vắng không phép'
+                            : `Phạt đến muộn ${newAtt.lateMinutes || 0} phút`)
+                        : 'Xóa khoản phí (có mặt)';
+                    postAttendanceFeeAtomic(
+                        matchData.id, newAtt.memberId, newAtt, feeAmount, feeDescription
+                    ).catch(e => console.warn('postAttendanceFeeAtomic failed:', e.message));
+                }
+            }
+        }
     }
 
     // --- Messenger Notification Trigger ---
@@ -635,6 +669,7 @@ const finalizeMatch = async (matchId, penaltyList) => {
         description: p.description,
         date: match.date,
         matchId: match.id,
+        attendanceStatus: p.attendanceStatus || null, // T017: snapshot the attendance status
         status: 'unpaid',
         createdAt: now
     }));
@@ -685,19 +720,33 @@ const updateReceivable = async (id, updates) => {
     }
 };
 const deleteMatch = async (id) => {
-
-
-    // 2. Remove associated receivables
-    const initialCount = receivables.value.length;
-    receivables.value = receivables.value.filter(r => r.matchId !== id);
-    const removedCount = initialCount - receivables.value.length;
-    if (removedCount > 0) {
-        console.log(`📊 Removed ${removedCount} associated receivables for match ${id}`);
+    // T018: Atomically void match-linked receivables before deleting
+    if (isSignedIn.value) {
+        const matchToDelete = matches.value.find(m => m.id === id);
+        if (matchToDelete && matchToDelete.finalized) {
+            try {
+                await voidMatchFeesAtomic(id);
+                // Update local receivables to voided
+                receivables.value = receivables.value.map(r =>
+                    r.matchId === id && r.status === 'unpaid'
+                        ? { ...r, status: 'voided' }
+                        : r
+                );
+            } catch (e) {
+                console.warn('voidMatchFeesAtomic failed, falling back to local remove:', e.message);
+                receivables.value = receivables.value.filter(r => r.matchId !== id);
+            }
+        } else {
+            // Match not finalized — just remove locally
+            receivables.value = receivables.value.filter(r => r.matchId !== id);
+        }
+    } else {
+        // Offline: remove locally
+        receivables.value = receivables.value.filter(r => r.matchId !== id);
     }
 
-    // 3. Remove the match
+    // Remove the match itself
     matches.value = matches.value.filter(m => m.id !== id);
-    
     saveData(true);
 
     // Level 2: Granular sync for delete
@@ -894,7 +943,7 @@ const approvePendingTransaction = async (id) => {
                 transactions.value.push(result.newTx);
             }
 
-            // 3. Update local member balance (legacy fields) to keep UI in sync
+            // 3. Update local member balance (legacy fields) to keep UI in sync  (T012 optimistic update)
             if (result.memberId && approved) {
                 const member = members.value.find(m => m.id === result.memberId);
                 if (member) {

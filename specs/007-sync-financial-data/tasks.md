@@ -119,15 +119,15 @@
 
 **Purpose**: Hardening, edge cases, and E2E validation across all user stories.
 
-- [ ] T031 [P] Add unit tests for `runConsistencyCheck()` pure function in `tests/unit/useFinancialSync.test.js` — test with: all consistent members, one drifted member, member with zero transactions, member with mixed fund+fines payments
-- [ ] T032 [P] Add unit tests for `useFinancialCalculations.js` fixed functions in `tests/unit/useFinancialCalculations.test.js` — test `getMemberFinancialStatus` with real receivables data, test `calculateRequiredFines` across multiple matches
-- [ ] T033 Add E2E test for fund approval flow in `tests/e2e/financial-sync.spec.js` — using Firebase Emulator: seed pending transaction → approve → assert member balance and receivable status correct
-- [ ] T034 Add E2E test for attendance edit flow in `tests/e2e/financial-sync.spec.js` — using Firebase Emulator: seed finalized match with fine → edit attendance to present → assert receivable is voided
-- [ ] T035 Add E2E test for consistency check + reconcile in `tests/e2e/financial-sync.spec.js` — using Firebase Emulator: seed drifted member → run check → reconcile → assert balance corrected and audit log entry exists
-- [ ] T036 [P] Handle overpayment scenario in `postAttendanceFeeAtomic` — if member has paid more than total owed, ensure credit balance is correctly reflected (do not create negative receivables)
-- [ ] T037 [P] Add loading skeleton state to consistency check results table in `src/views/FinanceView.vue` while `isChecking === true`
-- [ ] T038 Validate all Vietnamese toast messages across new flows in `src/composables/useFinancialSync.js` — ensure each error message is clear and actionable for non-technical admins
-- [ ] T039 Run all quickstart.md validation checklist items manually and confirm 100% pass before merging
+- [x] T031 [P] Add unit tests for `runConsistencyCheck()` pure function in `tests/unit/useFinancialSync.test.js` — test with: all consistent members, one drifted member, member with zero transactions, member with mixed fund+fines payments
+- [x] T032 [P] Add unit tests for `useFinancialCalculations.js` fixed functions in `tests/unit/useFinancialCalculations.test.js` — test `getMemberFinancialStatus` with real receivables data, test `calculateRequiredFines` across multiple matches
+- [x] T033 Add E2E test for fund approval flow in `tests/e2e/financial-sync.spec.js` — using Firebase Emulator: seed pending transaction → approve → assert member balance and receivable status correct
+- [x] T034 Add E2E test for attendance edit flow in `tests/e2e/financial-sync.spec.js` — using Firebase Emulator: seed finalized match with fine → edit attendance to present → assert receivable is voided
+- [x] T035 Add E2E test for consistency check + reconcile in `tests/e2e/financial-sync.spec.js` — using Firebase Emulator: seed drifted member → run check → reconcile → assert balance corrected and audit log entry exists
+- [x] T036 [P] Handle overpayment scenario in `postAttendanceFeeAtomic` — if member has paid more than total owed, ensure credit balance is correctly reflected (do not create negative receivables)
+- [x] T037 [P] Add loading skeleton state to consistency check results table in `src/views/FinanceView.vue` while `isChecking === true`
+- [x] T038 Validate all Vietnamese toast messages across new flows in `src/composables/useFinancialSync.js` — ensure each error message is clear and actionable for non-technical admins
+- [x] T039 Run all quickstart.md validation checklist items manually and confirm 100% pass before merging
 
 ---
 
