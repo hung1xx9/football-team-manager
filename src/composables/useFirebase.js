@@ -321,6 +321,31 @@ const approvePendingTransactionAtomic = async (pendingId) => {
         // 4. Delete pending transaction
         transaction.delete(pendingRef);
 
+        // 5. Append audit log entry inside the same transaction
+        if (memberRef && memberSnap && memberSnap.exists) {
+            const memberBefore = memberSnap.data();
+            const fundDelta = pending.category === 'fund' ? pending.amount : 0;
+            const fineDelta = pending.category === 'fine' ? pending.amount : 0;
+            const logRef = rootRef.collection('members').doc(String(pending.memberId)).collection('financialAuditLog').doc();
+            transaction.set(logRef, {
+                id: logRef.id,
+                memberId: pending.memberId,
+                changeType: 'fund_approved',
+                before: { fundPaid: memberBefore.fundPaid || 0, fines: memberBefore.fines || 0 },
+                after: {
+                    fundPaid: (memberBefore.fundPaid || 0) + fundDelta,
+                    fines: (memberBefore.fines || 0) + fineDelta,
+                },
+                delta: pending.amount,
+                sourceId: newTxId,
+                sourceType: 'transaction',
+                description: pending.description || `Duyệt đóng ${pending.category}`,
+                performedBy: 'admin',
+                timestamp: new Date().toISOString(),
+                _updatedAt: Date.now(),
+            });
+        }
+
         transaction.set(rootRef, { lastUpdated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
         return { newTx, memberId: pending.memberId, updatedReceivableIds };
     });
@@ -365,6 +390,243 @@ const approveAttendanceAtomic = async (requestId, matchId, memberId) => {
         transaction.set(rootRef, { lastUpdated: fb.firestore.FieldValue.serverTimestamp() }, { merge: true });
         return { matchId, memberId, attendance: attList };
     });
+};
+
+// --- Level 3: Financial Sync Operations ---
+
+/**
+ * appendAuditLog - Write a financial audit log entry for a member (T005)
+ */
+const appendAuditLog = async (memberId, entry) => {
+    if (!isSignedIn.value || !db) return null;
+    const rootRef = getRootRef();
+    const logRef = rootRef
+        .collection('members').doc(String(memberId))
+        .collection('financialAuditLog').doc();
+    const fullEntry = {
+        id: logRef.id,
+        memberId,
+        timestamp: new Date().toISOString(),
+        performedBy: 'admin',
+        _updatedAt: Date.now(),
+        ...entry,
+    };
+    await logRef.set(fullEntry);
+    return logRef.id;
+};
+
+/**
+ * reconcileMemberAtomic - Recalculate and correct member balance from transactions (T006)
+ */
+const reconcileMemberAtomic = async (memberId) => {
+    if (!isSignedIn.value || !db) throw new Error('Firebase not ready');
+    const rootRef = getRootRef();
+
+    // Pre-read: get all income transactions for this member outside the transaction
+    const txSnap = await rootRef.collection('transactions')
+        .where('memberId', '==', memberId)
+        .where('type', '==', 'income')
+        .get();
+    const txDocs = txSnap.docs.map(d => d.data());
+
+    const expectedFundPaid = txDocs
+        .filter(t => ['fund', 'monthly_fund'].includes(t.category))
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+    const expectedFines = txDocs
+        .filter(t => ['fine', 'pitch_fee'].includes(t.category))
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    const memberRef = rootRef.collection('members').doc(String(memberId));
+
+    return db.runTransaction(async (transaction) => {
+        // ALL READS FIRST
+        const memberSnap = await transaction.get(memberRef);
+        if (!memberSnap.exists) throw new Error('Thành viên không tồn tại');
+
+        const member = memberSnap.data();
+        const before = { fundPaid: member.fundPaid || 0, fines: member.fines || 0 };
+        const after  = { fundPaid: expectedFundPaid, fines: expectedFines };
+
+        // ALL WRITES AFTER READS
+        transaction.update(memberRef, { ...after, _updatedAt: Date.now() });
+
+        const logRef = rootRef.collection('members').doc(String(memberId))
+            .collection('financialAuditLog').doc();
+        transaction.set(logRef, {
+            id: logRef.id,
+            memberId,
+            changeType: 'reconciliation',
+            before,
+            after,
+            delta: (after.fundPaid + after.fines) - (before.fundPaid + before.fines),
+            sourceId: null,
+            sourceType: 'reconciliation',
+            description: 'Đồng bộ lại số dư từ lịch sử giao dịch',
+            performedBy: 'system',
+            timestamp: new Date().toISOString(),
+            _updatedAt: Date.now(),
+        });
+
+        transaction.set(rootRef, { lastUpdated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        return { before, after, delta: (after.fundPaid + after.fines) - (before.fundPaid + before.fines) };
+    });
+};
+
+/**
+ * postAttendanceFeeAtomic - Create/void receivable when attendance status changes (T007)
+ * feeAmount & feeDescription pre-calculated by caller (usePenalties)
+ */
+const postAttendanceFeeAtomic = async (matchId, memberId, attendanceRecord, feeAmount, feeDescription) => {
+    if (!isSignedIn.value || !db) throw new Error('Firebase not ready');
+    const rootRef = getRootRef();
+
+    // Pre-read existing unpaid receivables for this match+member outside transaction
+    const existingSnap = await rootRef.collection('receivables')
+        .where('matchId', '==', matchId)
+        .where('memberId', '==', memberId)
+        .where('status', '==', 'unpaid')
+        .get();
+    const existingDocIds = existingSnap.docs.map(d => d.id);
+
+    return db.runTransaction(async (transaction) => {
+        // ALL READS FIRST
+        const existingItems = [];
+        for (const docId of existingDocIds) {
+            const ref = rootRef.collection('receivables').doc(docId);
+            const snap = await transaction.get(ref);
+            if (snap.exists) existingItems.push({ ref, data: snap.data() });
+        }
+
+        // ALL WRITES AFTER READS
+        let voidedReceivableId = null;
+        for (const item of existingItems) {
+            transaction.update(item.ref, { status: 'voided', _updatedAt: Date.now() });
+            voidedReceivableId = item.data.id || item.ref.id;
+        }
+
+        let newReceivable = null;
+        if (feeAmount > 0) {
+            const newId = Date.now() + Math.random();
+            const newRef = rootRef.collection('receivables').doc(String(newId));
+            newReceivable = {
+                id: newId,
+                memberId,
+                matchId,
+                amount: feeAmount,
+                type: 'fine',
+                description: feeDescription || 'Phí điểm danh',
+                date: new Date().toISOString().split('T')[0],
+                attendanceStatus: attendanceRecord.status,
+                status: 'unpaid',
+                createdAt: new Date().toISOString(),
+                _updatedAt: Date.now(),
+            };
+            transaction.set(newRef, newReceivable);
+        }
+
+        // Audit log
+        const logRef = rootRef.collection('members').doc(String(memberId))
+            .collection('financialAuditLog').doc();
+        transaction.set(logRef, {
+            id: logRef.id,
+            memberId,
+            changeType: 'attendance_edit',
+            before: { feeAmount: existingItems[0]?.data?.amount || 0, status: existingItems.length > 0 ? 'unpaid' : 'none' },
+            after: { feeAmount: feeAmount || 0, status: feeAmount > 0 ? 'unpaid' : 'voided' },
+            delta: (feeAmount || 0) - (existingItems[0]?.data?.amount || 0),
+            sourceId: matchId,
+            sourceType: 'match',
+            description: feeDescription || 'Cập nhật phí theo điểm danh',
+            performedBy: 'admin',
+            timestamp: new Date().toISOString(),
+            _updatedAt: Date.now(),
+        });
+
+        transaction.set(rootRef, { lastUpdated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        return { voidedReceivableId, newReceivable };
+    });
+};
+
+/**
+ * voidMatchFeesAtomic - Void all unpaid receivables for a deleted/cancelled match (T008)
+ */
+const voidMatchFeesAtomic = async (matchId) => {
+    if (!isSignedIn.value || !db) throw new Error('Firebase not ready');
+    const rootRef = getRootRef();
+
+    // Pre-read outside transaction
+    const receivablesSnap = await rootRef.collection('receivables')
+        .where('matchId', '==', matchId)
+        .where('status', '==', 'unpaid')
+        .get();
+
+    if (receivablesSnap.empty) return { voidedCount: 0, affectedMemberIds: [] };
+
+    const docItems = receivablesSnap.docs.map(d => ({ id: d.id, data: d.data() }));
+
+    return db.runTransaction(async (transaction) => {
+        // ALL READS FIRST
+        const items = [];
+        for (const { id, data } of docItems) {
+            const ref = rootRef.collection('receivables').doc(id);
+            const snap = await transaction.get(ref);
+            if (snap.exists && snap.data().status === 'unpaid') {
+                items.push({ ref, data: snap.data() });
+            }
+        }
+
+        // ALL WRITES AFTER READS
+        const affectedMemberIds = [...new Set(items.map(i => i.data.memberId))];
+
+        for (const item of items) {
+            transaction.update(item.ref, { status: 'voided', _updatedAt: Date.now() });
+        }
+
+        for (const memberId of affectedMemberIds) {
+            const memberItems = items.filter(i => i.data.memberId === memberId);
+            const totalVoided = memberItems.reduce((sum, i) => sum + (i.data.amount || 0), 0);
+            const logRef = rootRef.collection('members').doc(String(memberId))
+                .collection('financialAuditLog').doc();
+            transaction.set(logRef, {
+                id: logRef.id,
+                memberId,
+                changeType: 'match_cancelled',
+                before: { receivablesCount: memberItems.length, totalAmount: totalVoided },
+                after:  { receivablesCount: 0, totalAmount: 0 },
+                delta: -totalVoided,
+                sourceId: matchId,
+                sourceType: 'match',
+                description: 'Hủy khoản phí trận đấu (trận bị xóa)',
+                performedBy: 'admin',
+                timestamp: new Date().toISOString(),
+                _updatedAt: Date.now(),
+            });
+        }
+
+        transaction.set(rootRef, { lastUpdated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        return { voidedCount: items.length, affectedMemberIds };
+    });
+};
+
+/**
+ * getMemberAuditLogFromFirestore - Lazy-fetch audit log for a member (T026)
+ */
+const getMemberAuditLogFromFirestore = async (memberId, options = {}) => {
+    if (!db) return [];
+    const { startDate, endDate, limit = 50 } = options;
+    const rootRef = getRootRef();
+
+    let query = rootRef
+        .collection('members').doc(String(memberId))
+        .collection('financialAuditLog')
+        .orderBy('timestamp', 'desc')
+        .limit(limit);
+
+    if (startDate) query = query.where('timestamp', '>=', startDate);
+    if (endDate)   query = query.where('timestamp', '<=', endDate);
+
+    const snap = await query.get();
+    return snap.docs.map(d => d.data());
 };
 
 const downloadData = async () => {
@@ -457,6 +719,12 @@ export const useFirebase = () => {
         downloadData,
         setupRealtimeListener,
         stopRealtimeListener,
-        requestNotificationPermission
+        requestNotificationPermission,
+        // T009: Financial sync operations
+        appendAuditLog,
+        reconcileMemberAtomic,
+        postAttendanceFeeAtomic,
+        voidMatchFeesAtomic,
+        getMemberAuditLogFromFirestore,
     };
 };

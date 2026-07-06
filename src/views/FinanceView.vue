@@ -23,6 +23,10 @@
             <button class="tab-btn" :class="{ active: activeTab === 'jersey' }" @click="activeTab = 'jersey'">
                 👕 Tiền Áo
             </button>
+            <button v-if="isAdmin" class="tab-btn" :class="{ active: activeTab === 'sync' }" @click="activeTab = 'sync'">
+                🔄 Đồng Bộ
+                <span v-if="inconsistentCount > 0" class="tab-badge" style="background:#f59e0b;">{{ inconsistentCount }}</span>
+            </button>
         </div>
 
         <!-- Overview Tab -->
@@ -475,6 +479,132 @@
             </div>
         </div>
         
+        <!-- Sync & Consistency Check Tab (T022–T024, T029–T030) -->
+        <div v-if="activeTab === 'sync'" class="tab-content animate-fade">
+            <!-- Consistency Check Card -->
+            <div class="card" style="margin-bottom: var(--spacing-6);">
+                <div class="card-header">
+                    <h2>🔍 Kiểm Tra Tính Nhất Quán</h2>
+                    <div class="card-actions">
+                        <button
+                            id="btn-run-consistency-check"
+                            class="btn btn-sm btn-primary"
+                            :disabled="isChecking"
+                            @click="handleRunCheck"
+                        >
+                            {{ isChecking ? '⏳ Đang kiểm tra...' : '🔍 Kiểm tra' }}
+                        </button>
+                        <button
+                            v-if="inconsistentCount > 0"
+                            id="btn-reconcile-all"
+                            class="btn btn-sm btn-warning"
+                            :disabled="isReconciling"
+                            @click="handleReconcileAll"
+                        >
+                            {{ isReconciling ? '⏳ Đang đồng bộ...' : `🔄 Đồng bộ lại (${inconsistentCount})` }}
+                        </button>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <!-- Loading skeleton (T037) -->
+                    <div v-if="isChecking" class="sync-skeleton">
+                        <div class="skeleton-row" v-for="i in 4" :key="i"></div>
+                    </div>
+
+                    <!-- Empty state: check not yet run -->
+                    <div v-else-if="lastCheckResults.length === 0" class="sync-empty">
+                        <span style="font-size:2rem;">📊</span>
+                        <p>Nhấn "Kiểm tra" để bắt đầu phát hiện lệch số dư giữa thành viên và lịch sử giao dịch.</p>
+                    </div>
+
+                    <!-- Results table (T024) -->
+                    <div v-else>
+                        <div class="sync-summary-row" style="margin-bottom: 12px;">
+                            <span v-if="inconsistentCount === 0" class="badge badge-success">✅ Tất cả {{ lastCheckResults.length }} thành viên đồng nhất</span>
+                            <span v-else class="badge badge-danger">⚠️ {{ inconsistentCount }} / {{ lastCheckResults.length }} thành viên có lệch số dư</span>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Thành Viên</th>
+                                        <th class="text-center">Quỹ thực tế</th>
+                                        <th class="text-center">Quỹ kỳ vọng</th>
+                                        <th class="text-center">Lệch quỹ</th>
+                                        <th class="text-center">Phạt thực tế</th>
+                                        <th class="text-center">Phạt kỳ vọng</th>
+                                        <th class="text-center">Lệch phạt</th>
+                                        <th class="text-center">Trạng thái</th>
+                                        <th v-if="isAdmin">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr
+                                        v-for="r in lastCheckResults"
+                                        :key="r.memberId"
+                                        :class="r.isConsistent ? 'sync-row-ok' : 'sync-row-drift'"
+                                    >
+                                        <td class="font-medium">{{ r.memberName }}</td>
+                                        <td class="text-center">{{ formatCurrency(r.actualFundPaid) }}</td>
+                                        <td class="text-center">{{ formatCurrency(r.expectedFundPaid) }}</td>
+                                        <td class="text-center" :class="r.fundDrift !== 0 ? 'text-danger' : 'text-success'">
+                                            {{ r.fundDrift !== 0 ? formatDrift(r.fundDrift) : '✓' }}
+                                        </td>
+                                        <td class="text-center">{{ formatCurrency(r.actualFines) }}</td>
+                                        <td class="text-center">{{ formatCurrency(r.expectedFines) }}</td>
+                                        <td class="text-center" :class="r.finesDrift !== 0 ? 'text-danger' : 'text-success'">
+                                            {{ r.finesDrift !== 0 ? formatDrift(r.finesDrift) : '✓' }}
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge" :class="r.isConsistent ? 'badge-success' : 'badge-danger'">
+                                                {{ r.isConsistent ? '✅ Đồng nhất' : '⚠️ Lệch' }}
+                                            </span>
+                                        </td>
+                                        <td v-if="isAdmin">
+                                            <button
+                                                v-if="!r.isConsistent"
+                                                class="btn btn-sm btn-warning"
+                                                :disabled="isReconciling"
+                                                @click="handleReconcileOne(r.memberId)"
+                                            >
+                                                Đồng bộ
+                                            </button>
+                                            <span v-else class="text-success" style="font-size:12px;">—</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Log Panel per member (T029–T030) -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 Lịch Sử Tài Chính</h2>
+                    <div v-if="isAdmin" class="card-actions">
+                        <select
+                            id="audit-member-selector"
+                            v-model="auditMemberId"
+                            class="form-control-sm"
+                            style="min-width: 180px;"
+                        >
+                            <option :value="null">— Chọn thành viên —</option>
+                            <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <FinancialAuditLog v-if="auditMemberId" :member-id="auditMemberId" />
+                    <div v-else class="sync-empty">
+                        <span style="font-size:2rem;">🗂️</span>
+                        <p>Chọn thành viên để xem lịch sử thay đổi số dư tài chính.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Transaction Modal -->
         <Transition name="premium-modal">
         <div v-if="showModal" class="modal" style="display: flex;" @click.self="closeModal">
@@ -576,7 +706,9 @@ import { useAppState } from '../composables/useAppState';
 import { useFinancialCalculations } from '../composables/useFinancialCalculations';
 import { useAuth } from '../composables/useAuth';
 import { useEscapeClose } from '../composables/useEscapeClose';
+import { useFinancialSync } from '../composables/useFinancialSync';
 import BaseSelect from '../components/BaseSelect.vue';
+import FinancialAuditLog from '../components/FinancialAuditLog.vue';
 
 const { 
     transactions, stats, members, matches, pendingTransactions, jerseyPayments,
@@ -591,9 +723,43 @@ const {
 const { getStatusText } = useFinancialCalculations();
 const { isAdmin, isAccountant } = useAuth();
 
+const {
+    isChecking, isReconciling, lastCheckResults, inconsistentCount,
+    runConsistencyCheck, reconcileMember, reconcileAllMembers,
+} = useFinancialSync();
+
+const auditMemberId = ref(null);
+
+const handleRunCheck = () => {
+    runConsistencyCheck();
+};
+
+const handleReconcileAll = async () => {
+    if (!await showConfirm(`Đồng bộ lại số dư cho ${inconsistentCount.value} thành viên đang lệch dữ liệu?`, 'Đồng bộ tài chính')) return;
+    const result = await reconcileAllMembers();
+    if (result.errors.length === 0) {
+        await showAlert(`✅ Đã đồng bộ thành công ${result.reconciled} thành viên!`);
+    } else {
+        await showAlert(`⚠️ Đồng bộ xong: ${result.reconciled} thành công, ${result.errors.length} lỗi.\n${result.errors.join('\n')}`);
+    }
+};
+
+const handleReconcileOne = async (memberId) => {
+    const member = members.value.find(m => m.id === memberId);
+    if (!await showConfirm(`Đồng bộ lại số dư cho ${member?.name}?`)) return;
+    await reconcileMember(memberId);
+    await showAlert(`✅ Đã đồng bộ thành công cho ${member?.name}!`);
+};
+
+const formatDrift = (drift) => {
+    const sign = drift > 0 ? '+' : '';
+    return sign + new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(drift);
+};
+
 const props = defineProps({
     initialTab: { type: String, default: 'overview' }
 });
+
 
 const activeTab = ref(props.initialTab);
 const showModal = ref(false);

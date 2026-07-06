@@ -48,16 +48,16 @@ describe('useAuth Composable', () => {
         expect(checkPermission('canManageFirebase')).toBe(false);
     });
 
-    it('should handle session expiry', () => {
-        // Mock date to the future
-        const futureDate = new Date().getTime() + 24 * 60 * 60 * 1000;
-        localStorage.setItem('user_role', ROLES.ADMIN);
-        localStorage.setItem('session_expiry', futureDate.toString());
-
-        // This is tricky because the module loads and runs getStoredRoleAndCheckExpiry immediatey
-        // But we can test the logic indirectly or by re-importing (not easy in Vitest without cleanup)
-        // For now, let's just verify the setRole sets expiry
+    it('should set session expiry for Admin', () => {
         setRole(ROLES.ADMIN);
-        expect(localStorage.getItem('session_expiry')).toBeDefined();
+        const expiry = localStorage.getItem('session_expiry');
+        expect(expiry).toBeDefined();
+        expect(parseInt(expiry, 10)).toBeGreaterThan(new Date().getTime());
+    });
+
+    it('should NOT set session expiry for Guest', () => {
+        setRole(ROLES.GUEST, 1);
+        const expiry = localStorage.getItem('session_expiry');
+        expect(expiry).toBeNull(); // Guest session should persist indefinitely
     });
 });

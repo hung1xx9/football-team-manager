@@ -3,7 +3,17 @@ import { ref, computed } from 'vue';
 // Session duration: 12 hours
 const SESSION_DURATION = 6 * 60 * 60 * 1000;
 
+// Role types
+export const ROLES = {
+    ADMIN: 'admin',
+    ACCOUNTANT: 'ketoan',
+    GUEST: 'guest'
+};
+
 const checkExpiryAndLogoutIfNeeded = () => {
+    // Guest (Member) sessions never expire — only admin/accountant
+    if (currentRole.value === ROLES.GUEST) return;
+
     const expiry = localStorage.getItem('session_expiry');
 
     if (currentRole.value && (!expiry || new Date().getTime() > parseInt(expiry, 10))) {
@@ -24,6 +34,9 @@ const getStoredRoleAndCheckExpiry = () => {
     const expiry = localStorage.getItem('session_expiry');
 
     if (role) {
+        // Guest (Member) sessions never expire
+        if (role === ROLES.GUEST) return role;
+
         if (!expiry || new Date().getTime() > parseInt(expiry, 10)) {
             localStorage.removeItem('user_role');
             localStorage.removeItem('guest_member_id');
@@ -41,13 +54,6 @@ const guestMemberId = ref(currentRole.value && localStorage.getItem('guest_membe
 
 // Định kỳ kiểm tra hết hạn session (mỗi phút)
 setInterval(checkExpiryAndLogoutIfNeeded, 60000);
-
-// Role types
-export const ROLES = {
-    ADMIN: 'admin',
-    ACCOUNTANT: 'ketoan',
-    GUEST: 'guest'
-};
 
 // Computed permissions
 const isAdmin = computed(() => currentRole.value === ROLES.ADMIN);
@@ -142,7 +148,8 @@ const permissions = computed(() => {
             canExportData: false,
             canPayFund: true,
             canPayFine: true,
-            canRequestLeave: true
+            canRequestLeave: true,
+            canRsvpMatch: true
         };
     }
 
@@ -154,9 +161,14 @@ const setRole = (role, memberId = null) => {
     currentRole.value = role;
     localStorage.setItem('user_role', role);
 
-    // Set session expiry
-    const expiryTime = new Date().getTime() + SESSION_DURATION;
-    localStorage.setItem('session_expiry', expiryTime.toString());
+    // Set session expiry — only for admin/accountant roles
+    if (role === ROLES.GUEST) {
+        // Guest (Member) sessions never expire
+        localStorage.removeItem('session_expiry');
+    } else {
+        const expiryTime = new Date().getTime() + SESSION_DURATION;
+        localStorage.setItem('session_expiry', expiryTime.toString());
+    }
 
     if (role === ROLES.GUEST && memberId) {
         guestMemberId.value = memberId;

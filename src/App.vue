@@ -1,13 +1,5 @@
 <template>
     <div class="app-container" :class="{ 'simulate-mobile-view': isMobileView && !isMobileDevice, 'mobile-menu-active': mobileMenuOpen }">
-        <!-- Pull to Refresh Indicator -->
-        <div class="pull-to-refresh-indicator" :class="{ 'refreshing': isRefreshing, 'pulling': isPulling }" :style="{ transform: `translateY(${pullDistance}px) scale(${Math.min(pullDistance / 60, 1)})`, opacity: Math.min(pullDistance / 40, 1) }">
-            <svg viewBox="0 0 24 24" fill="none" class="pull-spinner" stroke="currentColor" stroke-width="3">
-                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
-                <polyline points="21 3 21 8 16 8"></polyline>
-            </svg>
-        </div>
-
         <!-- Sidebar Overlay for Mobile -->
         <div class="sidebar-overlay" :class="{ show: mobileMenuOpen }" @click="toggleMobileMenu"></div>
 
@@ -119,11 +111,13 @@
                 </div>
             </header>
 
-            <router-view v-slot="{ Component }">
-                <transition name="page" mode="out-in">
-                    <component :is="Component" />
-                </transition>
-            </router-view>
+            <PullToRefresh :onRefresh="handleGlobalRefresh">
+                <router-view v-slot="{ Component }">
+                    <transition name="page" mode="out-in">
+                        <component :is="Component" />
+                    </transition>
+                </router-view>
+            </PullToRefresh>
         </main>
 
         <div class="modal login-modal" v-if="!currentRole" style="display: flex;">
@@ -329,6 +323,7 @@ import Sidebar from './components/Sidebar.vue';
 import BottomNav from './components/BottomNav.vue';
 import AppConfirm from './components/AppConfirm.vue';
 import ToastContainer from './components/ToastContainer.vue';
+import PullToRefresh from './components/PullToRefresh.vue';
 import { useAppState } from './composables/useAppState';
 import { useToast } from './composables/useToast';
 
@@ -350,6 +345,19 @@ const {
 const { initFirebase, signIn: firebaseSignIn, signOut: firebaseSignOut, uploadData, downloadData, syncStatus, isSignedIn, isConfigured, hasNewUpdate, setupRealtimeListener, stopRealtimeListener } = useFirebase();
 const { currentRole, isAdmin, setRole, logout, permissions } = useAuth();
 const { showToast } = useToast();
+
+const handleGlobalRefresh = async () => {
+    try {
+        const data = await downloadData();
+        if (data) {
+            updateFromFirebase(data);
+            showNotification('✅ Đã đồng bộ dữ liệu mới nhất!', 'success');
+        }
+    } catch (error) {
+        console.error('Global refresh failed:', error);
+        showNotification('❌ Lỗi tải dữ liệu: ' + (error.message || 'Lỗi kết nối'), 'error');
+    }
+};
 
 const mobileMenuOpen = ref(false);
 const selectingAdmin = ref(false);
@@ -378,31 +386,21 @@ const applyTheme = (theme) => {
     html.style.colorScheme = theme;
 };
 
-// Pull to refresh logic
+// Swipe to open/close menu logic
 const touchStartX = ref(0);
 const touchStartY = ref(0);
 const touchCurrentY = ref(0);
 const touchCurrentX = ref(0);
-const isPulling = ref(false);
-const pullDistance = ref(0);
-const isRefreshing = ref(false);
-const PULL_THRESHOLD = 70;
 
 const handleTouchStart = (e) => {
     touchStartX.value = e.touches[0].clientX;
     touchStartY.value = e.touches[0].clientY;
-    
-    if (window.scrollY <= 0 && isMobileView.value) {
-        touchCurrentY.value = e.touches[0].clientY;
-        isPulling.value = true;
-    }
 };
 
 const handleTouchMove = (e) => {
     touchCurrentX.value = e.touches[0].clientX;
     touchCurrentY.value = e.touches[0].clientY;
 
-    // Swipe to open/close menu logic
     const dx = touchCurrentX.value - touchStartX.value;
     const dy = touchCurrentY.value - touchStartY.value;
 
@@ -418,42 +416,11 @@ const handleTouchMove = (e) => {
             touchStartX.value = touchCurrentX.value;
         }
     }
-
-    if (!isPulling.value || isRefreshing.value) return;
-    
-    if (dy > 0 && window.scrollY <= 0) {
-        // Provide resistance for pulling
-        pullDistance.value = Math.min(dy * 0.4, 100);
-        
-        // Prevent default browser scroll when pulling down
-        if (e.cancelable) e.preventDefault();
-    } else {
-        pullDistance.value = 0;
-    }
 };
 
 const handleTouchEnd = () => {
-    if (!isPulling.value) {
-        touchStartX.value = 0;
-        touchStartY.value = 0;
-        return;
-    }
-    isPulling.value = false;
     touchStartX.value = 0;
     touchStartY.value = 0;
-    
-    if (pullDistance.value >= PULL_THRESHOLD) {
-        isRefreshing.value = true;
-        pullDistance.value = 60; // Keep spinner visible
-        if (navigator.vibrate) navigator.vibrate(50);
-        
-        // Reload data (full reload to ensure clean state)
-        setTimeout(() => {
-            window.location.reload(true);
-        }, 500);
-    } else {
-        pullDistance.value = 0;
-    }
 };
 
 const initTheme = () => {
@@ -518,9 +485,9 @@ const toggleTheme = (event) => {
 };
 
 onMounted(() => {
-    // Add touch listeners for Pull to refresh
+    // Add touch listeners for menu swipe gesture
     document.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
     document.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     // Apply platform style guide
@@ -548,6 +515,44 @@ watch([isMobileDevice, isMobileView], ([newDevice, newSim]) => {
 watch(() => router.currentRoute.value.path, () => {
     mobileMenuOpen.value = false;
 });
+
+// --- Auto-Sync & Realtime Listener ---
+// Watch role and Firebase status to keep data in sync
+watch([isConfigured, currentRole], async ([configured, role]) => {
+    if (configured && role && !isSignedIn.value) {
+        console.log('🔄 Re-signing in to Firebase for active role:', role);
+        try {
+            await firebaseSignIn();
+        } catch (e) {
+            console.warn('Auto Firebase sign-in failed:', e);
+        }
+    }
+}, { immediate: true });
+
+watch([isSignedIn, currentRole], async ([signedIn, role]) => {
+    if (signedIn && role) {
+        console.log(`🔗 Auto-sync active for role: ${role}`);
+        try {
+            // Fetch initial data on startup/reload
+            const data = await downloadData();
+            if (data && data.members && data.members.length > 0) {
+                updateFromFirebase(data);
+                showNotification('✅ Đã đồng bộ dữ liệu mới nhất!', 'success');
+            }
+            
+            // Setup realtime listener for live updates
+            setupRealtimeListener((newData) => {
+                console.log('🔔 Realtime update received');
+                updateFromFirebase(newData);
+                showNotification('🔔 Dữ liệu đã được cập nhật!', 'info');
+            });
+        } catch (e) {
+            console.error('Auto-sync error:', e);
+        }
+    } else {
+        stopRealtimeListener();
+    }
+}, { immediate: true });
 
 
 const syncStatusText = computed(() => {
@@ -697,33 +702,6 @@ const confirmAdminLogin = async () => {
     
     // Auto Login Firebase Anonymous
     await firebaseSignIn();
-    
-    if (isConfigured.value) {
-        try {
-            const data = await downloadData();
-            if (data && data.members && data.members.length > 0) {
-                updateFromFirebase(data);
-                showNotification('✅ Đã tải dữ liệu mới nhất từ Cloud!', 'success');
-            } else {
-                console.log('No cloud data found, using local data');
-                showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
-            }
-            
-            // Setup realtime listener for live updates
-            setupRealtimeListener((newData) => {
-                console.log('🔔 Admin received realtime update');
-                updateFromFirebase(newData);
-                showNotification('🔔 Dữ liệu đã được cập nhật!', 'info');
-            });
-            
-        } catch (e) {
-            console.error('Admin auto-download error:', e);
-            showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
-        }
-    } else {
-        console.warn('Firebase not initialized, using local data');
-        showNotification('📱 Sử dụng dữ liệu cục bộ', 'info');
-    }
     
     // Navigate to dashboard
     router.push('/dashboard');

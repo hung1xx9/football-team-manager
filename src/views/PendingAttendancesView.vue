@@ -59,7 +59,7 @@ import { useRouter } from 'vue-router';
 const { 
     members, matches, pendingAttendances, 
     updateManualAttendanceRequest, updateMatchAttendance,
-    showConfirm, showPrompt, showAlert
+    showConfirm, showPrompt, showAlert, updateFromFirebase
 } = useAppState();
 
 const { permissions, currentRole } = useAuth();

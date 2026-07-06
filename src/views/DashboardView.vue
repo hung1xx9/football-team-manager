@@ -90,6 +90,63 @@
         </div>
 
         <div class="dashboard-grid">
+            <!-- Upcoming Matches RSVP (Guest only) -->
+            <div v-if="isGuest && upcomingMatches.length > 0" class="card card-rsvp animate-spring animate-stagger-1" style="grid-column: 1 / -1;">
+                <div class="card-header">
+                    <h2>⚽ Trận Sắp Tới — Xác Nhận Tham Gia</h2>
+                </div>
+                <div class="card-content">
+                    <div class="rsvp-matches-list">
+                        <div v-for="match in upcomingMatches" :key="'rsvp-' + match.id" class="rsvp-match-card">
+                            <div class="rsvp-match-info">
+                                <div class="rsvp-match-type">
+                                    <span class="badge" :class="match.matchType === 'friendly' ? 'badge-info' : 'badge-warning'">
+                                        {{ match.matchType === 'friendly' ? 'Đấu tập' : 'Đấu đối' }}
+                                    </span>
+                                </div>
+                                <div class="rsvp-match-title">vs {{ match.opponent || 'Nội bộ' }}</div>
+                                <div class="rsvp-match-detail">
+                                    📅 {{ formatDate(match.date) }}
+                                    <span v-if="match.startTime"> · ⏰ {{ match.startTime }}</span>
+                                </div>
+                                <div class="rsvp-match-detail">📍 {{ match.location || 'Chưa có địa điểm' }}</div>
+                                <div v-if="getRsvpSummary(match).confirmed > 0 || getRsvpSummary(match).declined > 0" class="rsvp-summary-inline">
+                                    <span class="rsvp-count confirmed">✅ {{ getRsvpSummary(match).confirmed }}</span>
+                                    <span class="rsvp-count declined">❌ {{ getRsvpSummary(match).declined }}</span>
+                                    <span class="rsvp-count pending">⏳ {{ getRsvpSummary(match).notResponded }}</span>
+                                </div>
+                            </div>
+                            <div class="rsvp-actions">
+                                <template v-if="getMyRsvpStatus(match) === 'confirmed'">
+                                    <div class="rsvp-status-badge confirmed">
+                                        ✅ Đã xác nhận
+                                    </div>
+                                    <button class="btn btn-sm btn-secondary" @click="handleRsvp(match, 'declined')" :disabled="isRsvping">
+                                        Đổi ý
+                                    </button>
+                                </template>
+                                <template v-else-if="getMyRsvpStatus(match) === 'declined'">
+                                    <div class="rsvp-status-badge declined">
+                                        ❌ Không tham gia
+                                    </div>
+                                    <button class="btn btn-sm btn-primary" @click="handleRsvp(match, 'confirmed')" :disabled="isRsvping">
+                                        Đổi ý
+                                    </button>
+                                </template>
+                                <template v-else>
+                                    <button class="btn btn-md btn-primary rsvp-btn-confirm" @click="handleRsvp(match, 'confirmed')" :disabled="isRsvping">
+                                        ✅ Tham gia
+                                    </button>
+                                    <button class="btn btn-md btn-secondary rsvp-btn-decline" @click="handleRsvp(match, 'declined')" :disabled="isRsvping">
+                                        ❌ Không
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Recent Matches -->
             <div class="card animate-spring animate-stagger-1">
                 <div class="card-header">
@@ -195,11 +252,12 @@ import { useAuth } from '../composables/useAuth';
 import { usePenalties } from '../composables/usePenalties';
 
 const { isMobile } = useBreakpoints();
-const { stats: appStats, sortedMatches, members, settings, saveMatch, updateManualAttendanceRequest, pendingAttendances } = useAppState();
-const { isAdmin, isGuest, guestMemberId } = useAuth();
+const { stats: appStats, sortedMatches, futureMatches, members, settings, saveMatch, updateManualAttendanceRequest, pendingAttendances, rsvpMatch, getMemberName: getMemberNameFn, updateFromFirebase } = useAppState();
+const { isAdmin, isGuest, guestMemberId, permissions } = useAuth();
 const { getLatePenalty } = usePenalties();
 
 const isCheckingIn = ref(false);
+const isRsvping = ref(false);
 const attendanceResult = ref(null);
 
 // Use stats from useAppState (Array-based attendance format)
@@ -394,6 +452,45 @@ const showResult = (success, message, details = null) => {
 
 const closeResult = () => {
     attendanceResult.value = null;
+};
+
+// --- RSVP Logic ---
+const upcomingMatches = computed(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return [...futureMatches.value]
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(0, 5);
+});
+
+const getMyRsvpStatus = (match) => {
+    if (!guestMemberId.value || !match.rsvp) return null;
+    const myRsvp = match.rsvp.find(
+        r => String(r.memberId) === String(guestMemberId.value)
+    );
+    return myRsvp ? myRsvp.status : null;
+};
+
+const getRsvpSummary = (match) => {
+    const rsvp = match.rsvp || [];
+    const confirmed = rsvp.filter(r => r.status === 'confirmed').length;
+    const declined = rsvp.filter(r => r.status === 'declined').length;
+    const notResponded = members.value.length - confirmed - declined;
+    return { confirmed, declined, notResponded };
+};
+
+const handleRsvp = async (match, status) => {
+    if (isRsvping.value || !guestMemberId.value) return;
+    isRsvping.value = true;
+    try {
+        await rsvpMatch(match.id, guestMemberId.value, status);
+        const statusText = status === 'confirmed' ? 'xác nhận tham gia' : 'từ chối tham gia';
+        showResult(true, `✅ Đã ${statusText} thành công!`);
+    } catch (e) {
+        showResult(false, 'Có lỗi xảy ra khi xác nhận');
+    } finally {
+        isRsvping.value = false;
+    }
 };
 </script>
 
@@ -597,5 +694,120 @@ const closeResult = () => {
 .attendance-separator {
     margin: 0 4px;
     color: var(--text-muted);
+}
+
+/* RSVP Styles */
+.card-rsvp {
+    border: 1px solid var(--primary-200);
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+}
+
+.card-rsvp .card-header h2 {
+    font-size: 16px;
+}
+
+.rsvp-matches-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+.rsvp-match-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-4);
+    transition: all 0.2s;
+}
+
+.rsvp-match-card:hover {
+    border-color: var(--primary-300);
+    box-shadow: var(--shadow-sm);
+}
+
+.rsvp-match-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 4px 0;
+}
+
+.rsvp-match-type {
+    margin-bottom: 2px;
+}
+
+.rsvp-match-detail {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.rsvp-summary-inline {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.rsvp-count.confirmed { color: var(--success); }
+.rsvp-count.declined { color: var(--danger); }
+.rsvp-count.pending { color: var(--text-muted); }
+
+.rsvp-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    min-width: 130px;
+}
+
+.rsvp-btn-confirm,
+.rsvp-btn-decline {
+    width: 100%;
+    text-align: center;
+}
+
+.rsvp-status-badge {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    text-align: center;
+}
+
+.rsvp-status-badge.confirmed {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.rsvp-status-badge.declined {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+@media (max-width: 768px) {
+    .rsvp-match-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .rsvp-actions {
+        flex-direction: row;
+        width: 100%;
+        border-top: 1px solid var(--border-color);
+        padding-top: 12px;
+    }
+
+    .rsvp-btn-confirm,
+    .rsvp-btn-decline {
+        flex: 1;
+    }
 }
 </style>

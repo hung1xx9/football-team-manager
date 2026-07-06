@@ -2,7 +2,7 @@ import { useAppState } from './useAppState';
 import { usePenalties } from './usePenalties';
 
 export const useFinancialCalculations = () => {
-    const { members, matches, contributionTiers } = useAppState();
+    const { members, matches, contributionTiers, receivables, transactions } = useAppState();
     const { calculatePenalty } = usePenalties();
 
     const getCurrentMonthCount = () => Math.max(1, new Date().getMonth() + 1);

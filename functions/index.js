@@ -378,3 +378,219 @@ exports.sendTestNotification = functions.https.onRequest(async (req, res) => {
         return res.status(500).json({ success: false, error: error.message });
     }
 });
+
+/**
+ * Scheduled Function: Check upcoming matches and send reminders
+ * Runs every 15 minutes, checks for matches starting within 1h or 30m
+ * Uses notified1h / notified30m flags for idempotency
+ */
+exports.checkUpcomingMatches = functions.pubsub
+    .schedule('every 15 minutes')
+    .timeZone('Asia/Ho_Chi_Minh')
+    .onRun(async (context) => {
+        try {
+            const now = new Date();
+            console.log(`⏰ Checking upcoming matches at ${now.toISOString()}`);
+
+            // Get all matches from primary team
+            const matchesSnap = await db
+                .collection('teams').doc('primary')
+                .collection('matches').get();
+
+            if (matchesSnap.empty) {
+                console.log('No matches found.');
+                return null;
+            }
+
+            // Get settings for webhook URL
+            const rootSnap = await db.collection('teams').doc('primary').get();
+            const settings = rootSnap.exists ? (rootSnap.data().settings || {}) : {};
+            const webhookUrl = settings.messengerWebhookUrl;
+
+            // Get all FCM tokens
+            const tokensSnap = await db.collection('teams').doc('primary').collection('fcmTokens').get();
+            const tokens = [];
+            tokensSnap.forEach(doc => {
+                if (doc.data().token) tokens.push(doc.data().token);
+            });
+
+            for (const doc of matchesSnap.docs) {
+                const match = doc.data();
+
+                // Skip matches without date or startTime
+                if (!match.date || !match.startTime) continue;
+
+                // Parse match datetime in Vietnam timezone
+                const [hours, minutes] = match.startTime.split(':').map(Number);
+                const matchDate = new Date(match.date + 'T00:00:00+07:00');
+                matchDate.setHours(hours, minutes, 0, 0);
+
+                const diffMs = matchDate.getTime() - now.getTime();
+                const diffMinutes = diffMs / (1000 * 60);
+
+                // Skip past matches or matches too far in the future
+                if (diffMinutes < 0 || diffMinutes > 75) continue;
+
+                const typeLabel = match.matchType === 'friendly' ? 'Đấu tập' : 'Đấu đối';
+                const dateFormatted = matchDate.toLocaleDateString('vi-VN');
+
+                // Check 1-hour reminder (45-75 minutes before)
+                if (diffMinutes <= 75 && diffMinutes > 45 && !match.notified1h) {
+                    console.log(`📢 Sending 1h reminder for match ${doc.id}`);
+
+                    // Send FCM
+                    if (tokens.length > 0) {
+                        const fcmMessage = {
+                            notification: {
+                                title: '⏰ Còn 1 giờ nữa!',
+                                body: `${typeLabel} vs ${match.opponent || 'Nội bộ'} lúc ${match.startTime} ngày ${dateFormatted}. Chuẩn bị lên đường!`,
+                            },
+                            webpush: { notification: { icon: '/favicon.png' } },
+                            tokens: tokens
+                        };
+                        const resp = await admin.messaging().sendEachForMulticast(fcmMessage);
+                        console.log(`  FCM 1h: ${resp.successCount}/${tokens.length} sent`);
+                    }
+
+                    // Send Messenger Webhook
+                    if (webhookUrl) {
+                        const msg = `⏰ **NHẮC NHỞ TRẬN ĐẤU — CÒN 1 GIỜ** ⏰\n\n🏟️ **${typeLabel}** vs ${match.opponent || 'Nội bộ'}\n📅 Ngày: ${dateFormatted}\n⏰ Giờ: ${match.startTime}\n📍 Địa điểm: ${match.location || 'Chưa rõ'}\n\n🔥 Anh em chuẩn bị lên đường nhé!`;
+                        try {
+                            const fetch = require('node-fetch');
+                            await fetch(webhookUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ message: msg, type: 'reminder_1h', matchId: doc.id })
+                            });
+                        } catch (e) {
+                            console.error('Webhook 1h reminder failed:', e);
+                        }
+                    }
+
+                    // Mark as notified (idempotency)
+                    await doc.ref.update({ notified1h: true, _updatedAt: Date.now() });
+                }
+
+                // Check 30-minute reminder (15-45 minutes before)
+                if (diffMinutes <= 45 && diffMinutes > 15 && !match.notified30m) {
+                    console.log(`📢 Sending 30m reminder for match ${doc.id}`);
+
+                    // Get RSVP summary for notification
+                    const rsvp = match.rsvp || [];
+                    const confirmedCount = rsvp.filter(r => r.status === 'confirmed').length;
+
+                    // Send FCM
+                    if (tokens.length > 0) {
+                        const fcmMessage = {
+                            notification: {
+                                title: '🔥 Còn 30 phút nữa!',
+                                body: `${typeLabel} vs ${match.opponent || 'Nội bộ'} sắp bắt đầu! ${confirmedCount > 0 ? `(${confirmedCount} người đã xác nhận)` : ''} Vào app điểm danh ngay!`,
+                            },
+                            webpush: { notification: { icon: '/favicon.png' } },
+                            tokens: tokens
+                        };
+                        const resp = await admin.messaging().sendEachForMulticast(fcmMessage);
+                        console.log(`  FCM 30m: ${resp.successCount}/${tokens.length} sent`);
+                    }
+
+                    // Send Messenger Webhook
+                    if (webhookUrl) {
+                        const declinedCount = rsvp.filter(r => r.status === 'declined').length;
+                        const msg = `🔥 **SẮP ĐẾN GIỜ — CÒN 30 PHÚT** 🔥\n\n🏟️ **${typeLabel}** vs ${match.opponent || 'Nội bộ'}\n⏰ Giờ: ${match.startTime}\n📍 ${match.location || 'Chưa rõ'}\n\n📊 Xác nhận: ✅ ${confirmedCount} | ❌ ${declinedCount}\n\n⚡ Lên sân thôi anh em!`;
+                        try {
+                            const fetch = require('node-fetch');
+                            await fetch(webhookUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ message: msg, type: 'reminder_30m', matchId: doc.id })
+                            });
+                        } catch (e) {
+                            console.error('Webhook 30m reminder failed:', e);
+                        }
+                    }
+
+                    // Mark as notified (idempotency)
+                    await doc.ref.update({ notified30m: true, _updatedAt: Date.now() });
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.error('checkUpcomingMatches error:', error);
+            return null;
+        }
+    });
+
+/**
+ * Cloud Function: Notify admin when member RSVPs to a match
+ * Triggers on match document update and checks for RSVP changes
+ */
+exports.notifyMatchRsvp = functions.firestore
+    .document('teams/primary/matches/{matchId}')
+    .onUpdate(async (change, context) => {
+        const before = change.before.data();
+        const after = change.after.data();
+
+        // Compare RSVP arrays — only trigger if rsvp array has changed
+        const beforeRsvp = before.rsvp || [];
+        const afterRsvp = after.rsvp || [];
+
+        if (JSON.stringify(beforeRsvp) === JSON.stringify(afterRsvp)) {
+            return null; // No RSVP changes
+        }
+
+        // Find the new/changed RSVP entries
+        const newEntries = afterRsvp.filter(ar => {
+            const matching = beforeRsvp.find(br =>
+                String(br.memberId) === String(ar.memberId) && br.status === ar.status
+            );
+            return !matching; // Entry that didn't exist or changed status
+        });
+
+        if (newEntries.length === 0) return null;
+
+        try {
+            // Get FCM tokens
+            const tokensSnap = await db.collection('teams').doc('primary').collection('fcmTokens').get();
+            const tokens = [];
+            tokensSnap.forEach(doc => {
+                if (doc.data().token) tokens.push(doc.data().token);
+            });
+
+            if (tokens.length === 0) return null;
+
+            // Get member names
+            const membersSnap = await db.collection('teams').doc('primary').collection('members').get();
+            const membersMap = {};
+            membersSnap.forEach(doc => {
+                const m = doc.data();
+                membersMap[String(m.id)] = m.name;
+            });
+
+            for (const entry of newEntries) {
+                const memberName = membersMap[String(entry.memberId)] || 'Thành viên';
+                const statusText = entry.status === 'confirmed' ? 'xác nhận tham gia ✅' : 'không tham gia ❌';
+
+                const typeLabel = after.matchType === 'friendly' ? 'Đấu tập' : 'Đấu đối';
+                const dateFormatted = new Date(after.date).toLocaleDateString('vi-VN');
+                const confirmedCount = afterRsvp.filter(r => r.status === 'confirmed').length;
+
+                const message = {
+                    notification: {
+                        title: `📋 ${memberName} đã ${statusText}`,
+                        body: `${typeLabel} vs ${after.opponent || 'Nội bộ'} ngày ${dateFormatted}. Tổng xác nhận: ${confirmedCount} người`,
+                    },
+                    webpush: { notification: { icon: '/favicon.png' } },
+                    tokens: tokens
+                };
+
+                const resp = await admin.messaging().sendEachForMulticast(message);
+                console.log(`RSVP notification: ${resp.successCount}/${tokens.length} sent for ${memberName}`);
+            }
+
+            return null;
+        } catch (error) {
+            console.error('notifyMatchRsvp error:', error);
+            return null;
+        }
+    });
