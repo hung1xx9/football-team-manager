@@ -59,4 +59,4 @@ Lê Văn C
 ```
 
 ## Chi Tiết Kỹ Thuật
-Xem file [MANUAL_ATTENDANCE.md](./MANUAL_ATTENDANCE.md) để biết thêm chi tiết.
+Xem code nguồn tại `src/` và tài liệu trong `docs/` để biết thêm chi tiết.

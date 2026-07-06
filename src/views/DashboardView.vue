@@ -252,7 +252,7 @@ import { useAuth } from '../composables/useAuth';
 import { usePenalties } from '../composables/usePenalties';
 
 const { isMobile } = useBreakpoints();
-const { stats: appStats, sortedMatches, futureMatches, members, settings, saveMatch, updateManualAttendanceRequest, pendingAttendances, rsvpMatch, getMemberName: getMemberNameFn } = useAppState();
+const { stats: appStats, sortedMatches, futureMatches, members, settings, saveMatch, updateManualAttendanceRequest, pendingAttendances, rsvpMatch, getMemberName: getMemberNameFn, updateFromFirebase } = useAppState();
 const { isAdmin, isGuest, guestMemberId, permissions } = useAuth();
 const { getLatePenalty } = usePenalties();
 

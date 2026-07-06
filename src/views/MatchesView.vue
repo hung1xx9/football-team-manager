@@ -1,6 +1,5 @@
 <template>
-    <PullToRefresh :onRefresh="handleRefresh">
-        <div class="page-content animate-fade">
+    <div class="page-content animate-fade">
             <div class="page-header-fancy">
             <div class="header-action-btns">
                 <button v-if="permissions.canAddMatch" class="btn btn-lg btn-primary" @click="openAddModal">
@@ -149,7 +148,6 @@
         </div>
         </Transition>
     </div>
-    </PullToRefresh>
 </template>
 
 <script setup>
@@ -157,9 +155,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useBreakpoints } from '../composables/useBreakpoints';
 import { useAppState } from '../composables/useAppState';
 import BaseSelect from '../components/BaseSelect.vue';
-import PullToRefresh from '../components/PullToRefresh.vue';
 import { useAuth } from '../composables/useAuth';
-import { useFirebase } from '../composables/useFirebase';
 import { useEscapeClose } from '../composables/useEscapeClose';
 
 const { isMobile } = useBreakpoints();
@@ -169,20 +165,6 @@ const {
     saveMatch, deleteMatch, sendMessengerNotification,
     showConfirm, showAlert, updateFromFirebase 
 } = useAppState();
-
-const { downloadData } = useFirebase();
-
-const handleRefresh = async () => {
-    try {
-        const data = await downloadData();
-        if (data) {
-            updateFromFirebase(data);
-        }
-    } catch (error) {
-        console.error(error);
-        await showAlert('Lỗi khi tải dữ liệu mới: ' + (error.message || 'Không có kết nối mạng'));
-    }
-};
 
 const { permissions } = useAuth();
 

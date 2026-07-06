@@ -162,9 +162,8 @@ firebase deploy --only functions
 
 ## 📖 Tài Liệu Chi Tiết
 
-- **MOMO-INTEGRATION-GUIDE.md**: Hướng dẫn đầy đủ
-- **MOMO-API-REFERENCE.md**: Reference cho developer
-- **CHANGELOG-MOMO.md**: Tính năng mới
+- **[MOMO-INTEGRATION-GUIDE.md](./MOMO-INTEGRATION-GUIDE.md)**: Hướng dẫn đầy đủ
+- **[MOMO-API-REFERENCE.md](./MOMO-API-REFERENCE.md)**: Reference cho developer
 
 ---
 
@@ -191,4 +190,4 @@ firebase deploy --only functions
 
 **🎉 Xong! Giờ bạn có thể thu quỹ qua MoMo rồi!**
 
-*Có câu hỏi? Đọc MOMO-INTEGRATION-GUIDE.md để biết thêm chi tiết.*
+*Có câu hỏi? Đọc [MOMO-INTEGRATION-GUIDE.md](./MOMO-INTEGRATION-GUIDE.md) để biết thêm chi tiết.*

@@ -1,5 +1,5 @@
 <template>
-  <div ref="container" class="relative w-full overflow-hidden">
+  <div ref="container" class="relative w-full overflow-hidden" :class="{ 'pulling-active': isPulling }">
     <!-- Pull to Refresh Indicator -->
     <div
       class="absolute top-0 left-0 w-full flex justify-center items-end overflow-hidden transition-all duration-300 z-50 bg-base-200/50 backdrop-blur-sm"
@@ -32,7 +32,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { usePullToRefresh } from '@/composables/usePullToRefresh'
+import { usePullToRefresh } from '../composables/usePullToRefresh'
 
 const props = defineProps({
   onRefresh: {
@@ -54,7 +54,7 @@ const { isPulling, isRefreshing, pullDistance } = usePullToRefresh(container, ha
 
 <style scoped>
 /* Optional: Prevent text selection while pulling */
-.relative {
+.pulling-active {
   user-select: none;
   -webkit-user-select: none;
 }

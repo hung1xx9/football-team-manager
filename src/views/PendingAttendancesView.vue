@@ -1,6 +1,5 @@
 <template>
     <!-- View for Administrators to review and approve/reject attendance requests (Manual/QR) -->
-    <PullToRefresh :onRefresh="handleRefresh">
     <div class="page-content animate-fade">
         <div class="card card-static animate-spring">
             <div class="card-header">
@@ -48,16 +47,13 @@
             </div>
         </div>
     </div>
-    </PullToRefresh>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import BaseSelect from '../components/BaseSelect.vue';
-import PullToRefresh from '../components/PullToRefresh.vue';
 import { useAuth } from '../composables/useAuth';
-import { useFirebase } from '../composables/useFirebase';
 import { useRouter } from 'vue-router';
 
 const { 
@@ -65,20 +61,6 @@ const {
     updateManualAttendanceRequest, updateMatchAttendance,
     showConfirm, showPrompt, showAlert, updateFromFirebase
 } = useAppState();
-
-const { downloadData } = useFirebase();
-
-const handleRefresh = async () => {
-    try {
-        const data = await downloadData();
-        if (data) {
-            updateFromFirebase(data);
-        }
-    } catch (error) {
-        console.error(error);
-        await showAlert('Lỗi khi tải dữ liệu mới: ' + (error.message || 'Không có kết nối mạng'));
-    }
-};
 
 const { permissions, currentRole } = useAuth();
 const router = useRouter();

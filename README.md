@@ -35,7 +35,7 @@
 - Realtime sync tự động
 - Đăng nhập Google
 - Multi-device collaboration
-- Xem hướng dẫn: [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
+- Xem hướng dẫn: [docs/CLOUD_SYNC_GUIDE.md](docs/CLOUD_SYNC_GUIDE.md)
 
 ## 🚀 Cài Đặt & Chạy
 
@@ -119,8 +119,11 @@ football-team-manager/
 
 ## 📚 Tài Liệu Thêm
 
-- [FIREBASE_SETUP.md](FIREBASE_SETUP.md) - Hướng dẫn cài đặt Firebase
-- [YARN_SETUP.md](YARN_SETUP.md) - Hướng dẫn sử dụng Yarn
+- [docs/HUONG-DAN-SU-DUNG.md](docs/HUONG-DAN-SU-DUNG.md) - Hướng dẫn sử dụng ứng dụng
+- [docs/CLOUD_SYNC_GUIDE.md](docs/CLOUD_SYNC_GUIDE.md) - Hướng dẫn đồng bộ Firebase
+- [docs/MOMO-INTEGRATION-GUIDE.md](docs/MOMO-INTEGRATION-GUIDE.md) - Hướng dẫn tích hợp MoMo
+- [docs/TESTING-GUIDE.md](docs/TESTING-GUIDE.md) - Hướng dẫn test
+- [docs/THEME-GUIDE.md](docs/THEME-GUIDE.md) - Hướng dẫn theme
 
 ## 🎯 Chế Độ Sử Dụng
 
